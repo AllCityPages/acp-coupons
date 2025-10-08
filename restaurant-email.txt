@@ -1,0 +1,24 @@
+Subject: Quick setup — accept printed coupons with one scan
+
+Hi [Restaurant Contact Name],
+
+We will supply the printed coupons QR. To accept them with a single scan, please do this one-time setup:
+
+What we'll send you securely:
+  • Your STORE_ID (example: MCD-001)
+  • API_KEY (secret string)
+
+Steps (very small):
+1) Save the attached file redeem.html to the register computer (e.g., C:\temp\redeem.html).
+2) Open the file in the register browser (Chrome/Edge).
+3) Edit redeem.html once to replace:
+     const API_KEY = '<API_KEY_HERE>';
+     const STORE_ID = '<STORE_ID_HERE>';
+   (We will send values securely; this is a one-line edit.)
+4) Ensure barcode scanner is configured to send an Enter after scan (default on most scanners).
+5) Train cashiers: focus the "Scan here" field, scan the coupon on the customer's phone. If the page shows "Accepted" apply discount; if "Declined" do not apply.
+
+We can do this update for you remotely if you prefer.
+
+Thanks,
+[Your name / publisher]
