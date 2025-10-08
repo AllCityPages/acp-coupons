@@ -1,0 +1,14 @@
+Designer brief — QR URLs to generate
+
+Generate a high-resolution QR (PNG 300dpi, size ~1.5–2 in with quiet zone) for each offer URL below. Do NOT encode any secret values.
+
+Buy 1 Get 1 Free - Any Sandwich (McDonalds): https://<YOUR_HOST>/coupon?offer=mcd-bogo
+10% Off Any Order (McDonalds): https://<YOUR_HOST>/coupon?offer=mcd-10off
+Free Side with Any Entrée (Wendy's): https://<YOUR_HOST>/coupon?offer=wendys-freeitem
+Free 16 oz Drink with Sandwich (Taco Bell): https://<YOUR_HOST>/coupon?offer=tacobell-drink
+Free Dessert with Entrée (Popeye's): https://<YOUR_HOST>/coupon?offer=popeyes-dessert
+
+Print copy suggestion:
+Headline: "Scan to Save — [OFFER TITLE]"
+Subhead: "Tap QR → Add to phone → Show to cashier"
+Fine print: "One redemption per customer. Not combinable. Expires: [date]"
