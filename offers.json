@@ -1,0 +1,27 @@
+{
+  "mcd-bogo": {
+    "title": "Buy 1 Get 1 Free - Any Sandwich",
+    "restaurant": "McDonalds",
+    "expires_days": 90
+  },
+  "mcd-10off": {
+    "title": "10% Off Any Order",
+    "restaurant": "McDonalds",
+    "expires_days": 90
+  },
+  "wendys-freeitem": {
+    "title": "Free Side with Any Entrée",
+    "restaurant": "Wendy's",
+    "expires_days": 90
+  },
+  "tacobell-drink": {
+    "title": "Free 16 oz Drink with Sandwich",
+    "restaurant": "Taco Bell",
+    "expires_days": 90
+  },
+  "popeyes-dessert": {
+    "title": "Free Dessert with Entrée",
+    "restaurant": "Popeye's",
+    "expires_days": 90
+  }
+}
