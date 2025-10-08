@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quick Redeem</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:Arial;padding:18px;max-width:700px;margin:auto}
+    input, button, select{font-size:16px;padding:8px}
+    #status{margin-top:12px;font-weight:bold}
+    .accepted{color:green}
+    .rejected{color:red}
+  </style>
+</head>
+<body>
+  <h2>Quick Coupon Redeem (Register)</h2>
+  <p>Scan the customer's coupon QR — the page auto-sends and shows result.</p>
+
+  <!-- Scanner paste target -->
+  <label>Scan here: <input id="scanInput" style="width:100%;font-size:18px;padding:8px" autofocus></label>
+  <p><label>Staff ID (optional): <input id="staff" style="font-size:16px"></label></p>
+
+  <div id="status"></div>
+
+<script>
+  // CONFIGURE THESE:
+  const HOST = 'https://your-host.example.com'; // <-- update to your deployed host (or leave)
+  const API_KEY = '<API_KEY_HERE>';   // <-- restaurant: set this to the API key publisher sends
+  const STORE_ID = '<STORE_ID_HERE>'; // <-- restaurant's store code (e.g., MCD-001)
+
+  const API_URL = HOST + '/api/redeem';
+  const scanInput = document.getElementById('scanInput');
+  const staffInput = document.getElementById('staff');
+  const statusDiv = document.getElementById('status');
+
+  function extractToken(scanned) {
+    try {
+      if (scanned.includes('token=')) {
+        const u = new URL(scanned, window.location.href);
+        return u.searchParams.get('token') || scanned;
+      }
+      const m = scanned.match(/\/api\/qrcode\/([^\/\s]+)/);
+      if (m) return m[1];
+    } catch (e) {}
+    return scanned.trim();
+  }
+
+  async function redeem(token) {
+    statusDiv.className = '';
+    statusDiv.textContent = 'Redeeming...';
+    try {
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY
+        },
+        body: JSON.stringify({ token, store_id: STORE_ID, staff_id: staffInput.value || 'unknown' })
+      });
+      const json = await resp.json();
+      if (resp.ok && json.ok) {
+        statusDiv.className = 'accepted';
+        statusDiv.textContent = 'Accepted — ' + (json.offer ? json.offer.title : 'Coupon applied');
+      } else {
+        statusDiv.className = 'rejected';
+        statusDiv.textContent = 'Declined — ' + (json && (json.message || json.reason) ? (json.message || json.reason) : 'Error');
+      }
+    } catch (err) {
+      statusDiv.className = 'rejected';
+      statusDiv.textContent = 'Network error — ask manager';
+    }
+  }
+
+  scanInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const token = extractToken(scanInput.value || '');
+      scanInput.value = '';
+      if (!token) {
+        statusDiv.className = 'rejected';
+        statusDiv.textContent = 'Invalid scan';
+        return;
+      }
+      redeem(token);
+    }
+  });
+
+  scanInput.focus();
+  document.body.addEventListener('click', () => scanInput.focus());
+</script>
+</body>
+</html>
