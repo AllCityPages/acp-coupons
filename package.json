@@ -1,5 +1,5 @@
 {
-  "name": "coupon-one-time",
+  "name": "ACP_Coupon",
   "version": "1.0.0",
   "description": "One-time coupon demo",
   "main": "index.js",
