@@ -4,8 +4,8 @@
     "restaurant": "McDonalds",
     "expires_days": 90
   },
-  "mcd-10off": {
-    "title": "10% Off Any Order",
+  "mcd-50off": {
+    "title": "50% Off Any Order",
     "restaurant": "McDonalds",
     "expires_days": 90
   },
@@ -21,6 +21,11 @@
   },
   "popeyes-dessert": {
     "title": "Free Dessert with Entrée",
+    "restaurant": "Popeye's",
+    "expires_days": 90
+  },
+  "popeyes-side": {
+    "title": "Free Small Side with Entrée",
     "restaurant": "Popeye's",
     "expires_days": 90
   }
