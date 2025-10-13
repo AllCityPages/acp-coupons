@@ -275,7 +275,7 @@ app.get('/validate', (req, res) => {
     <p style="font-family:monospace">Code: <strong>${rawToken || ''}</strong></p>
     <p>Status: <strong>${ok ? 'Valid' : (rawToken ? 'Invalid or Redeemed' : '—')}</strong></p>
     <p>Expires: ${expires}</p>
-
+    <p>Valid Store: ${ (OFFERS[p?.offer_id]?.store_id) || 'Any ' + (OFFERS[p?.offer_id]?.restaurant || 'location') }</p>
     <hr/>
     <h3>For Staff: quick store selector</h3>
     <p>Select your store (so you don't have to type):</p>
