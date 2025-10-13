@@ -18,15 +18,21 @@
 
   <!-- Scanner paste target -->
   <label>Scan here: <input id="scanInput" style="width:100%;font-size:18px;padding:8px" autofocus></label>
-  <p><label>Staff ID (optional): <input id="staff" style="font-size:16px"></label></p>
+  <p>
+    <label>Staff ID (optional): <input id="staff" style="font-size:16px"></label>
+  </p>
+  <p>
+    <label>Store: <input id="store" style="font-size:16px" value="MCD-001"></label>
+    <small>← replace with your STORE_ID (example: MCD-001)</small>
+  </p>
 
   <div id="status"></div>
 
 <script>
-  // CONFIGURE THESE:
-  const HOST = 'https://your-host.example.com'; // <-- update to your deployed host (or leave)
-  const API_KEY = '<API_KEY_HERE>';   // <-- restaurant: set this to the API key publisher sends
-  const STORE_ID = '<STORE_ID_HERE>'; // <-- restaurant's store code (e.g., MCD-001)
+  // CONFIGURE LOCALLY (restaurants should edit this local file only)
+  const HOST = 'https://acp-coupons.onrender.com'; // <-- set to your deployed host if different
+  const API_KEY = '<PASTE_API_KEY_HERE>';   // <-- restaurant: paste API key here in local copy only (do NOT commit)
+  const STORE_ID = document.getElementById('store').value || '<STORE_ID_HERE>'; // modify this local file to set default
 
   const API_URL = HOST + '/api/redeem';
   const scanInput = document.getElementById('scanInput');
@@ -35,10 +41,12 @@
 
   function extractToken(scanned) {
     try {
+      // URL with token param
       if (scanned.includes('token=')) {
         const u = new URL(scanned, window.location.href);
         return u.searchParams.get('token') || scanned;
       }
+      // path like /api/qrcode/TOKEN
       const m = scanned.match(/\/api\/qrcode\/([^\/\s]+)/);
       if (m) return m[1];
     } catch (e) {}
@@ -71,6 +79,7 @@
     }
   }
 
+  // Auto-run when scanner sends Enter
   scanInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       const token = extractToken(scanInput.value || '');
@@ -84,6 +93,7 @@
     }
   });
 
+  // Keep focus on input so scanner goes there
   scanInput.focus();
   document.body.addEventListener('click', () => scanInput.focus());
 </script>
