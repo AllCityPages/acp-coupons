@@ -128,31 +128,60 @@ app.get('/api/qrcode/:token', async (req, res) => {
   }
 });
 
-// coupon page: create a token and display QR + Code
+// coupon page: create a token and display QR + Code + offer details
 app.get('/coupon', (req, res) => {
   const offerId = req.query.offer;
   if (!offerId || !OFFERS[offerId]) {
     return res.status(400).send('Invalid offer id');
   }
+
+  // create a fresh token for this request
   const rawToken = genToken();
   createPass(rawToken, offerId);
 
+  // load offer details
+  const offer = OFFERS[offerId] || {};
+  const title = offer.title || 'Coupon';
+  const restaurant = offer.restaurant || '';
+  const description = offer.description || '';
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
   const last = db.passes.slice(-1)[0] || {};
   const expires = last && last.expires_at ? new Date(last.expires_at * 1000).toLocaleDateString() : 'N/A';
 
-  const html = `
-  <!doctype html><html><head><meta charset="utf-8"><title>Save your coupon</title></head>
-  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
-    <h1>Save your one-time coupon</h1>
-    <p>Show this to the cashier to redeem. One redemption per coupon.</p>
-    <div style="text-align:center">
+  // render richer HTML (simple, print-friendly)
+  const html = `<!doctype html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>${escapeHtml(title)}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+      body{font-family:Arial,Helvetica,sans-serif;max-width:900px;margin:24px auto;color:#111;padding:0 18px}
+      h1{font-size:36px;margin:8px 0}
+      h2{font-size:20px;margin:6px 0;color:#222;font-weight:600}
+      .restaurant{font-style:italic;color:#444;margin-bottom:12px}
+      .desc{font-size:16px;margin:18px 0 24px}
+      .qr-wrap{display:flex;justify-content:center;margin:18px 0}
+      .code{font-family:monospace;font-size:20px;margin-top:12px}
+      .expires{margin-top:18px;font-size:16px;color:#333}
+      .hint{margin-top:12px;color:#666}
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(title)}</h1>
+    <div class="restaurant">${escapeHtml(restaurant)}</div>
+    <div class="desc">${escapeHtml(description)}</div>
+
+    <div class="qr-wrap">
       <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
     </div>
-    <p style="font-family:monospace">Code: <strong>${rawToken}</strong></p>
-    <p>Expires: ${expires}</p>
-    <p><small>Tip: add this page to your phone's home screen for quick access.</small></p>
-  </body></html>`;
+
+    <div class="code">Code: <strong>${escapeHtml(rawToken)}</strong></div>
+    <div class="expires">Expires: ${escapeHtml(expires)}</div>
+    <div class="hint">Tip: add this page to your phone's home screen for quick access.</div>
+  </body>
+  </html>`;
+
   res.send(html);
 });
 
