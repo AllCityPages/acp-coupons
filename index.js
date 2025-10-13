@@ -31,6 +31,17 @@ const PASSES_FILE = path.join(__dirname, 'passes.json');
 const OFFERS_FILE = path.join(__dirname, 'offers.json');
 const STORES_FILE = path.join(__dirname, 'stores.json');
 
+// ---------- Helpers to prevent accidental HTML injection ----------
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 // ---------- Helpers for JSON files ----------
 function readJsonSafe(filePath, fallback) {
   try {
