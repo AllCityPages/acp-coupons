@@ -2,13 +2,13 @@
   "mcd-bogo": {
     "title": "Buy 1 Get 1 Free - Any Sandwich",
     "restaurant": "McDonalds",
-    "description": "Buy one sandwich, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer.",
+    "store_id": "MCD-001",
     "expires_days": 90
   },
   "mcd-10off": {
     "title": "10% Off Any Order",
     "restaurant": "McDonalds",
-    "description": "Get 10% off any order. One redemption per customer.",
+    "store_id": "MCD-002",
     "expires_days": 90
   },
   "wendys-freeitem": {
