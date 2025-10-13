@@ -2,31 +2,31 @@
   "mcd-bogo": {
     "title": "Buy 1 Get 1 Free - Any Sandwich",
     "restaurant": "McDonalds",
+    "description": "Buy one sandwich, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer.",
     "expires_days": 90
   },
-  "mcd-50off": {
-    "title": "50% Off Any Order",
+  "mcd-10off": {
+    "title": "10% Off Any Order",
     "restaurant": "McDonalds",
+    "description": "Get 10% off any order. One redemption per customer.",
     "expires_days": 90
   },
   "wendys-freeitem": {
     "title": "Free Side with Any Entrée",
     "restaurant": "Wendy's",
+    "description": "Free side with any entrée. Show coupon at time of purchase.",
     "expires_days": 90
   },
   "tacobell-drink": {
     "title": "Free 16 oz Drink with Sandwich",
     "restaurant": "Taco Bell",
+    "description": "Free 16 oz drink with purchase of any sandwich.",
     "expires_days": 90
   },
   "popeyes-dessert": {
     "title": "Free Dessert with Entrée",
     "restaurant": "Popeye's",
-    "expires_days": 90
-  },
-  "popeyes-side": {
-    "title": "Free Small Side with Entrée",
-    "restaurant": "Popeye's",
+    "description": "Free dessert with the purchase of an entrée. One per order.",
     "expires_days": 90
   }
 }
