@@ -139,18 +139,18 @@ app.get('/api/qrcode/:token', async (req, res) => {
   }
 });
 
-// coupon page: create a token and display QR + Code + offer details
+// styled coupon page: create a token and display QR + Code + offer details
 app.get('/coupon', (req, res) => {
   const offerId = req.query.offer;
   if (!offerId || !OFFERS[offerId]) {
     return res.status(400).send('Invalid offer id');
   }
 
-  // create a fresh token for this request
+  // create token & store pass
   const rawToken = genToken();
   createPass(rawToken, offerId);
 
-  // load offer details
+  // load offer data
   const offer = OFFERS[offerId] || {};
   const title = offer.title || 'Coupon';
   const restaurant = offer.restaurant || '';
@@ -159,40 +159,97 @@ app.get('/coupon', (req, res) => {
   const last = db.passes.slice(-1)[0] || {};
   const expires = last && last.expires_at ? new Date(last.expires_at * 1000).toLocaleDateString() : 'N/A';
 
-  // render richer HTML (simple, print-friendly)
+  // HTML — slightly more styled and print-friendly
   const html = `<!doctype html>
-  <html>
+  <html lang="en">
   <head>
     <meta charset="utf-8">
     <title>${escapeHtml(title)}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
-      body{font-family:Arial,Helvetica,sans-serif;max-width:900px;margin:24px auto;color:#111;padding:0 18px}
-      h1{font-size:36px;margin:8px 0}
-      h2{font-size:20px;margin:6px 0;color:#222;font-weight:600}
-      .restaurant{font-style:italic;color:#444;margin-bottom:12px}
-      .desc{font-size:16px;margin:18px 0 24px}
-      .qr-wrap{display:flex;justify-content:center;margin:18px 0}
-      .code{font-family:monospace;font-size:20px;margin-top:12px}
-      .expires{margin-top:18px;font-size:16px;color:#333}
-      .hint{margin-top:12px;color:#666}
+      :root{
+        --maxw:720px;
+        --accent:#111;
+        --muted:#6b6b6b;
+      }
+      html,body{height:100%;margin:0}
+      body{
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        color:var(--accent);
+        -webkit-font-smoothing:antialiased;
+        -moz-osx-font-smoothing:grayscale;
+        line-height:1.4;
+        display:flex;
+        justify-content:center;
+        padding:24px;
+        background:#fff;
+      }
+      .page{
+        max-width:var(--maxw);
+        width:100%;
+      }
+
+      header{
+        margin-bottom:12px;
+      }
+      h1{
+        font-size:42px;
+        margin:0 0 6px 0;
+        font-weight:800;
+        letter-spacing:-0.02em;
+      }
+      .restaurant{
+        font-size:18px;
+        color:var(--muted);
+        font-style:italic;
+        margin-bottom:16px;
+      }
+      .desc{
+        font-size:17px;
+        margin-bottom:22px;
+        color:#222;
+      }
+
+      .qr-wrap{display:flex;justify-content:center;align-items:center;margin:12px 0 8px 0}
+      .qr-wrap img{width:320px;height:320px;max-width:48vw;max-height:48vw;border-radius:4px}
+
+      .meta{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+      .code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:20px; background:#f7f7f7;padding:8px 12px;border-radius:6px;display:inline-block}
+      .expires{font-size:16px;color:var(--muted)}
+      .hint{margin-top:8px;font-size:14px;color:#666}
+
+      /* print styles: remove shadows, use full width */
+      @media print {
+        h1{font-size:36px}
+        .qr-wrap img{width:260px;height:260px}
+      }
     </style>
   </head>
   <body>
-    <h1>${escapeHtml(title)}</h1>
-    <div class="restaurant">${escapeHtml(restaurant)}</div>
-    <div class="desc">${escapeHtml(description)}</div>
+    <div class="page">
+      <header>
+        <h1>${escapeHtml(title)}</h1>
+        <div class="restaurant">${escapeHtml(restaurant)}</div>
+        <div class="desc">${escapeHtml(description)}</div>
+      </header>
 
-    <div class="qr-wrap">
-      <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
+      <main>
+        <div class="qr-wrap">
+          <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
+        </div>
+
+        <div class="meta">
+          <div>Code: <span class="code">${escapeHtml(rawToken)}</span></div>
+          <div class="expires">Expires: ${escapeHtml(expires)}</div>
+          <div class="hint">Tip: Add this page to your phone's Home Screen for quick access. Show this screen to the cashier to redeem. One redemption per coupon.</div>
+        </div>
+      </main>
     </div>
-
-    <div class="code">Code: <strong>${escapeHtml(rawToken)}</strong></div>
-    <div class="expires">Expires: ${escapeHtml(expires)}</div>
-    <div class="hint">Tip: add this page to your phone's home screen for quick access.</div>
   </body>
   </html>`;
 
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(html);
 });
 
