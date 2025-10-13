@@ -1,6 +1,7 @@
 // index.js
-// Minimal one-time coupon server
-// Node 18+ recommended
+// One-time coupon server (Node 18+)
+// Requires environment variables: COUPON_BASE_URL or BASE_URL, and API_KEY
+// Do NOT hardcode secrets in this file.
 
 const express = require('express');
 const fs = require('fs');
@@ -12,19 +13,28 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Config from environment
+// ---------- CONFIG (require env vars) ----------
 const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL || (`http://localhost:${PORT}`);
-const API_KEY = process.env.API_KEY || ''; // protect this (do not commit)
+const BASE_URL = process.env.COUPON_BASE_URL || process.env.BASE_URL;
+if (!BASE_URL) {
+  console.error('FATAL: Missing environment variable COUPON_BASE_URL or BASE_URL.');
+  process.exit(1);
+}
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+  console.error('FATAL: Missing environment variable API_KEY.');
+  process.exit(1);
+}
+
+// ---------- Paths ----------
 const PASSES_FILE = path.join(__dirname, 'passes.json');
 const OFFERS_FILE = path.join(__dirname, 'offers.json');
 const STORES_FILE = path.join(__dirname, 'stores.json');
 
-// Helper: safe read JSON file, fallback default
+// ---------- Helpers for JSON files ----------
 function readJsonSafe(filePath, fallback) {
   try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    return JSON.parse(raw);
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (e) {
     return fallback;
   }
@@ -33,16 +43,16 @@ function writeJsonSafe(filePath, obj) {
   fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
 }
 
-// Ensure passes.json exists
+// Ensure passes file exists
 if (!fs.existsSync(PASSES_FILE)) {
   writeJsonSafe(PASSES_FILE, { passes: [] });
 }
 
-// Load static files (offers/stores)
+// Load offers & stores (canonical sources)
 const OFFERS = readJsonSafe(OFFERS_FILE, {});
 const STORES = readJsonSafe(STORES_FILE, {});
 
-// Utility: generate random token (URL-safe)
+// ---------- Token helpers ----------
 function genToken(bytes = 12) {
   return crypto.randomBytes(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
 }
@@ -50,7 +60,7 @@ function hashToken(raw) {
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
 
-// Create a new pass (store only hash)
+// Create pass (store token hash only)
 function createPass(rawToken, offerId) {
   const token_hash = hashToken(rawToken);
   const now = Math.floor(Date.now() / 1000);
@@ -73,14 +83,12 @@ function createPass(rawToken, offerId) {
   return pass;
 }
 
-// Find pass by raw token (using hash)
 function findPassByRawToken(rawToken) {
   const token_hash = hashToken(rawToken);
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
   return db.passes.find(p => p.token_hash === token_hash);
 }
 
-// Redeem pass safely (idempotent)
 function redeemPassByRawToken(rawToken, store_code, staff_id) {
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
   const token_hash = hashToken(rawToken);
@@ -90,25 +98,23 @@ function redeemPassByRawToken(rawToken, store_code, staff_id) {
   const now = Math.floor(Date.now() / 1000);
   if (p.expires_at && now > p.expires_at) return { ok:false, reason:'expired', message:'Coupon expired' };
 
-  // check store mapping
   const storeName = (STORES && STORES[store_code]) ? STORES[store_code] : null;
   if (!storeName) return { ok:false, reason:'unknown_store', message:'Unknown store code' };
 
-  // check restaurant match
   if (p.restaurant && storeName !== p.restaurant) {
     return { ok:false, reason:'mismatch', message: `Coupon is for ${p.restaurant} — not valid at this store.` };
   }
 
-  // mark as redeemed
   p.status = 'redeemed';
   p.redeemed_at = now;
   p.redeemed_by = { store_code, staff_id: staff_id || null };
-
   writeJsonSafe(PASSES_FILE, db);
   return { ok:true, message:'Redeemed', offer_id: p.offer_id };
 }
 
-// QR image endpoint: returns PNG data (application/png)
+// ---------- Endpoints ----------
+
+// PNG QR endpoint for a raw token (links to validate page)
 app.get('/api/qrcode/:token', async (req, res) => {
   const token = req.params.token;
   const url = `${BASE_URL}/validate?token=${encodeURIComponent(token)}`;
@@ -117,12 +123,13 @@ app.get('/api/qrcode/:token', async (req, res) => {
     res.setHeader('Content-Type', 'image/png');
     return res.send(png);
   } catch (err) {
+    console.error('QR generation error', err);
     return res.status(500).send('QR error');
   }
 });
 
-// coupon page -> generate token and show coupon HTML
-app.get('/coupon', async (req, res) => {
+// coupon page: create a token and display QR + Code
+app.get('/coupon', (req, res) => {
   const offerId = req.query.offer;
   if (!offerId || !OFFERS[offerId]) {
     return res.status(400).send('Invalid offer id');
@@ -130,14 +137,12 @@ app.get('/coupon', async (req, res) => {
   const rawToken = genToken();
   createPass(rawToken, offerId);
 
-  // Show a minimal coupon page with QR (image from /api/qrcode/:token)
-  const expires_ts = readJsonSafe(PASSES_FILE, { passes: [] }).passes.slice(-1)[0].expires_at;
-  const expires = new Date(expires_ts * 1000).toLocaleDateString();
+  const db = readJsonSafe(PASSES_FILE, { passes: [] });
+  const last = db.passes.slice(-1)[0] || {};
+  const expires = last && last.expires_at ? new Date(last.expires_at * 1000).toLocaleDateString() : 'N/A';
 
   const html = `
-  <!doctype html>
-  <html>
-  <head><meta charset="utf-8"><title>Save your coupon</title></head>
+  <!doctype html><html><head><meta charset="utf-8"><title>Save your coupon</title></head>
   <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
     <h1>Save your one-time coupon</h1>
     <p>Show this to the cashier to redeem. One redemption per coupon.</p>
@@ -146,33 +151,42 @@ app.get('/coupon', async (req, res) => {
     </div>
     <p style="font-family:monospace">Code: <strong>${rawToken}</strong></p>
     <p>Expires: ${expires}</p>
-    <p>If the QR doesn't work, show the code above to staff.</p>
-    <p><small>Tip: Add to Home Screen for quick access</small></p>
-  </body>
-  </html>`;
-  res.send(html);
-});
-
-// validate page: show same UI if someone navigates to validate?token=...
-app.get('/validate', (req, res) => {
-  const rawToken = req.query.token;
-  if (!rawToken) return res.status(400).send('Missing token');
-  const p = findPassByRawToken(rawToken);
-  const ok = p && p.status === 'issued' && (Math.floor(Date.now()/1000) <= p.expires_at);
-  const expires = p ? new Date(p.expires_at * 1000).toLocaleDateString() : 'N/A';
-  const html = `
-  <!doctype html><html><head><meta charset="utf-8"><title>Coupon</title></head><body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
-    <h1>Coupon</h1>
-    <div style="text-align:center"><img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" /></div>
-    <p style="font-family:monospace">Code: <strong>${rawToken}</strong></p>
-    <p>Status: <strong>${ok ? 'Valid' : 'Invalid or Redeemed'}</strong></p>
-    <p>Expires: ${expires}</p>
-    <p>Show this to cashier to redeem. One redemption per coupon.</p>
+    <p><small>Tip: add this page to your phone's home screen for quick access.</small></p>
   </body></html>`;
   res.send(html);
 });
 
-// API redeem: POST with JSON { token, store_id, staff_id } + header x-api-key
+// validate page (view coupon + staff-friendly dropdown of stores)
+app.get('/validate', (req, res) => {
+  const rawToken = req.query.token || '';
+  const p = rawToken ? findPassByRawToken(rawToken) : null;
+  const ok = p && p.status === 'issued' && (Math.floor(Date.now()/1000) <= p.expires_at);
+  const expires = p ? new Date(p.expires_at * 1000).toLocaleDateString() : 'N/A';
+
+  // build store options
+  const storeOptions = Object.keys(STORES).map(code => `<option value="${code}">${code} — ${STORES[code]}</option>`).join('\n');
+
+  const html = `
+  <!doctype html><html><head><meta charset="utf-8"><title>Coupon</title></head>
+  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
+    <h1>Coupon</h1>
+    ${ rawToken ? `<div style="text-align:center"><img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" /></div>` : '<p>No token provided</p>' }
+    <p style="font-family:monospace">Code: <strong>${rawToken || ''}</strong></p>
+    <p>Status: <strong>${ok ? 'Valid' : (rawToken ? 'Invalid or Redeemed' : '—')}</strong></p>
+    <p>Expires: ${expires}</p>
+
+    <hr/>
+    <h3>For Staff: quick store selector</h3>
+    <p>Select your store (so you don't have to type):</p>
+    <select id="storeSelect">
+      ${storeOptions}
+    </select>
+    <p><small>To redeem: open your register's redeem.html and scan the QR, or copy the Code and paste into the register input.</small></p>
+  </body></html>`;
+  res.send(html);
+});
+
+// POST /api/redeem (protected by x-api-key)
 app.post('/api/redeem', (req, res) => {
   const key = req.header('x-api-key');
   if (!key || key !== API_KEY) return res.status(401).json({ ok:false, message:'Invalid API key' });
@@ -190,7 +204,48 @@ app.post('/api/redeem', (req, res) => {
   }
 });
 
-// Admin report (CSV) protected by x-api-key
+// Admin page (one-click CSV download after admin pastes the API key) - no secrets stored
+app.get('/admin', (req, res) => {
+  const html = `
+  <!doctype html><html><head><meta charset="utf-8"><title>Admin — Download CSV</title></head>
+  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
+    <h1>Admin — Download Redemption CSV</h1>
+    <p>Paste the API key below (it is not stored) then click "Download CSV".</p>
+    <input id="apiKey" type="password" style="width:100%;padding:8px" placeholder="Paste API key here" />
+    <button id="dl" style="margin-top:8px;padding:8px 12px">Download CSV</button>
+    <p id="status" style="margin-top:12px;color:#444"></p>
+    <script>
+      document.getElementById('dl').addEventListener('click', async () => {
+        const key = document.getElementById('apiKey').value.trim();
+        if (!key) { alert('Paste the API key first'); return; }
+        document.getElementById('status').textContent = 'Requesting report...';
+        try {
+          const resp = await fetch('/report', { headers: { 'x-api-key': key }});
+          if (!resp.ok) {
+            const txt = await resp.text();
+            document.getElementById('status').textContent = 'Error: ' + txt;
+            return;
+          }
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'redeem_report.csv';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          document.getElementById('status').textContent = 'Downloaded redeem_report.csv';
+        } catch (e) {
+          document.getElementById('status').textContent = 'Network or error: ' + e.message;
+        }
+      });
+    </script>
+  </body></html>`;
+  res.send(html);
+});
+
+// /report — protected CSV (requires x-api-key header)
 app.get('/report', (req, res) => {
   const key = req.header('x-api-key');
   if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
@@ -205,8 +260,8 @@ app.get('/report', (req, res) => {
     p.issued_at || '',
     p.expires_at || '',
     p.redeemed_at || '',
-    (p.redeemed_by && p.redeemed_by.store_code) || (p.redeemed_by && p.redeemed_by.store_code) || (p.redeemed_by && p.redeemed_by.store) || '',
-    (p.redeemed_by && p.redeemed_by.staff_id) || (p.redeemed_by && p.redeemed_by.staff) || '',
+    (p.redeemed_by && p.redeemed_by.store_code) || '',
+    (p.redeemed_by && p.redeemed_by.staff_id) || '',
     p.token_hash || ''
   ]);
   const csv = [headers.join(',')].concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))).join('\n');
@@ -215,8 +270,7 @@ app.get('/report', (req, res) => {
   res.send(csv);
 });
 
-// small health
-app.get('/healthz', (req,res) => res.send('ok'));
+app.get('/healthz', (req, res) => res.send('ok'));
 
 app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}, BASE_URL=${BASE_URL}`);
