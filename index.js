@@ -167,6 +167,7 @@ app.get('/coupon', (req, res) => {
   const desc =
     offer.description ||
     'Show this coupon to the cashier to redeem. One redemption per customer.';
+  const addr = offer.store_address || '';
 
   const html = `
   <!doctype html><html><head><meta charset="utf-8">
