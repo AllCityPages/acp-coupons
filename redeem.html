@@ -5,39 +5,121 @@
   <title>Quick Redeem</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    body{font-family:Arial;padding:18px;max-width:700px;margin:auto}
+    body{font-family:Arial,Helvetica,sans-serif;padding:18px;max-width:720px;margin:auto;background:#fff}
     input, button, select{font-size:16px;padding:8px}
+    label{display:block;margin:10px 0 6px 0}
     #status{margin-top:12px;font-weight:bold}
-    .accepted{color:green}
-    .rejected{color:red}
+    .accepted{color:#0a7a0a}
+    .rejected{color:#c00}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .hint{color:#666;font-size:13px}
+    .card{border:1px solid #e5e5e5;border-radius:10px;padding:14px;margin-top:14px}
+    .muted{color:#666}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
   </style>
 </head>
 <body>
   <h2>Quick Coupon Redeem (Register)</h2>
-  <p>Scan the customer's coupon QR — the page auto-sends and shows result.</p>
+  <p class="muted">Scan the customer's coupon QR — the page auto-sends and shows result.</p>
 
-  <!-- Scanner paste target -->
-  <label>Scan here: <input id="scanInput" style="width:100%;font-size:18px;padding:8px" autofocus></label>
-  <p>
-    <label>Staff ID (optional): <input id="staff" style="font-size:16px"></label>
-  </p>
-  <p>
-    <label>Store: <input id="store" style="font-size:16px" value="MCD-001"></label>
-    <small>← replace with your STORE_ID (example: MCD-001)</small>
-  </p>
+  <div class="card">
+    <!-- Scanner paste target -->
+    <label for="scanInput">Scan here</label>
+    <input id="scanInput" style="width:100%;font-size:18px;padding:10px" placeholder="Focus here, then scan the customer's QR" autofocus>
+    
+    <div class="row">
+      <div style="flex:1;min-width:220px">
+        <label for="staff">Staff ID (optional)</label>
+        <input id="staff" placeholder="e.g., 1234" />
+      </div>
 
-  <div id="status"></div>
+      <div style="flex:1;min-width:220px">
+        <label for="storeSelect">Store</label>
+        <select id="storeSelect">
+          <option value="MCD-001">MCD-001 — McDonalds</option>
+          <option value="WEND-001">WEND-001 — Wendy's</option>
+          <option value="TB-001">TB-001 — Taco Bell</option>
+          <option value="POPE-001">POPE-001 — Popeye's</option>
+          <option value="TB-FRISCO-123">TB-FRISCO-123 — Taco Bell — 123 Preston Rd., Frisco, TX 75034</option>
+          <option value="CUSTOM">Other… (type below)</option>
+        </select>
+      </div>
+
+      <div id="customStoreWrap" style="flex:1;min-width:220px;display:none">
+        <label for="customStore">Custom store code</label>
+        <input id="customStore" placeholder="e.g., TB-002" />
+      </div>
+    </div>
+
+    <p class="hint">If your store isn’t listed, choose “Other…” and enter your exact store code (e.g., <span class="mono">TB-002</span>).</p>
+
+    <div id="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="muted" id="lastResult"></div>
+  </div>
 
 <script>
-  // CONFIGURE LOCALLY (restaurants should edit this local file only)
-  const HOST = 'https://acp-coupons.onrender.com'; // <-- set to your deployed host if different
-  const API_KEY = '<PASTE_API_KEY_HERE>';   // <-- restaurant: paste API key here in local copy only (do NOT commit)
-  const STORE_ID = document.getElementById('store').value || '<STORE_ID_HERE>'; // modify this local file to set default
+  // ====== CONFIGURE LOCALLY (restaurants edit this local file only) ======
+  const HOST = 'https://acp-coupons.onrender.com';   // <-- set to your deployed host if different
+  const API_KEY = '<PASTE_API_KEY_HERE>';            // <-- restaurant: paste API key here in local copy only (do NOT commit)
+  // ======================================================================
 
   const API_URL = HOST + '/api/redeem';
+
   const scanInput = document.getElementById('scanInput');
   const staffInput = document.getElementById('staff');
+  const storeSelect = document.getElementById('storeSelect');
+  const customStoreWrap = document.getElementById('customStoreWrap');
+  const customStoreInput = document.getElementById('customStore');
   const statusDiv = document.getElementById('status');
+  const lastResult = document.getElementById('lastResult');
+
+  // Restore last-used values (nice for registers)
+  try {
+    const savedStore = localStorage.getItem('redeem_store');
+    const savedCustom = localStorage.getItem('redeem_store_custom');
+    const savedStaff = localStorage.getItem('redeem_staff');
+    if (savedStore) {
+      if ([...storeSelect.options].some(o => o.value === savedStore)) {
+        storeSelect.value = savedStore;
+      } else {
+        storeSelect.value = 'CUSTOM';
+        customStoreWrap.style.display = '';
+        customStoreInput.value = savedStore;
+      }
+    }
+    if (savedCustom) customStoreInput.value = savedCustom;
+    if (savedStaff) staffInput.value = savedStaff;
+  } catch {}
+
+  // Toggle custom store input
+  storeSelect.addEventListener('change', () => {
+    const custom = storeSelect.value === 'CUSTOM';
+    customStoreWrap.style.display = custom ? '' : 'none';
+    if (!custom) customStoreInput.value = '';
+    persistSelections();
+  });
+
+  // Persist selections as user types
+  staffInput.addEventListener('input', persistSelections);
+  customStoreInput.addEventListener('input', persistSelections);
+
+  function persistSelections() {
+    try {
+      const store = getStoreId();
+      localStorage.setItem('redeem_store', store);
+      localStorage.setItem('redeem_store_custom', customStoreInput.value || '');
+      localStorage.setItem('redeem_staff', staffInput.value || '');
+    } catch {}
+  }
+
+  function getStoreId() {
+    return (storeSelect.value === 'CUSTOM')
+      ? (customStoreInput.value || '').trim()
+      : storeSelect.value;
+  }
 
   function extractToken(scanned) {
     try {
@@ -50,12 +132,20 @@
       const m = scanned.match(/\/api\/qrcode\/([^\/\s]+)/);
       if (m) return m[1];
     } catch (e) {}
-    return scanned.trim();
+    return (scanned || '').trim();
   }
 
   async function redeem(token) {
     statusDiv.className = '';
     statusDiv.textContent = 'Redeeming...';
+
+    const store_id = getStoreId();
+    if (!store_id) {
+      statusDiv.className = 'rejected';
+      statusDiv.textContent = 'Please select or enter your Store code first.';
+      return;
+    }
+
     try {
       const resp = await fetch(API_URL, {
         method: 'POST',
@@ -63,16 +153,41 @@
           'Content-Type': 'application/json',
           'x-api-key': API_KEY
         },
-        body: JSON.stringify({ token, store_id: STORE_ID, staff_id: staffInput.value || 'unknown' })
+        body: JSON.stringify({
+          token,
+          store_id,
+          staff_id: (staffInput.value || 'unknown').trim()
+        })
       });
-      const json = await resp.json();
-      if (resp.ok && json.ok) {
+
+      let json = null;
+      try { json = await resp.json(); } catch {}
+
+      if (resp.ok && json && json.ok) {
         statusDiv.className = 'accepted';
         statusDiv.textContent = 'Accepted — ' + (json.offer ? json.offer.title : 'Coupon applied');
+
+        lastResult.innerHTML = `
+          <div>Offer: <strong>${json.offer ? (json.offer.title || '') : ''}</strong></div>
+          <div>Store: <span class="mono">${store_id}</span></div>
+          <div>Staff: <span class="mono">${(staffInput.value || 'unknown').trim()}</span></div>
+          <div>Token hash: <span class="mono">${json.token_hash || ''}</span></div>
+        `;
       } else {
         statusDiv.className = 'rejected';
-        statusDiv.textContent = 'Declined — ' + (json && (json.message || json.reason) ? (json.message || json.reason) : 'Error');
+        const msg = (json && (json.message || json.reason)) ? (json.message || json.reason) : 'Error';
+        statusDiv.textContent = 'Declined — ' + msg;
+
+        lastResult.innerHTML = `
+          <div class="muted">Last attempt:</div>
+          <div>Reason: <strong>${msg}</strong></div>
+          <div>Store: <span class="mono">${store_id}</span></div>
+          <div>Staff: <span class="mono">${(staffInput.value || 'unknown').trim()}</span></div>
+        `;
       }
+
+      // Persist choices on successful call
+      persistSelections();
     } catch (err) {
       statusDiv.className = 'rejected';
       statusDiv.textContent = 'Network error — ask manager';
@@ -91,6 +206,15 @@
       }
       redeem(token);
     }
+  });
+
+  // Also handle paste -> redeem (useful for manual testing)
+  scanInput.addEventListener('paste', (e) => {
+    setTimeout(() => {
+      const token = extractToken(scanInput.value || '');
+      scanInput.value = '';
+      if (token) redeem(token);
+    }, 0);
   });
 
   // Keep focus on input so scanner goes there
