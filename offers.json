@@ -30,7 +30,7 @@
     "restaurant": "Taco Bell",
     "store_id": "TB-FRISCO-123",
     "store_address": "123 Preston Rd., Frisco, TX 75034",
-    "description": "Valid only at Taco Bell, 123 Preston Rd., Frisco, TX 75034. Buy one entrée, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer. Not valid with other offers.",
+    "description": "Buy one entrée, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer. Not valid with other offers.",
     "expires_days": 90
   },
   "popeyes-dessert": {
