@@ -147,12 +147,54 @@ app.get('/api/qrcode/:token', async (req, res) => {
   }
 });
 
-// styled coupon page: create a token and display QR + Code + offer details
+// coupon page: create a token and display QR + Code
 app.get('/coupon', (req, res) => {
   const offerId = req.query.offer;
-  if (!offerId || !OFFERS[offerId]) {
+  const offer = offerId ? OFFERS[offerId] : null;
+  if (!offer) {
     return res.status(400).send('Invalid offer id');
   }
+
+  const rawToken = genToken();
+  createPass(rawToken, offerId);
+
+  const db = readJsonSafe(PASSES_FILE, { passes: [] });
+  const last = db.passes.slice(-1)[0] || {};
+  const expires = last && last.expires_at ? new Date(last.expires_at * 1000).toLocaleDateString() : 'N/A';
+
+  const title = offer.title || 'Your Coupon';
+  const brand = offer.restaurant || '';
+  const desc =
+    offer.description ||
+    'Show this coupon to the cashier to redeem. One redemption per customer.';
+
+  const html = `
+  <!doctype html><html><head><meta charset="utf-8">
+    <title>${title}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+  </head>
+  <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;padding:18px">
+    <h1 style="font-size:42px;margin:0 0 4px 0">${title}</h1>
+    ${brand ? `<p style="margin:0 0 18px 0;color:#666;font-style:italic">${brand}</p>` : ''}
+    <p style="margin:0 0 22px 0">${desc}</p>
+
+    <div style="text-align:center;margin:22px 0">
+      <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
+    </div>
+
+    <p style="margin:0 0 8px 0">Code:
+      <span style="display:inline-block;background:#f2f2f2;border-radius:8px;padding:6px 10px;font-family:monospace">
+        ${rawToken}
+      </span>
+    </p>
+    <p style="margin:0 0 16px 0">Expires: ${expires}</p>
+
+    <p style="color:#777"><small>
+      Tip: Add this page to your phone's Home Screen for quick access. Show this screen to the cashier to redeem. One redemption per coupon.
+    </small></p>
+  </body></html>`;
+  res.send(html);
+});
 
   // create token & store pass
   const rawToken = genToken();
