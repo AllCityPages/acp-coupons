@@ -1,6 +1,9 @@
 {
   "MCD-001": "McDonalds",
   "WEND-001": "Wendy's",
-  "TB-FRISCO-123": "Taco Bell — 123 Preston Rd., Frisco, TX 75034",
-  "POPE-001": "Popeye's"
+  "TB-001": "Taco Bell",
+  "POPE-001": "Popeye's",
+
+  "TB-FRISCO-123": "Taco Bell"
 }
+
