@@ -112,10 +112,14 @@ function redeemPassByRawToken(rawToken, store_code, staff_id) {
   const storeName = (STORES && STORES[store_code]) ? STORES[store_code] : null;
   if (!storeName) return { ok:false, reason:'unknown_store', message:'Unknown store code' };
 
-  const offer = OFFERS[p.offer_id] || {};
+const offer = OFFERS[p.offer_id] || {};
+
+// If offer is locked to a specific store, enforce exact match
 if (offer.store_id && store_code !== offer.store_id) {
   return { ok:false, reason:'wrong_store', message:`Coupon only valid at store ${offer.store_id}` };
 }
+
+// Still protect restaurant mismatches (belt + suspenders)
 if (p.restaurant && storeName !== p.restaurant) {
   return { ok:false, reason:'mismatch', message:`Coupon is for ${p.restaurant} — not valid at this store.` };
 }
