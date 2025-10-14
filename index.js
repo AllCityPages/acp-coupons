@@ -31,17 +31,6 @@ const PASSES_FILE = path.join(__dirname, 'passes.json');
 const OFFERS_FILE = path.join(__dirname, 'offers.json');
 const STORES_FILE = path.join(__dirname, 'stores.json');
 
-// ---------- Helpers to prevent accidental HTML injection ----------
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
 // ---------- Helpers for JSON files ----------
 function readJsonSafe(filePath, fallback) {
   try {
@@ -65,7 +54,7 @@ const STORES = readJsonSafe(STORES_FILE, {});
 
 // ---------- Token helpers ----------
 function genToken(bytes = 12) {
-  return crypto.randomBytes(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
+  return crypto.randomBytes(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 function hashToken(raw) {
   return crypto.createHash('sha256').update(raw).digest('hex');
@@ -76,7 +65,7 @@ function createPass(rawToken, offerId) {
   const token_hash = hashToken(rawToken);
   const now = Math.floor(Date.now() / 1000);
   const offer = OFFERS[offerId] || null;
-  const expires_at = offer && offer.expires_days ? now + offer.expires_days * 24*60*60 : now + 90*24*60*60;
+  const expires_at = offer && offer.expires_days ? now + offer.expires_days * 24 * 60 * 60 : now + 90 * 24 * 60 * 60;
   const pass = {
     id: crypto.randomUUID(),
     token_hash,
@@ -100,35 +89,42 @@ function findPassByRawToken(rawToken) {
   return db.passes.find(p => p.token_hash === token_hash);
 }
 
+/**
+ * Redeem by raw token with:
+ * - invalid/already used/expired checks
+ * - store existence check
+ * - OPTIONAL store-restriction enforcement (offer.store_id)
+ * - brand safety check (restaurant mismatch)
+ */
 function redeemPassByRawToken(rawToken, store_code, staff_id) {
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
   const token_hash = hashToken(rawToken);
   const p = db.passes.find(x => x.token_hash === token_hash);
-  if (!p) return { ok:false, reason:'invalid', message:'Invalid coupon' };
-  if (p.status === 'redeemed') return { ok:false, reason:'already_used', message:'Coupon already redeemed' };
+  if (!p) return { ok: false, reason: 'invalid', message: 'Invalid coupon' };
+  if (p.status === 'redeemed') return { ok: false, reason: 'already_used', message: 'Coupon already redeemed' };
   const now = Math.floor(Date.now() / 1000);
-  if (p.expires_at && now > p.expires_at) return { ok:false, reason:'expired', message:'Coupon expired' };
+  if (p.expires_at && now > p.expires_at) return { ok: false, reason: 'expired', message: 'Coupon expired' };
 
   const storeName = (STORES && STORES[store_code]) ? STORES[store_code] : null;
-  if (!storeName) return { ok:false, reason:'unknown_store', message:'Unknown store code' };
+  if (!storeName) return { ok: false, reason: 'unknown_store', message: 'Unknown store code' };
 
-const offer = OFFERS[p.offer_id] || {};
+  // Enforce store-specific offer restriction if present
+  const offer = OFFERS[p.offer_id] || {};
+  if (offer.store_id && store_code !== offer.store_id) {
+    return { ok: false, reason: 'wrong_store', message: `Coupon only valid at store ${offer.store_id}` };
+  }
 
-// If offer is locked to a specific store, enforce exact match
-if (offer.store_id && store_code !== offer.store_id) {
-  return { ok:false, reason:'wrong_store', message:`Coupon only valid at store ${offer.store_id}` };
-}
+  // Safety: ensure brand match (prevents cross-brand redemption)
+  if (p.restaurant && storeName !== p.restaurant) {
+    return { ok: false, reason: 'mismatch', message: `Coupon is for ${p.restaurant} — not valid at this store.` };
+  }
 
-// Still protect restaurant mismatches (belt + suspenders)
-if (p.restaurant && storeName !== p.restaurant) {
-  return { ok:false, reason:'mismatch', message:`Coupon is for ${p.restaurant} — not valid at this store.` };
-}
-
+  // Mark redeemed
   p.status = 'redeemed';
   p.redeemed_at = now;
   p.redeemed_by = { store_code, staff_id: staff_id || null };
   writeJsonSafe(PASSES_FILE, db);
-  return { ok:true, message:'Redeemed', offer_id: p.offer_id };
+  return { ok: true, message: 'Redeemed', offer_id: p.offer_id };
 }
 
 // ---------- Endpoints ----------
@@ -164,9 +160,7 @@ app.get('/coupon', (req, res) => {
 
   const title = offer.title || 'Your Coupon';
   const brand = offer.restaurant || '';
-  const desc =
-    offer.description ||
-    'Show this coupon to the cashier to redeem. One redemption per customer.';
+  const desc = offer.description || 'Show this coupon to the cashier to redeem. One redemption per customer.';
   const addr = offer.store_address || '';
 
   const html = `
@@ -178,6 +172,7 @@ app.get('/coupon', (req, res) => {
     <h1 style="font-size:42px;margin:0 0 4px 0">${title}</h1>
     ${brand ? `<p style="margin:0 0 18px 0;color:#666;font-style:italic">${brand}</p>` : ''}
     <p style="margin:0 0 22px 0">${desc}</p>
+    ${addr ? `<p style="margin:4px 0 18px 0;color:#444"><strong>Valid only at:</strong> ${addr}</p>` : ''}
 
     <div style="text-align:center;margin:22px 0">
       <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
@@ -197,132 +192,45 @@ app.get('/coupon', (req, res) => {
   res.send(html);
 });
 
-  // create token & store pass
-  const rawToken = genToken();
-  createPass(rawToken, offerId);
-
-  // load offer data
-  const offer = OFFERS[offerId] || {};
-  const title = offer.title || 'Coupon';
-  const restaurant = offer.restaurant || '';
-  const description = offer.description || '';
-  const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const last = db.passes.slice(-1)[0] || {};
-  const expires = last && last.expires_at ? new Date(last.expires_at * 1000).toLocaleDateString() : 'N/A';
-
-  // HTML — slightly more styled and print-friendly
-  const html = `<!doctype html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>${escapeHtml(title)}</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <style>
-      :root{
-        --maxw:720px;
-        --accent:#111;
-        --muted:#6b6b6b;
-      }
-      html,body{height:100%;margin:0}
-      body{
-        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-        color:var(--accent);
-        -webkit-font-smoothing:antialiased;
-        -moz-osx-font-smoothing:grayscale;
-        line-height:1.4;
-        display:flex;
-        justify-content:center;
-        padding:24px;
-        background:#fff;
-      }
-      .page{
-        max-width:var(--maxw);
-        width:100%;
-      }
-
-      header{
-        margin-bottom:12px;
-      }
-      h1{
-        font-size:42px;
-        margin:0 0 6px 0;
-        font-weight:800;
-        letter-spacing:-0.02em;
-      }
-      .restaurant{
-        font-size:18px;
-        color:var(--muted);
-        font-style:italic;
-        margin-bottom:16px;
-      }
-      .desc{
-        font-size:17px;
-        margin-bottom:22px;
-        color:#222;
-      }
-
-      .qr-wrap{display:flex;justify-content:center;align-items:center;margin:12px 0 8px 0}
-      .qr-wrap img{width:320px;height:320px;max-width:48vw;max-height:48vw;border-radius:4px}
-
-      .meta{display:flex;flex-direction:column;gap:10px;margin-top:12px}
-      .code{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:20px; background:#f7f7f7;padding:8px 12px;border-radius:6px;display:inline-block}
-      .expires{font-size:16px;color:var(--muted)}
-      .hint{margin-top:8px;font-size:14px;color:#666}
-
-      /* print styles: remove shadows, use full width */
-      @media print {
-        h1{font-size:36px}
-        .qr-wrap img{width:260px;height:260px}
-      }
-    </style>
-  </head>
-  <body>
-    <div class="page">
-      <header>
-        <h1>${escapeHtml(title)}</h1>
-        <div class="restaurant">${escapeHtml(restaurant)}</div>
-        <div class="desc">${escapeHtml(description)}</div>
-      </header>
-
-      <main>
-        <div class="qr-wrap">
-          <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
-        </div>
-
-        <div class="meta">
-          <div>Code: <span class="code">${escapeHtml(rawToken)}</span></div>
-          <div class="expires">Expires: ${escapeHtml(expires)}</div>
-          <div class="hint">Tip: Add this page to your phone's Home Screen for quick access. Show this screen to the cashier to redeem. One redemption per coupon.</div>
-        </div>
-      </main>
-    </div>
-  </body>
-  </html>`;
-
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(html);
-});
-
 // validate page (view coupon + staff-friendly dropdown of stores)
 app.get('/validate', (req, res) => {
   const rawToken = req.query.token || '';
   const p = rawToken ? findPassByRawToken(rawToken) : null;
-  const ok = p && p.status === 'issued' && (Math.floor(Date.now()/1000) <= p.expires_at);
+  const now = Math.floor(Date.now() / 1000);
+  const ok = p && p.status === 'issued' && (now <= (p.expires_at || 0));
   const expires = p ? new Date(p.expires_at * 1000).toLocaleDateString() : 'N/A';
 
+  // Offer context for display
+  const offer = p ? (OFFERS[p.offer_id] || {}) : {};
+  const validStoreText = offer.store_id ? offer.store_id : ('Any ' + (offer.restaurant || 'location'));
+  const addr = offer.store_address || '';
+  const title = offer.title || 'Coupon';
+  const brand = offer.restaurant || '';
+  const desc = offer.description || '';
+
   // build store options
-  const storeOptions = Object.keys(STORES).map(code => `<option value="${code}">${code} — ${STORES[code]}</option>`).join('\n');
+  const storeOptions = Object.keys(STORES)
+    .map(code => `<option value="${code}">${code} — ${STORES[code]}</option>`)
+    .join('\n');
 
   const html = `
-  <!doctype html><html><head><meta charset="utf-8"><title>Coupon</title></head>
-  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
-    <h1>Coupon</h1>
+  <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  </head>
+  <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;padding:18px">
+    <h1 style="margin:0 0 4px 0">${title}</h1>
+    ${brand ? `<p style="margin:0 0 18px 0;color:#666;font-style:italic">${brand}</p>` : ''}
+    ${desc ? `<p style="margin:0 0 18px 0">${desc}</p>` : ''}
+    <p><strong>Valid Store:</strong> ${validStoreText}</p>
+    ${addr ? `<p><strong>Address:</strong> ${addr}</p>` : ''}
+
+    <hr style="margin:18px 0"/>
+
     ${ rawToken ? `<div style="text-align:center"><img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" /></div>` : '<p>No token provided</p>' }
     <p style="font-family:monospace">Code: <strong>${rawToken || ''}</strong></p>
     <p>Status: <strong>${ok ? 'Valid' : (rawToken ? 'Invalid or Redeemed' : '—')}</strong></p>
     <p>Expires: ${expires}</p>
-    <p>Valid Store: ${ (OFFERS[p?.offer_id]?.store_id) || 'Any ' + (OFFERS[p?.offer_id]?.restaurant || 'location') }</p>
+
     <hr/>
     <h3>For Staff: quick store selector</h3>
     <p>Select your store (so you don't have to type):</p>
@@ -337,18 +245,23 @@ app.get('/validate', (req, res) => {
 // POST /api/redeem (protected by x-api-key)
 app.post('/api/redeem', (req, res) => {
   const key = req.header('x-api-key');
-  if (!key || key !== API_KEY) return res.status(401).json({ ok:false, message:'Invalid API key' });
+  if (!key || key !== API_KEY) return res.status(401).json({ ok: false, message: 'Invalid API key' });
 
   const { token, store_id, staff_id } = req.body || {};
-  if (!token || !store_id) return res.status(400).json({ ok:false, message:'Missing token or store_id', reason:'missing' });
+  if (!token || !store_id) return res.status(400).json({ ok: false, message: 'Missing token or store_id', reason: 'missing' });
 
   const result = redeemPassByRawToken(token, store_id, staff_id);
   if (result.ok) {
     const pass = findPassByRawToken(token);
     const offer = OFFERS[pass.offer_id] || {};
-    return res.json({ ok:true, message:'Redeemed', offer: { id: pass.offer_id, title: offer.title || '', restaurant: offer.restaurant || '' }, token_hash: pass.token_hash });
+    return res.json({
+      ok: true,
+      message: 'Redeemed',
+      offer: { id: pass.offer_id, title: offer.title || '', restaurant: offer.restaurant || '' },
+      token_hash: pass.token_hash
+    });
   } else {
-    return res.status(400).json({ ok:false, message: result.message || 'Error', reason: result.reason });
+    return res.status(400).json({ ok: false, message: result.message || 'Error', reason: result.reason });
   }
 });
 
@@ -399,7 +312,7 @@ app.get('/report', (req, res) => {
   if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
 
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const headers = ['id','offer_id','restaurant','status','issued_at','expires_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
+  const headers = ['id', 'offer_id', 'restaurant', 'status', 'issued_at', 'expires_at', 'redeemed_at', 'redeemed_by_store', 'redeemed_by_staff', 'token_hash'];
   const rows = db.passes.map(p => [
     p.id,
     p.offer_id || '',
@@ -412,9 +325,9 @@ app.get('/report', (req, res) => {
     (p.redeemed_by && p.redeemed_by.staff_id) || '',
     p.token_hash || ''
   ]);
-  const csv = [headers.join(',')].concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))).join('\n');
-  res.setHeader('Content-Type','text/csv');
-  res.setHeader('Content-Disposition','attachment; filename="redeem_report.csv"');
+  const csv = [headers.join(',')].concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))).join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="redeem_report.csv"');
   res.send(csv);
 });
 
