@@ -34,13 +34,25 @@
       </div>
 
       <div style="flex:1;min-width:220px">
+        <label for="orderId">Order / Check / Tab (optional)</label>
+        <input id="orderId" placeholder="e.g., 847129" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="flex:1;min-width:220px">
         <label for="storeSelect">Store</label>
         <select id="storeSelect">
           <option value="MCD-001">MCD-001 — McDonalds</option>
           <option value="WEND-001">WEND-001 — Wendy's</option>
           <option value="TB-001">TB-001 — Taco Bell</option>
           <option value="POPE-001">POPE-001 — Popeye's</option>
-          <option value="TB-FRISCO-123">TB-FRISCO-123</option>
+          <option value="TB-FRISCO-123">TB-FRISCO-123 — Taco Bell — 123 Preston Rd., Frisco, TX 75034</option>
+          <option value="PH-001">PH-001 — Pizza Hut</option>
+          <option value="KFC-001">KFC-001 — KFC</option>
+          <option value="CHIL-001">CHIL-001 — Chili's</option>
+          <option value="BK-001">BK-001 — Burger King</option>
+          <option value="SUB-001">SUB-001 — Subway</option>
           <option value="CUSTOM">Other… (type below)</option>
         </select>
       </div>
@@ -61,15 +73,16 @@
   </div>
 
 <script>
-  // ====== CONFIGURE LOCALLY (restaurants edit this local file only) ======
-  const HOST = 'https://acp-coupons.onrender.com';   // <-- set to your deployed host if different
-  const API_KEY = '<PASTE_API_KEY_HERE>';            // <-- restaurant: paste API key here in local copy only (do NOT commit)
-  // ======================================================================
+  // ====== LOCAL CONFIG (kept on this laptop/register ONLY) ======
+  const HOST = 'https://acp-coupons.onrender.com';
+  const API_KEY = 'api_4f9b7c2d8a1e6f3b9c0d7e5a2f1b8c6d_3XqvR7';
+  // =============================================================
 
   const API_URL = HOST + '/api/redeem';
 
   const scanInput = document.getElementById('scanInput');
   const staffInput = document.getElementById('staff');
+  const orderInput = document.getElementById('orderId');
   const storeSelect = document.getElementById('storeSelect');
   const customStoreWrap = document.getElementById('customStoreWrap');
   const customStoreInput = document.getElementById('customStore');
@@ -81,6 +94,7 @@
     const savedStore = localStorage.getItem('redeem_store');
     const savedCustom = localStorage.getItem('redeem_store_custom');
     const savedStaff = localStorage.getItem('redeem_staff');
+    const savedOrder = localStorage.getItem('redeem_order');
     if (savedStore) {
       if ([...storeSelect.options].some(o => o.value === savedStore)) {
         storeSelect.value = savedStore;
@@ -92,6 +106,7 @@
     }
     if (savedCustom) customStoreInput.value = savedCustom;
     if (savedStaff) staffInput.value = savedStaff;
+    if (savedOrder) orderInput.value = savedOrder;
   } catch {}
 
   // Toggle custom store input
@@ -104,6 +119,7 @@
 
   // Persist selections as user types
   staffInput.addEventListener('input', persistSelections);
+  orderInput.addEventListener('input', persistSelections);
   customStoreInput.addEventListener('input', persistSelections);
 
   function persistSelections() {
@@ -112,6 +128,7 @@
       localStorage.setItem('redeem_store', store);
       localStorage.setItem('redeem_store_custom', customStoreInput.value || '');
       localStorage.setItem('redeem_staff', staffInput.value || '');
+      localStorage.setItem('redeem_order', orderInput.value || '');
     } catch {}
   }
 
@@ -156,7 +173,8 @@
         body: JSON.stringify({
           token,
           store_id,
-          staff_id: (staffInput.value || 'unknown').trim()
+          staff_id: (staffInput.value || 'unknown').trim(),
+          order_id: (orderInput.value || '').trim() || null
         })
       });
 
@@ -170,6 +188,7 @@
         lastResult.innerHTML = `
           <div>Offer: <strong>${json.offer ? (json.offer.title || '') : ''}</strong></div>
           <div>Store: <span class="mono">${store_id}</span></div>
+          <div>Order: <span class="mono">${(orderInput.value || '').trim() || '—'}</span></div>
           <div>Staff: <span class="mono">${(staffInput.value || 'unknown').trim()}</span></div>
           <div>Token hash: <span class="mono">${json.token_hash || ''}</span></div>
         `;
@@ -182,11 +201,12 @@
           <div class="muted">Last attempt:</div>
           <div>Reason: <strong>${msg}</strong></div>
           <div>Store: <span class="mono">${store_id}</span></div>
+          <div>Order: <span class="mono">${(orderInput.value || '').trim() || '—'}</span></div>
           <div>Staff: <span class="mono">${(staffInput.value || 'unknown').trim()}</span></div>
         `;
       }
 
-      // Persist choices on successful call
+      // Persist choices
       persistSelections();
     } catch (err) {
       statusDiv.className = 'rejected';
