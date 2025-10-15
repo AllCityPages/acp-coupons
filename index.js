@@ -1,7 +1,7 @@
 // index.js
 // One-time coupon server (Node 18+)
-// Requires environment variables: COUPON_BASE_URL or BASE_URL, and API_KEY
-// Do NOT hardcode secrets in this file.
+// Requires env: COUPON_BASE_URL or BASE_URL, API_KEY
+// Optional env for POS adapters: SQUARE_TOKEN, TOAST_TOKEN, CLOVER_TOKEN, etc.
 
 const express = require('express');
 const fs = require('fs');
@@ -15,10 +15,10 @@ app.use(express.urlencoded({ extended: false }));
 
 // ---------- CORS (allow local redeem.html and other origins) ----------
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');              // or restrict to specific origin
+  res.setHeader('Access-Control-Allow-Origin', '*'); // set to a specific origin if you prefer
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
   res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);       // preflight
+  if (req.method === 'OPTIONS') return res.sendStatus(200); // preflight
   next();
 });
 
@@ -98,6 +98,51 @@ function findPassByRawToken(rawToken) {
   return db.passes.find(p => p.token_hash === token_hash);
 }
 
+// ---------- POS ADAPTERS ----------
+// One function per provider (fill in real API calls when you onboard a POS).
+const adapters = {
+  async square(ctx) {
+    // ctx: { store, offer, offer_id, order_id }
+    // Example (pseudo): use process.env.SQUARE_TOKEN and ctx.store.pos_location_id
+    // await fetch(`https://connect.squareup.com/v2/orders/${ctx.order_id}/discounts`, {...})
+    console.log('[POS:square] apply', ctx);
+  },
+  async toast(ctx) {
+    // Use process.env.TOAST_TOKEN etc.
+    console.log('[POS:toast] apply', ctx);
+  },
+  async clover(ctx) {
+    // Use process.env.CLOVER_TOKEN etc.
+    console.log('[POS:clover] apply', ctx);
+  },
+  async 'local-bridge'(ctx) {
+    // Calls a tiny local app on the register that presses hotkeys / PLU
+    // Expects ctx.store.bridge_url (e.g., http://127.0.0.1:1969/apply-discount)
+    if (!ctx.store.bridge_url) throw new Error('bridge_url missing for local-bridge');
+    const body = {
+      offer_id: ctx.offer_id,
+      order_id: ctx.order_id || null,
+      discount: ctx.offer.discount || null
+    };
+    const resp = await fetch(ctx.store.bridge_url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }).catch(e => { throw new Error('local-bridge unreachable: ' + e.message); });
+    if (!resp.ok) throw new Error('local-bridge HTTP ' + resp.status);
+  }
+};
+
+// Dispatch to the correct adapter based on store.pos
+async function applyDiscountToPOS({ store_meta, offer, offer_id, order_id }) {
+  const provider = (store_meta && store_meta.pos) || null;
+  if (!provider) { console.log('[POS] no provider; skipping POS apply'); return; }
+  const fn = adapters[provider];
+  if (!fn) { console.log('[POS] unknown provider', provider); return; }
+  const ctx = { store: store_meta, offer, offer_id, order_id };
+  await fn(ctx);
+}
+
 /**
  * Redeem by raw token with:
  * - invalid/already used/expired checks
@@ -114,7 +159,8 @@ function redeemPassByRawToken(rawToken, store_code, staff_id) {
   const now = Math.floor(Date.now() / 1000);
   if (p.expires_at && now > p.expires_at) return { ok: false, reason: 'expired', message: 'Coupon expired' };
 
-  const storeName = (STORES && STORES[store_code]) ? STORES[store_code] : null;
+  const storeRecord = STORES[store_code];
+  const storeName = typeof storeRecord === 'string' ? storeRecord : (storeRecord && storeRecord.brand) || null;
   if (!storeName) return { ok: false, reason: 'unknown_store', message: 'Unknown store code' };
 
   // Enforce store-specific offer restriction if present
@@ -156,9 +202,7 @@ app.get('/api/qrcode/:token', async (req, res) => {
 app.get('/coupon', (req, res) => {
   const offerId = req.query.offer;
   const offer = offerId ? OFFERS[offerId] : null;
-  if (!offer) {
-    return res.status(400).send('Invalid offer id');
-  }
+  if (!offer) return res.status(400).send('Invalid offer id');
 
   const rawToken = genToken();
   createPass(rawToken, offerId);
@@ -241,17 +285,34 @@ app.get('/validate', (req, res) => {
 });
 
 // POST /api/redeem (protected by x-api-key)
-app.post('/api/redeem', (req, res) => {
+app.post('/api/redeem', async (req, res) => {
   const key = req.header('x-api-key');
   if (!key || key !== API_KEY) return res.status(401).json({ ok: false, message: 'Invalid API key' });
 
-  const { token, store_id, staff_id } = req.body || {};
+  const { token, store_id, staff_id, order_id } = req.body || {};
   if (!token || !store_id) return res.status(400).json({ ok: false, message: 'Missing token or store_id', reason: 'missing' });
 
   const result = redeemPassByRawToken(token, store_id, staff_id);
   if (result.ok) {
     const pass = findPassByRawToken(token);
     const offer = OFFERS[pass.offer_id] || {};
+    // read extended store meta (support old "string" format)
+    const rawStore = STORES[store_id];
+    const store_meta = (typeof rawStore === 'string') ? { brand: rawStore } : (rawStore || {});
+
+    // Try POS apply (non-blocking for cashier UX)
+    try {
+      await applyDiscountToPOS({
+        store_meta,
+        offer,
+        offer_id: pass.offer_id,
+        order_id: order_id || null
+      });
+    } catch (e) {
+      console.error('POS apply error:', e.message);
+      // Still return OK; cashier can apply manually if needed.
+    }
+
     return res.json({
       ok: true,
       message: 'Redeemed',
