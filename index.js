@@ -13,6 +13,15 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// ---------- CORS (allow local redeem.html and other origins) ----------
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');              // or restrict to specific origin
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);       // preflight
+  next();
+});
+
 // ---------- CONFIG (require env vars) ----------
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.COUPON_BASE_URL || process.env.BASE_URL;
@@ -192,7 +201,7 @@ app.get('/coupon', (req, res) => {
   res.send(html);
 });
 
-// validate page (view coupon + staff-friendly dropdown of stores)
+// validate page (view coupon + staff-friendly info)
 app.get('/validate', (req, res) => {
   const rawToken = req.query.token || '';
   const p = rawToken ? findPassByRawToken(rawToken) : null;
@@ -207,11 +216,6 @@ app.get('/validate', (req, res) => {
   const title = offer.title || 'Coupon';
   const brand = offer.restaurant || '';
   const desc = offer.description || '';
-
-  // build store options
-  const storeOptions = Object.keys(STORES)
-    .map(code => `<option value="${code}">${code} — ${STORES[code]}</option>`)
-    .join('\n');
 
   const html = `
   <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
@@ -231,13 +235,7 @@ app.get('/validate', (req, res) => {
     <p>Status: <strong>${ok ? 'Valid' : (rawToken ? 'Invalid or Redeemed' : '—')}</strong></p>
     <p>Expires: ${expires}</p>
 
-    <hr/>
-    <h3>For Staff: quick store selector</h3>
-    <p>Select your store (so you don't have to type):</p>
-    <select id="storeSelect">
-      ${storeOptions}
-    </select>
-    <p><small>To redeem: open your register's redeem.html and scan the QR, or copy the Code and paste into the register input.</small></p>
+    <p><small>For redemption, open your register’s redeem.html, select your store, then scan/paste the Code.</small></p>
   </body></html>`;
   res.send(html);
 });
@@ -265,7 +263,7 @@ app.post('/api/redeem', (req, res) => {
   }
 });
 
-// Admin page (one-click CSV download after admin pastes the API key) - no secrets stored
+// Admin page (CSV download after API key paste)
 app.get('/admin', (req, res) => {
   const html = `
   <!doctype html><html><head><meta charset="utf-8"><title>Admin — Download CSV</title></head>
@@ -312,7 +310,7 @@ app.get('/report', (req, res) => {
   if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
 
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const headers = ['id', 'offer_id', 'restaurant', 'status', 'issued_at', 'expires_at', 'redeemed_at', 'redeemed_by_store', 'redeemed_by_staff', 'token_hash'];
+  const headers = ['id','offer_id','restaurant','status','issued_at','expires_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
   const rows = db.passes.map(p => [
     p.id,
     p.offer_id || '',
@@ -325,9 +323,9 @@ app.get('/report', (req, res) => {
     (p.redeemed_by && p.redeemed_by.staff_id) || '',
     p.token_hash || ''
   ]);
-  const csv = [headers.join(',')].concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))).join('\n');
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="redeem_report.csv"');
+  const csv = [headers.join(',')].concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))).join('\n');
+  res.setHeader('Content-Type','text/csv');
+  res.setHeader('Content-Disposition','attachment; filename="redeem_report.csv"');
   res.send(csv);
 });
 
