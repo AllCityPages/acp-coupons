@@ -3,6 +3,15 @@
 // Requires environment variables: COUPON_BASE_URL or BASE_URL, and API_KEY
 // Do NOT hardcode secrets in this file.
 
+// Allow local files (file://) and other origins to call the API
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*'); // you can restrict to a specific origin if you prefer
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200); // handle preflight quickly
+  next();
+});
+
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
