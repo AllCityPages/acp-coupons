@@ -3,40 +3,45 @@
     "title": "Buy 1 Get 1 Free - Any Sandwich",
     "restaurant": "McDonalds",
     "description": "Buy one sandwich, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer.",
-    "store_id": "MCD-001",
-    "expires_days": 90
+    "expires_days": 90,
+    "discount": { "type": "percent", "value": 100 }
   },
   "mcd-10off": {
     "title": "10% Off Any Order",
     "restaurant": "McDonalds",
     "description": "Save 10% on any order. Show coupon to cashier. One redemption per customer.",
-    "store_id": "MCD-002",
-    "expires_days": 90
+    "expires_days": 90,
+    "discount": { "type": "percent", "value": 10 }
   },
   "wendys-freeitem": {
     "title": "Free Side with Any Entrée",
     "restaurant": "Wendy's",
-    "description": "Free side with any entrée. Show coupon at time of purchase.",
-    "expires_days": 90
+    "description": "Get a free side with any entrée purchase. One redemption per customer.",
+    "expires_days": 90,
+    "discount": { "type": "amount", "value": 3.00, "currency": "USD" }
   },
   "tacobell-drink": {
     "title": "Free 16 oz Drink with Sandwich",
     "restaurant": "Taco Bell",
-    "description": "Free 16 oz drink with purchase of any sandwich.",
-    "expires_days": 90
+    "description": "Free 16 oz drink with any sandwich. One redemption per customer.",
+    "expires_days": 90,
+    "discount": { "type": "amount", "value": 1.99, "currency": "USD" }
   },
+  "popeyes-dessert": {
+    "title": "Free Dessert with Entrée",
+    "restaurant": "Popeye's",
+    "description": "Enjoy a free dessert with the purchase of any entrée. One redemption per customer.",
+    "expires_days": 90,
+    "discount": { "type": "amount", "value": 2.49, "currency": "USD" }
+  },
+
   "tacobell-bogo-frisco123": {
     "title": "Buy 1 Get 1 Free – Any Entrée",
     "restaurant": "Taco Bell",
     "store_id": "TB-FRISCO-123",
     "store_address": "123 Preston Rd., Frisco, TX 75034",
     "description": "Buy one entrée, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer. Not valid with other offers.",
-    "expires_days": 90
-  },
-  "popeyes-dessert": {
-    "title": "Free Dessert with Entrée",
-    "restaurant": "Popeye's",
-    "description": "Free dessert with the purchase of an entrée. One per order.",
-    "expires_days": 90
+    "expires_days": 90,
+    "discount": { "type": "percent", "value": 100 }
   }
 }
