@@ -1,0 +1,14 @@
+{
+  // Option A: the POS has a hotkey that applies the discount (recommended)
+  // Examples: ["f7"], ["control","alt","d"], ["command","shift","d"] (Mac)
+  "applyHotkey": ["f7"],
+
+  // Option B: the POS accepts typing a PLU/SKU and Enter to apply the discount
+  "plu": "",
+
+  // Should the bridge press Enter after typing the PLU?
+  "pressEnter": true,
+
+  // Delay (ms) after hotkey press before typing (if you use both)
+  "delayMs": 100
+}
