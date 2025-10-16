@@ -13,6 +13,10 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+const path = require('path'); // already present above
+app.use('/static', express.static(path.join(__dirname, 'public')));
+
+
 // ---------- CORS (allow local redeem.html and other origins) ----------
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*'); // set to a specific origin if you prefer
