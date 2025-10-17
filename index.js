@@ -252,10 +252,12 @@ app.get('/coupon', (req, res) => {
   </head>
   <body>
     <div class="wrap">
-      <div class="brandbar">
-        ${logo ? `<img class="logo" alt="${brand} logo" src="${logo}">` : ''}
-        <span class="badge"><span class="dot"></span><span style="color:var(--brand);font-weight:800">${brand || ''}</span></span>
-      </div>
+     <div class="brandbar">
+  ${logo
+    ? `<img class="logo" alt="${brand} logo" src="${logo}">`
+    : `<span class="badge"><span class="dot"></span><span class="brandname">${brand || ''}</span></span>`
+  }
+</div>
 
       <h1>${title}</h1>
       <p class="brand">${brand}</p>
