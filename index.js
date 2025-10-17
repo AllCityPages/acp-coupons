@@ -1,11 +1,10 @@
 // index.js
 // One-time coupon server (Node 18+)
 // Requires env: COUPON_BASE_URL or BASE_URL, API_KEY
-// Optional env for POS adapters: SQUARE_TOKEN, TOAST_TOKEN, CLOVER_TOKEN, etc.
 
 const express = require('express');
 const fs = require('fs');
-const path = require('path');
+const path = require('path');                 // <- keep this ONCE
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 
@@ -13,18 +12,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-const path = require('path'); // already present above
-app.use('/static', express.static(path.join(__dirname, 'public')));
-
-
 // ---------- CORS (allow local redeem.html and other origins) ----------
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*'); // set to a specific origin if you prefer
+  res.setHeader('Access-Control-Allow-Origin', '*'); // restrict to specific origins if needed
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
   res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200); // preflight
   next();
 });
+
+// ---------- Static assets (/public -> /static/...) ----------
+app.use('/static', express.static(path.join(__dirname, 'public')));
 
 // ---------- CONFIG (require env vars) ----------
 const PORT = process.env.PORT || 3000;
@@ -46,20 +44,15 @@ const STORES_FILE = path.join(__dirname, 'stores.json');
 
 // ---------- Helpers for JSON files ----------
 function readJsonSafe(filePath, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch (e) {
-    return fallback;
-  }
+  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
+  catch { return fallback; }
 }
 function writeJsonSafe(filePath, obj) {
   fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
 }
 
 // Ensure passes file exists
-if (!fs.existsSync(PASSES_FILE)) {
-  writeJsonSafe(PASSES_FILE, { passes: [] });
-}
+if (!fs.existsSync(PASSES_FILE)) writeJsonSafe(PASSES_FILE, { passes: [] });
 
 // Load offers & stores (canonical sources)
 const OFFERS = readJsonSafe(OFFERS_FILE, {});
@@ -67,7 +60,8 @@ const STORES = readJsonSafe(STORES_FILE, {});
 
 // ---------- Token helpers ----------
 function genToken(bytes = 12) {
-  return crypto.randomBytes(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return crypto.randomBytes(bytes).toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 function hashToken(raw) {
   return crypto.createHash('sha256').update(raw).digest('hex');
@@ -78,7 +72,10 @@ function createPass(rawToken, offerId) {
   const token_hash = hashToken(rawToken);
   const now = Math.floor(Date.now() / 1000);
   const offer = OFFERS[offerId] || null;
-  const expires_at = offer && offer.expires_days ? now + offer.expires_days * 24 * 60 * 60 : now + 90 * 24 * 60 * 60;
+  const expires_at = offer && offer.expires_days
+    ? now + offer.expires_days * 24 * 60 * 60
+    : now + 90 * 24 * 60 * 60;
+
   const pass = {
     id: crypto.randomUUID(),
     token_hash,
@@ -90,6 +87,7 @@ function createPass(rawToken, offerId) {
     offer_id: offerId || null,
     restaurant: offer ? offer.restaurant : null
   };
+
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
   db.passes.push(pass);
   writeJsonSafe(PASSES_FILE, db);
@@ -100,51 +98,6 @@ function findPassByRawToken(rawToken) {
   const token_hash = hashToken(rawToken);
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
   return db.passes.find(p => p.token_hash === token_hash);
-}
-
-// ---------- POS ADAPTERS ----------
-// One function per provider (fill in real API calls when you onboard a POS).
-const adapters = {
-  async square(ctx) {
-    // ctx: { store, offer, offer_id, order_id }
-    // Example (pseudo): use process.env.SQUARE_TOKEN and ctx.store.pos_location_id
-    // await fetch(`https://connect.squareup.com/v2/orders/${ctx.order_id}/discounts`, {...})
-    console.log('[POS:square] apply', ctx);
-  },
-  async toast(ctx) {
-    // Use process.env.TOAST_TOKEN etc.
-    console.log('[POS:toast] apply', ctx);
-  },
-  async clover(ctx) {
-    // Use process.env.CLOVER_TOKEN etc.
-    console.log('[POS:clover] apply', ctx);
-  },
-  async 'local-bridge'(ctx) {
-    // Calls a tiny local app on the register that presses hotkeys / PLU
-    // Expects ctx.store.bridge_url (e.g., http://127.0.0.1:1969/apply-discount)
-    if (!ctx.store.bridge_url) throw new Error('bridge_url missing for local-bridge');
-    const body = {
-      offer_id: ctx.offer_id,
-      order_id: ctx.order_id || null,
-      discount: ctx.offer.discount || null
-    };
-    const resp = await fetch(ctx.store.bridge_url, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    }).catch(e => { throw new Error('local-bridge unreachable: ' + e.message); });
-    if (!resp.ok) throw new Error('local-bridge HTTP ' + resp.status);
-  }
-};
-
-// Dispatch to the correct adapter based on store.pos
-async function applyDiscountToPOS({ store_meta, offer, offer_id, order_id }) {
-  const provider = (store_meta && store_meta.pos) || null;
-  if (!provider) { console.log('[POS] no provider; skipping POS apply'); return; }
-  const fn = adapters[provider];
-  if (!fn) { console.log('[POS] unknown provider', provider); return; }
-  const ctx = { store: store_meta, offer, offer_id, order_id };
-  await fn(ctx);
 }
 
 /**
@@ -160,30 +113,61 @@ function redeemPassByRawToken(rawToken, store_code, staff_id) {
   const p = db.passes.find(x => x.token_hash === token_hash);
   if (!p) return { ok: false, reason: 'invalid', message: 'Invalid coupon' };
   if (p.status === 'redeemed') return { ok: false, reason: 'already_used', message: 'Coupon already redeemed' };
+
   const now = Math.floor(Date.now() / 1000);
   if (p.expires_at && now > p.expires_at) return { ok: false, reason: 'expired', message: 'Coupon expired' };
 
+  // store metadata may be a string (brand) or object {brand, pos, ...}
   const storeRecord = STORES[store_code];
-  const storeName = typeof storeRecord === 'string' ? storeRecord : (storeRecord && storeRecord.brand) || null;
+  const storeName = typeof storeRecord === 'string'
+    ? storeRecord
+    : (storeRecord && storeRecord.brand) || null;
   if (!storeName) return { ok: false, reason: 'unknown_store', message: 'Unknown store code' };
 
-  // Enforce store-specific offer restriction if present
   const offer = OFFERS[p.offer_id] || {};
+  // enforce store-specific restriction
   if (offer.store_id && store_code !== offer.store_id) {
     return { ok: false, reason: 'wrong_store', message: `Coupon only valid at store ${offer.store_id}` };
   }
-
-  // Safety: ensure brand match (prevents cross-brand redemption)
+  // brand safety
   if (p.restaurant && storeName !== p.restaurant) {
     return { ok: false, reason: 'mismatch', message: `Coupon is for ${p.restaurant} — not valid at this store.` };
   }
 
-  // Mark redeemed
+  // mark redeemed
   p.status = 'redeemed';
   p.redeemed_at = now;
   p.redeemed_by = { store_code, staff_id: staff_id || null };
   writeJsonSafe(PASSES_FILE, db);
   return { ok: true, message: 'Redeemed', offer_id: p.offer_id };
+}
+
+// ---------- POS adapter stubs (optional; fill with real API calls or local bridge) ----------
+const adapters = {
+  async square(ctx) { console.log('[POS:square] apply', ctx); },
+  async toast(ctx)  { console.log('[POS:toast] apply', ctx);  },
+  async clover(ctx) { console.log('[POS:clover] apply', ctx); },
+  async 'local-bridge'(ctx) {
+    if (!ctx.store.bridge_url) throw new Error('bridge_url missing for local-bridge');
+    const res = await fetch(ctx.store.bridge_url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        offer_id: ctx.offer_id,
+        order_id: ctx.order_id || null,
+        discount: ctx.offer.discount || null
+      })
+    }).catch(e => { throw new Error('local-bridge unreachable: ' + e.message); });
+    if (!res.ok) throw new Error('local-bridge HTTP ' + res.status);
+  }
+};
+async function applyDiscountToPOS({ store_meta, offer, offer_id, order_id }) {
+  const provider = (store_meta && store_meta.pos) || null;
+  if (!provider) { console.log('[POS] no provider; skipping'); return; }
+  const fn = adapters[provider];
+  if (!fn) { console.log('[POS] unknown provider', provider); return; }
+  const ctx = { store: store_meta, offer, offer_id, order_id };
+  await fn(ctx);
 }
 
 // ---------- Endpoints ----------
@@ -195,14 +179,14 @@ app.get('/api/qrcode/:token', async (req, res) => {
   try {
     const png = await QRCode.toBuffer(url, { type: 'png', width: 300 });
     res.setHeader('Content-Type', 'image/png');
-    return res.send(png);
+    res.send(png);
   } catch (err) {
     console.error('QR generation error', err);
-    return res.status(500).send('QR error');
+    res.status(500).send('QR error');
   }
 });
 
-// coupon page: create a token and display QR + Code
+// Styled coupon page: create a token and display QR + branding
 app.get('/coupon', (req, res) => {
   const offerId = req.query.offer;
   const offer = offerId ? OFFERS[offerId] : null;
@@ -213,39 +197,90 @@ app.get('/coupon', (req, res) => {
 
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
   const last = db.passes.slice(-1)[0] || {};
-  const expires = last && last.expires_at ? new Date(last.expires_at * 1000).toLocaleDateString() : 'N/A';
+  const expiresDate = last && last.expires_at ? new Date(last.expires_at * 1000) : null;
+  const expires = expiresDate ? expiresDate.toLocaleDateString() : 'N/A';
 
-  const title = offer.title || 'Your Coupon';
-  const brand = offer.restaurant || '';
-  const desc = offer.description || 'Show this coupon to the cashier to redeem. One redemption per customer.';
-  const addr = offer.store_address || '';
+  // Offer fields (with fallbacks)
+  const title       = offer.title || 'Your Coupon';
+  const brand       = offer.restaurant || '';
+  const addr        = offer.store_address || '';
+  const logo        = offer.logo || '';
+  const hero        = offer.hero_image || '';
+  const brandColor  = offer.brand_color || '#111';
+  const accentColor = offer.accent_color || '#333';
+  const finePrint   = offer.fine_print || 'One redemption per customer.';
+  const descHtml    = offer.desc_html || '';
+  const plainDesc   = offer.description || 'Show this coupon to the cashier to redeem. One redemption per customer.';
+  const ogImg       = hero || logo || '';
 
   const html = `
-  <!doctype html><html><head><meta charset="utf-8">
+  <!doctype html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
     <title>${title}</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    ${ogImg ? `<meta property="og:image" content="${ogImg}">` : ''}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+      :root{ --brand:${brandColor}; --accent:${accentColor}; }
+      *{box-sizing:border-box}
+      body{font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:#fff;margin:0}
+      .wrap{max-width:760px;margin:0 auto;padding:18px}
+      .brandbar{display:flex;align-items:center;gap:14px;margin:6px 0 10px}
+      .brandbar img.logo{height:30px}
+      h1{font-size:40px;line-height:1.1;margin:6px 0 2px;color:#111}
+      .brand{color:#666;font-style:italic;margin:0 0 6px}
+      .desc{margin:10px 0 12px 0;font-size:16px;color:#111}
+      .validonly{margin:8px 0 16px 0;color:#444}
+      .validonly strong{color:#000}
+      .hero{width:100%;border-radius:12px;display:block;margin:10px 0 16px 0}
+      .card{border:1px solid #e7e7e7;border-radius:14px;padding:16px;margin:16px 0}
+      .qrwrap{text-align:center;margin:10px 0}
+      .code{margin:10px 0;font-size:16px}
+      .code .pill{display:inline-block;background:#f2f2f2;border-radius:10px;padding:8px 12px;font-family:ui-monospace,monospace}
+      .expires{margin:0 0 8px 0;color:#111}
+      .fine{color:#666;font-size:13px}
+      .tag{display:inline-block;background:var(--brand);color:#fff;padding:4px 8px;border-radius:6px;font-weight:600;font-size:12px}
+      .divider{height:1px;background:#eee;margin:16px 0}
+      .footerTip{color:#777;font-size:13px}
+      .badge{display:inline-flex;align-items:center;gap:6px}
+      .badge .dot{width:8px;height:8px;border-radius:50%;background:var(--brand)}
+    </style>
   </head>
-  <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;padding:18px">
-    <h1 style="font-size:42px;margin:0 0 4px 0">${title}</h1>
-    ${brand ? `<p style="margin:0 0 18px 0;color:#666;font-style:italic">${brand}</p>` : ''}
-    <p style="margin:0 0 22px 0">${desc}</p>
-    ${addr ? `<p style="margin:4px 0 18px 0;color:#444"><strong>Valid only at:</strong> ${addr}</p>` : ''}
+  <body>
+    <div class="wrap">
+      <div class="brandbar">
+        ${logo ? `<img class="logo" alt="${brand} logo" src="${logo}">` : ''}
+        <span class="badge"><span class="dot"></span><span style="color:var(--brand);font-weight:800">${brand || ''}</span></span>
+      </div>
 
-    <div style="text-align:center;margin:22px 0">
-      <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
+      <h1>${title}</h1>
+      <p class="brand">${brand}</p>
+
+      ${descHtml ? `<div class="desc">${descHtml}</div>` : `<p class="desc">${plainDesc}</p>`}
+      ${addr ? `<p class="validonly"><strong>Valid only at:</strong> ${addr}</p>` : ''}
+
+      ${hero ? `<img class="hero" alt="Offer image" src="${hero}">` : ''}
+
+      <div class="card">
+        <div class="qrwrap">
+          <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
+        </div>
+        <p class="code">Code: <span class="pill">${rawToken}</span></p>
+        <p class="expires">Expires: ${expires}</p>
+        <div class="divider"></div>
+        <p class="fine">${finePrint}</p>
+      </div>
+
+      <p class="footerTip"><small>
+        Tip: Add this page to your phone's Home Screen for quick access. Show this screen to the cashier to redeem. One redemption per coupon.
+      </small></p>
     </div>
-
-    <p style="margin:0 0 8px 0">Code:
-      <span style="display:inline-block;background:#f2f2f2;border-radius:8px;padding:6px 10px;font-family:monospace">
-        ${rawToken}
-      </span>
-    </p>
-    <p style="margin:0 0 16px 0">Expires: ${expires}</p>
-
-    <p style="color:#777"><small>
-      Tip: Add this page to your phone's Home Screen for quick access. Show this screen to the cashier to redeem. One redemption per coupon.
-    </small></p>
-  </body></html>`;
+  </body>
+  </html>`;
   res.send(html);
 });
 
@@ -257,7 +292,6 @@ app.get('/validate', (req, res) => {
   const ok = p && p.status === 'issued' && (now <= (p.expires_at || 0));
   const expires = p ? new Date(p.expires_at * 1000).toLocaleDateString() : 'N/A';
 
-  // Offer context for display
   const offer = p ? (OFFERS[p.offer_id] || {}) : {};
   const validStoreText = offer.store_id ? offer.store_id : ('Any ' + (offer.restaurant || 'location'));
   const addr = offer.store_address || '';
@@ -267,8 +301,7 @@ app.get('/validate', (req, res) => {
 
   const html = `
   <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  </head>
+  <meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;padding:18px">
     <h1 style="margin:0 0 4px 0">${title}</h1>
     ${brand ? `<p style="margin:0 0 18px 0;color:#666;font-style:italic">${brand}</p>` : ''}
@@ -277,7 +310,6 @@ app.get('/validate', (req, res) => {
     ${addr ? `<p><strong>Address:</strong> ${addr}</p>` : ''}
 
     <hr style="margin:18px 0"/>
-
     ${ rawToken ? `<div style="text-align:center"><img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" /></div>` : '<p>No token provided</p>' }
     <p style="font-family:monospace">Code: <strong>${rawToken || ''}</strong></p>
     <p>Status: <strong>${ok ? 'Valid' : (rawToken ? 'Invalid or Redeemed' : '—')}</strong></p>
@@ -300,11 +332,10 @@ app.post('/api/redeem', async (req, res) => {
   if (result.ok) {
     const pass = findPassByRawToken(token);
     const offer = OFFERS[pass.offer_id] || {};
-    // read extended store meta (support old "string" format)
     const rawStore = STORES[store_id];
     const store_meta = (typeof rawStore === 'string') ? { brand: rawStore } : (rawStore || {});
 
-    // Try POS apply (non-blocking for cashier UX)
+    // Try POS apply (optional)
     try {
       await applyDiscountToPOS({
         store_meta,
@@ -314,7 +345,6 @@ app.post('/api/redeem', async (req, res) => {
       });
     } catch (e) {
       console.error('POS apply error:', e.message);
-      // Still return OK; cashier can apply manually if needed.
     }
 
     return res.json({
@@ -375,7 +405,10 @@ app.get('/report', (req, res) => {
   if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
 
   const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const headers = ['id','offer_id','restaurant','status','issued_at','expires_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
+  const headers = [
+    'id','offer_id','restaurant','status','issued_at','expires_at',
+    'redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'
+  ];
   const rows = db.passes.map(p => [
     p.id,
     p.offer_id || '',
@@ -388,7 +421,10 @@ app.get('/report', (req, res) => {
     (p.redeemed_by && p.redeemed_by.staff_id) || '',
     p.token_hash || ''
   ]);
-  const csv = [headers.join(',')].concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(','))).join('\n');
+  const csv = [headers.join(',')]
+    .concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')))
+    .join('\n');
+
   res.setHeader('Content-Type','text/csv');
   res.setHeader('Content-Disposition','attachment; filename="redeem_report.csv"');
   res.send(csv);
