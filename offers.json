@@ -4,36 +4,67 @@
     "restaurant": "McDonalds",
     "description": "Buy one sandwich, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer.",
     "expires_days": 90,
-    "discount": { "type": "percent", "value": 100 }
+    "discount": { "type": "percent", "value": 100 },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#DA291C",
+    "accent_color": "#FFC72C",
+    "fine_print": "Limit 1 per customer. Not valid with other offers."
   },
+
   "mcd-10off": {
     "title": "10% Off Any Order",
     "restaurant": "McDonalds",
     "description": "Save 10% on any order. Show coupon to cashier. One redemption per customer.",
     "expires_days": 90,
-    "discount": { "type": "percent", "value": 10 }
+    "discount": { "type": "percent", "value": 10 },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#DA291C",
+    "accent_color": "#FFC72C",
+    "fine_print": "Limit 1 per customer. Not valid with other offers."
   },
+
   "wendys-freeitem": {
     "title": "Free Side with Any Entrée",
     "restaurant": "Wendy's",
     "description": "Get a free side with any entrée purchase. One redemption per customer.",
     "expires_days": 90,
-    "discount": { "type": "amount", "value": 3.00, "currency": "USD" }
+    "discount": { "type": "amount", "value": 3.00, "currency": "USD" },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#E2203D",
+    "accent_color": "#4F86C6",
+    "fine_print": "At participating locations. Not valid with other offers."
   },
+
   "tacobell-drink": {
     "title": "Free 16 oz Drink with Sandwich",
     "restaurant": "Taco Bell",
     "description": "Free 16 oz drink with any sandwich. One redemption per customer.",
     "expires_days": 90,
-    "discount": { "type": "amount", "value": 1.99, "currency": "USD" }
+    "discount": { "type": "amount", "value": 1.99, "currency": "USD" },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#5F259F",
+    "accent_color": "#000000",
+    "fine_print": "Limit 1 per customer. Not valid with other discounts."
   },
+
   "popeyes-dessert": {
     "title": "Free Dessert with Entrée",
     "restaurant": "Popeye's",
     "description": "Enjoy a free dessert with the purchase of any entrée. One redemption per customer.",
     "expires_days": 90,
-    "discount": { "type": "amount", "value": 2.49, "currency": "USD" }
+    "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#F37E21",
+    "accent_color": "#000000",
+    "fine_print": "Valid at participating locations. Not combinable."
   },
+
+  "// note": "Store-locked example for Taco Bell Frisco — only valid at TB-FRISCO-123",
 
   "tacobell-bogo-frisco123": {
     "title": "Buy 1 Get 1 Free – Any Entrée",
@@ -42,6 +73,66 @@
     "store_address": "123 Preston Rd., Frisco, TX 75034",
     "description": "Buy one entrée, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer. Not valid with other offers.",
     "expires_days": 90,
-    "discount": { "type": "percent", "value": 100 }
+    "discount": { "type": "percent", "value": 100 },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#5F259F",
+    "accent_color": "#000000",
+    "fine_print": "Only valid at the listed location. Not combinable."
+  },
+
+  "//": "— New sample offers for additional restaurants —",
+
+  "pizzahut-5off": {
+    "title": "$5 Off Any Large Pizza",
+    "restaurant": "Pizza Hut",
+    "description": "Take $5 off any large pizza. One redemption per customer.",
+    "expires_days": 90,
+    "discount": { "type": "amount", "value": 5.00, "currency": "USD" },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#EE3124",
+    "accent_color": "#000000",
+    "fine_print": "Valid on regular-priced items. Participating stores only."
+  },
+
+  "kfc-bucket-10off": {
+    "title": "$10 Off Family Bucket",
+    "restaurant": "KFC",
+    "description": "Get $10 off any Family Bucket. One redemption per customer.",
+    "expires_days": 90,
+    "discount": { "type": "amount", "value": 10.00, "currency": "USD" },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#E4002B",
+    "accent_color": "#000000",
+    "fine_print": "Excludes combos. Not valid with other offers."
+  },
+
+  "chilis-free-app": {
+    "title": "Free Appetizer with Entrée",
+    "restaurant": "Chili's",
+    "description": "Enjoy a free appetizer with the purchase of any entrée.",
+    "expires_days": 90,
+    "discount": { "type": "amount", "value": 7.00, "currency": "USD" },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#C8102E",
+    "accent_color": "#007A33",
+    "fine_print": "Dine-in only. One redemption per table."
+  },
+
+  "burgerking-bogo": {
+    "title": "BOGO Whopper®",
+    "restaurant": "Burger King",
+    "description": "Buy one Whopper®, get one of equal or lesser value free. One redemption per customer.",
+    "expires_days": 90,
+    "discount": { "type": "percent", "value": 100 },
+
+    "logo": "/static/logo.png",
+    "brand_color": "#ED7902",
+    "accent_color": "#5A2D0C",
+    "fine_print": "At participating locations. Not valid with other discounts."
   }
 }
+
