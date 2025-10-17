@@ -52,9 +52,9 @@
   },
 
  "popeyes-dessert": {
-  "title": "Free Dessert with Entrée",
+  "title": "Free 2pc Meal",
   "restaurant": "Popeye's",
-  "description": "Enjoy a free dessert with the purchase of any entrée. One redemption per customer.",
+  "description": "Buy 1 2pc Meal get one Free. One redemption per customer.",
   "expires_days": 90,
   "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
 
