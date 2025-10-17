@@ -51,18 +51,19 @@
     "fine_print": "Limit 1 per customer. Not valid with other discounts."
   },
 
-  "popeyes-dessert": {
-    "title": "Free Dessert with Entrée",
-    "restaurant": "Popeye's",
-    "description": "Enjoy a free dessert with the purchase of any entrée. One redemption per customer.",
-    "expires_days": 90,
-    "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
+ "popeyes-dessert": {
+  "title": "Free Dessert with Entrée",
+  "restaurant": "Popeye's",
+  "description": "Enjoy a free dessert with the purchase of any entrée. One redemption per customer.",
+  "expires_days": 90,
+  "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
 
-    "logo": "/static/logo.png",
-    "brand_color": "#F37E21",
-    "accent_color": "#000000",
-    "fine_print": "Valid at participating locations. Not combinable."
-  },
+  "logo": "/static/popeyes/logo.png",
+  "hero_image": "/static/popeyes/hero.png",
+  "brand_color": "#F37E21",
+  "accent_color": "#000000",
+  "fine_print": "Valid at participating locations. Not combinable."
+},
 
   "// note": "Store-locked example for Taco Bell Frisco — only valid at TB-FRISCO-123",
 
