@@ -59,7 +59,7 @@
   "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
 
   "logo": "/static/popeyes/logo.png",
-  "hero_image": "/static/popeyes/hero.png",
+  "hero_image": "/static/popeyes/hero-2pc.png",
   "brand_color": "#F37E21",
   "accent_color": "#000000",
   "fine_print": "Valid at participating locations. Not combinable."
