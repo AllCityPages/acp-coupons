@@ -230,7 +230,8 @@ app.get('/coupon', (req, res) => {
       body{font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:#fff;margin:0}
       .wrap{max-width:760px;margin:0 auto;padding:18px}
       .brandbar{display:flex;align-items:center;gap:14px;margin:6px 0 10px}
-      .brandbar img.logo{height:30px}
+      .brandbar img.logo{height:56px} /* try 56–64px */
+      .brandname{color:var(--brand);font-weight:800}
       h1{font-size:40px;line-height:1.1;margin:6px 0 2px;color:#111}
       .brand{color:#666;font-style:italic;margin:0 0 6px}
       .desc{margin:10px 0 12px 0;font-size:16px;color:#111}
