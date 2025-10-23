@@ -24,6 +24,49 @@ app.use((req, res, next) => {
 // ---------- Static assets (/public -> /static/...) ----------
 app.use('/static', express.static(path.join(__dirname, 'public')));
 
+// ---------- Offers catalog API (Hub) ----------
+app.get('/api/offers', (req, res) => {
+  const { lat, lon, limit = 100 } = req.query;
+  const items = Object.entries(OFFERS)
+    .filter(([id, o]) => !String(id).startsWith('//')) // ignore comments
+    .map(([id, o]) => ({
+      offer_id: id,
+      title: o.title,
+      details: o.description || '',
+      restaurant: o.restaurant || '',
+      address: o.store_address || '',
+      logo: o.logo || '',
+      lat: o.lat ?? null,  // optional if you add
+      lon: o.lon ?? null,  // optional if you add
+    }));
+
+  let rows = items;
+  if (lat && lon) {
+    const toRad = d => (d * Math.PI) / 180;
+    const R = 6371; // km
+    rows = items.map(r => {
+      if (r.lat != null && r.lon != null) {
+        const dLat = toRad(r.lat - Number(lat));
+        const dLon = toRad(r.lon - Number(lon));
+        const a = Math.sin(dLat/2)**2 + Math.cos(toRad(Number(lat))) * Math.cos(toRad(r.lat)) * Math.sin(dLon/2)**2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return { ...r, distance_km: R * c };
+      }
+      return { ...r, distance_km: null };
+    }).sort((a,b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
+  }
+
+  res.json(rows.slice(0, Number(limit)));
+});
+
+// Single-offer fetch for hub detail (optional)
+app.get('/api/offers/:offerId', (req, res) => {
+  const o = OFFERS[req.params.offerId];
+  if (!o) return res.status(404).json({ error: 'Not found' });
+  appendAnalyticsEvent({ event: 'view', offer_id: req.params.offerId, restaurant: o.restaurant || null });
+  res.json({ offer_id: req.params.offerId, ...o });
+});
+
 // ---------- CONFIG (require env vars) ----------
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.COUPON_BASE_URL || process.env.BASE_URL;
