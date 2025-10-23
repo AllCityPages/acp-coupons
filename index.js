@@ -67,6 +67,19 @@ function hashToken(raw) {
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
 
+// ---------- Analytics store ----------
+const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
+if (!fs.existsSync(ANALYTICS_FILE)) fs.writeFileSync(ANALYTICS_FILE, JSON.stringify({ events: [] }, null, 2));
+
+function appendAnalyticsEvent(evt) {
+  const now = new Date().toISOString();
+  const record = { ts: now, ...evt };
+  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
+  buf.events.push(record);
+  writeJsonSafe(ANALYTICS_FILE, buf);
+  return record;
+}
+
 // Create pass (store token hash only)
 function createPass(rawToken, offerId) {
   const token_hash = hashToken(rawToken);
