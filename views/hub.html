@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>All City Pages — Local Deals Hub</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#fff;color:#111;margin:0}
+  header{padding:16px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:16px}
+  header img{height:36px}
+  .bar{display:flex;gap:8px;padding:12px 16px;background:#FFD700;color:#000;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:16px}
+  .card{border:1px solid #eee;border-radius:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.05);background:#fff}
+  .card h3{margin:0 0 6px}
+  .meta{font-size:12px;color:#666}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  button{cursor:pointer;border-radius:10px;border:1px solid #ddd;padding:8px 10px;background:#000;color:#fff}
+  .ghost{background:#fff;color:#000}
+  footer{text-align:center;padding:24px;color:#444;border-top:1px solid #eee}
+</style>
+</head>
+<body>
+<header>
+  <img src="/static/logo-acp.png" alt="All City Pages"/>
+  <div><strong>Local Deals Hub</strong><br/><small>Precision Beats Saturation — Every Scan Counts.™</small></div>
+</header>
+
+<div class="bar">
+  <button id="nearMeBtn" class="ghost">📍 Show deals near me</button>
+  <button id="favoritesBtn" class="ghost">⭐ My Favorites</button>
+</div>
+
+<section class="grid" id="grid"></section>
+
+<footer>AllCityPages.com | info@AllCityPages.com</footer>
+
+<script>
+const grid = document.getElementById('grid');
+const favKey = 'acp_favorites_v1';
+const favorites = new Set(JSON.parse(localStorage.getItem(favKey) || '[]'));
+let showingFavs = false;
+let lastData = [];
+
+function render(items){
+  grid.innerHTML='';
+  (items||[]).forEach(i=>{
+    const isFav = favorites.has(i.offer_id);
+    const card = document.createElement('div');
+    card.className='card';
+    card.innerHTML = `
+      <h3>${i.title} — <small>${i.restaurant||''}</small></h3>
+      <div class="meta">${i.details||''}</div>
+      ${i.address? `<div class="meta">${i.address}</div>`:''}
+      ${i.distance_km!=null? `<div class="meta">~${i.distance_km.toFixed(1)} km</div>`:''}
+      <div class="row">
+        <a href="/coupon?offer=${encodeURIComponent(i.offer_id)}"><button>Tap to Redeem</button></a>
+        <button class="ghost" data-fav="${i.offer_id}">${isFav?'⭐ Favorited':'☆ Favorite'}</button>
+        <a href="/wallet/add?offer=${encodeURIComponent(i.offer_id)}"><button class="ghost">Add to Wallet</button></a>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll('button[data-fav]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-fav');
+      if (favorites.has(id)) favorites.delete(id); else favorites.add(id);
+      localStorage.setItem(favKey, JSON.stringify([...favorites]));
+      fetch('/api/analytics/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({event:'favorite_add',offer_id:id})});
+      render(lastData);
+    };
+  });
+}
+
+async function loadOffers(params=''){
+  const r = await fetch('/api/offers'+params);
+  const data = await r.json();
+  lastData = data;
+  render(showingFavs ? data.filter(d=>favorites.has(d.offer_id)) : data);
+}
+
+document.getElementById('nearMeBtn').onclick = ()=>{
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const {latitude,longitude}=pos.coords;
+    loadOffers(`?lat=${latitude}&lon=${longitude}`);
+  },()=>loadOffers(''));
+};
+document.getElementById('favoritesBtn').onclick = ()=>{
+  showingFavs = !showingFavs;
+  render(showingFavs ? lastData.filter(d=>favorites.has(d.offer_id)) : lastData);
+};
+loadOffers();
+</script>
+</body></html>
