@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: false }));
 // ---------- CORS (allow local redeem.html and other origins) ----------
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*'); // restrict to specific origins if needed
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, x-user-id');
   res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200); // preflight
   next();
@@ -23,49 +23,6 @@ app.use((req, res, next) => {
 
 // ---------- Static assets (/public -> /static/...) ----------
 app.use('/static', express.static(path.join(__dirname, 'public')));
-
-// ---------- Offers catalog API (Hub) ----------
-app.get('/api/offers', (req, res) => {
-  const { lat, lon, limit = 100 } = req.query;
-  const items = Object.entries(OFFERS)
-    .filter(([id, o]) => !String(id).startsWith('//')) // ignore comments
-    .map(([id, o]) => ({
-      offer_id: id,
-      title: o.title,
-      details: o.description || '',
-      restaurant: o.restaurant || '',
-      address: o.store_address || '',
-      logo: o.logo || '',
-      lat: o.lat ?? null,  // optional if you add
-      lon: o.lon ?? null,  // optional if you add
-    }));
-
-  let rows = items;
-  if (lat && lon) {
-    const toRad = d => (d * Math.PI) / 180;
-    const R = 6371; // km
-    rows = items.map(r => {
-      if (r.lat != null && r.lon != null) {
-        const dLat = toRad(r.lat - Number(lat));
-        const dLon = toRad(r.lon - Number(lon));
-        const a = Math.sin(dLat/2)**2 + Math.cos(toRad(Number(lat))) * Math.cos(toRad(r.lat)) * Math.sin(dLon/2)**2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return { ...r, distance_km: R * c };
-      }
-      return { ...r, distance_km: null };
-    }).sort((a,b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
-  }
-
-  res.json(rows.slice(0, Number(limit)));
-});
-
-// Single-offer fetch for hub detail (optional)
-app.get('/api/offers/:offerId', (req, res) => {
-  const o = OFFERS[req.params.offerId];
-  if (!o) return res.status(404).json({ error: 'Not found' });
-  appendAnalyticsEvent({ event: 'view', offer_id: req.params.offerId, restaurant: o.restaurant || null });
-  res.json({ offer_id: req.params.offerId, ...o });
-});
 
 // ---------- CONFIG (require env vars) ----------
 const PORT = process.env.PORT || 3000;
@@ -79,11 +36,14 @@ if (!API_KEY) {
   console.error('FATAL: Missing environment variable API_KEY.');
   process.exit(1);
 }
+const AVG_TICKET = Number(process.env.AVG_TICKET || 18);
 
 // ---------- Paths ----------
 const PASSES_FILE = path.join(__dirname, 'passes.json');
 const OFFERS_FILE = path.join(__dirname, 'offers.json');
 const STORES_FILE = path.join(__dirname, 'stores.json');
+const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
+const LOYALTY_FILE = path.join(__dirname, 'loyalty.json');
 
 // ---------- Helpers for JSON files ----------
 function readJsonSafe(filePath, fallback) {
@@ -94,12 +54,31 @@ function writeJsonSafe(filePath, obj) {
   fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
 }
 
-// Ensure passes file exists
+// Ensure files exist
 if (!fs.existsSync(PASSES_FILE)) writeJsonSafe(PASSES_FILE, { passes: [] });
+if (!fs.existsSync(ANALYTICS_FILE)) writeJsonSafe(ANALYTICS_FILE, { events: [] });
+if (!fs.existsSync(LOYALTY_FILE)) writeJsonSafe(LOYALTY_FILE, { entries: [] });
 
 // Load offers & stores (canonical sources)
 const OFFERS = readJsonSafe(OFFERS_FILE, {});
 const STORES = readJsonSafe(STORES_FILE, {});
+
+// ---------- Analytics helpers ----------
+function appendAnalyticsEvent(evt) {
+  const now = new Date().toISOString();
+  const record = { ts: now, ...evt };
+  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
+  buf.events.push(record);
+  writeJsonSafe(ANALYTICS_FILE, buf);
+  return record;
+}
+
+// ---------- Loyalty helpers ----------
+function addLoyalty({ user_id = 'anon', restaurant, points = 10, reason = 'coupon_redeem' }) {
+  const buf = readJsonSafe(LOYALTY_FILE, { entries: [] });
+  buf.entries.push({ ts: new Date().toISOString(), user_id, restaurant, points, reason });
+  writeJsonSafe(LOYALTY_FILE, buf);
+}
 
 // ---------- Token helpers ----------
 function genToken(bytes = 12) {
@@ -108,19 +87,6 @@ function genToken(bytes = 12) {
 }
 function hashToken(raw) {
   return crypto.createHash('sha256').update(raw).digest('hex');
-}
-
-// ---------- Analytics store ----------
-const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
-if (!fs.existsSync(ANALYTICS_FILE)) fs.writeFileSync(ANALYTICS_FILE, JSON.stringify({ events: [] }, null, 2));
-
-function appendAnalyticsEvent(evt) {
-  const now = new Date().toISOString();
-  const record = { ts: now, ...evt };
-  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
-  buf.events.push(record);
-  writeJsonSafe(ANALYTICS_FILE, buf);
-  return record;
 }
 
 // Create pass (store token hash only)
@@ -226,9 +192,79 @@ async function applyDiscountToPOS({ store_meta, offer, offer_id, order_id }) {
   await fn(ctx);
 }
 
-// ---------- Endpoints ----------
+// ---------- Offers catalog API (Hub) ----------
+app.get('/api/offers', (req, res) => {
+  const { lat, lon, limit = 100 } = req.query;
+  const items = Object.entries(OFFERS)
+    .filter(([id]) => !String(id).startsWith('//')) // ignore comment keys
+    .map(([id, o]) => ({
+      offer_id: id,
+      title: o.title,
+      details: o.description || '',
+      restaurant: o.restaurant || '',
+      address: o.store_address || '',
+      logo: o.logo || '',
+      lat: o.lat ?? null,  // optional if you add coords later
+      lon: o.lon ?? null
+    }));
 
-// PNG QR endpoint for a raw token (links to validate page)
+  let rows = items;
+  if (lat && lon) {
+    const toRad = d => (d * Math.PI) / 180;
+    const R = 6371; // km
+    rows = items.map(r => {
+      if (r.lat != null && r.lon != null) {
+        const dLat = toRad(r.lat - Number(lat));
+        const dLon = toRad(r.lon - Number(lon));
+        const a = Math.sin(dLat/2)**2 + Math.cos(toRad(Number(lat))) * Math.cos(toRad(r.lat)) * Math.sin(dLon/2)**2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return { ...r, distance_km: R * c };
+      }
+      return { ...r, distance_km: null };
+    }).sort((a,b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
+  }
+
+  res.json(rows.slice(0, Number(limit)));
+});
+
+app.get('/api/offers/:offerId', (req, res) => {
+  const o = OFFERS[req.params.offerId];
+  if (!o) return res.status(404).json({ error: 'Not found' });
+  appendAnalyticsEvent({ event: 'view', offer_id: req.params.offerId, restaurant: o.restaurant || null });
+  res.json({ offer_id: req.params.offerId, ...o });
+});
+
+// ---------- Analytics event ingest ----------
+app.post('/api/analytics/event', (req, res) => {
+  const { event, offer_id=null, restaurant=null, user_id=null, meta=null } = req.body || {};
+  if (!event) return res.status(400).json({ error: 'event required' });
+  const rec = appendAnalyticsEvent({ event, offer_id, restaurant, user_id, meta });
+  res.json({ ok: true, ts: rec.ts });
+});
+
+// ---------- Hub page ----------
+app.get('/hub', (req,res) => res.sendFile(path.join(__dirname, 'views', 'hub.html')));
+
+// ---------- Wallet add (stub; logs wallet_add) ----------
+app.get('/wallet/add', (req,res) => {
+  const offer = req.query.offer;
+  const o = offer ? OFFERS[offer] : null;
+  if (!o) return res.status(404).send('Offer not found');
+  appendAnalyticsEvent({ event: 'wallet_add', offer_id: offer, restaurant: o.restaurant || null });
+
+  res.send(`
+    <!doctype html><html><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Added to Wallet</title></head>
+    <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;padding:18px">
+      <h2>Wallet Pass Ready</h2>
+      <p>Your device may prompt you to save this pass when fully integrated with Apple/Google Wallet.</p>
+      <p><a href="/coupon?offer=${encodeURIComponent(offer)}">Back to coupon</a></p>
+    </body></html>
+  `);
+});
+
+// ---------- PNG QR endpoint for a raw token (links to validate page) ----------
 app.get('/api/qrcode/:token', async (req, res) => {
   const token = req.params.token;
   const url = `${BASE_URL}/validate?token=${encodeURIComponent(token)}`;
@@ -242,11 +278,14 @@ app.get('/api/qrcode/:token', async (req, res) => {
   }
 });
 
-// Styled coupon page: create a token and display QR + branding
+// ---------- Styled coupon page: create a token and display QR + branding ----------
 app.get('/coupon', (req, res) => {
   const offerId = req.query.offer;
   const offer = offerId ? OFFERS[offerId] : null;
   if (!offer) return res.status(400).send('Invalid offer id');
+
+  // analytics: scan-on-open
+  appendAnalyticsEvent({ event: 'scan', offer_id: offerId, restaurant: offer ? offer.restaurant : null });
 
   const rawToken = genToken();
   createPass(rawToken, offerId);
@@ -286,7 +325,7 @@ app.get('/coupon', (req, res) => {
       body{font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:#fff;margin:0}
       .wrap{max-width:760px;margin:0 auto;padding:18px}
       .brandbar{display:flex;align-items:center;gap:14px;margin:6px 0 10px}
-      .brandbar img.logo{height:64px} /* try 56–64px */
+      .brandbar img.logo{height:64px}
       .brandname{color:var(--brand);font-weight:800}
       h1{font-size:40px;line-height:1.1;margin:6px 0 2px;color:#111}
       .brand{color:#666;font-style:italic;margin:0 0 6px}
@@ -309,12 +348,12 @@ app.get('/coupon', (req, res) => {
   </head>
   <body>
     <div class="wrap">
-     <div class="brandbar">
-  ${logo
-    ? `<img class="logo" alt="${brand} logo" src="${logo}">`
-    : `<span class="badge"><span class="dot"></span><span class="brandname">${brand || ''}</span></span>`
-  }
-</div>
+      <div class="brandbar">
+        ${logo
+          ? `<img class="logo" alt="${brand} logo" src="${logo}">`
+          : `<span class="badge"><span class="dot"></span><span class="brandname">${brand || ''}</span></span>`
+        }
+      </div>
 
       <h1>${title}</h1>
       <p class="brand">${brand}</p>
@@ -343,7 +382,7 @@ app.get('/coupon', (req, res) => {
   res.send(html);
 });
 
-// validate page (view coupon + staff-friendly info)
+// ---------- validate page (view coupon + staff-friendly info) ----------
 app.get('/validate', (req, res) => {
   const rawToken = req.query.token || '';
   const p = rawToken ? findPassByRawToken(rawToken) : null;
@@ -357,6 +396,11 @@ app.get('/validate', (req, res) => {
   const title = offer.title || 'Coupon';
   const brand = offer.restaurant || '';
   const desc = offer.description || '';
+
+  // analytics: view
+  if (p && p.offer_id) {
+    appendAnalyticsEvent({ event: 'view', offer_id: p.offer_id, restaurant: brand || null });
+  }
 
   const html = `
   <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
@@ -379,7 +423,7 @@ app.get('/validate', (req, res) => {
   res.send(html);
 });
 
-// POST /api/redeem (protected by x-api-key)
+// ---------- POST /api/redeem (protected by x-api-key) ----------
 app.post('/api/redeem', async (req, res) => {
   const key = req.header('x-api-key');
   if (!key || key !== API_KEY) return res.status(401).json({ ok: false, message: 'Invalid API key' });
@@ -393,6 +437,10 @@ app.post('/api/redeem', async (req, res) => {
     const offer = OFFERS[pass.offer_id] || {};
     const rawStore = STORES[store_id];
     const store_meta = (typeof rawStore === 'string') ? { brand: rawStore } : (rawStore || {});
+
+    // analytics + loyalty
+    appendAnalyticsEvent({ event: 'redeem', offer_id: pass.offer_id, restaurant: offer.restaurant || null, meta: { store_id } });
+    addLoyalty({ user_id: (req.headers['x-user-id'] || 'anon'), restaurant: offer.restaurant || '', points: 10 });
 
     // Try POS apply (optional)
     try {
@@ -417,7 +465,7 @@ app.post('/api/redeem', async (req, res) => {
   }
 });
 
-// Admin page (CSV download after API key paste)
+// ---------- Admin page (CSV download after API key paste) ----------
 app.get('/admin', (req, res) => {
   const html = `
   <!doctype html><html><head><meta charset="utf-8"><title>Admin — Download CSV</title></head>
@@ -458,7 +506,7 @@ app.get('/admin', (req, res) => {
   res.send(html);
 });
 
-// /report — protected CSV (requires x-api-key header)
+// ---------- /report — protected CSV (existing redemption CSV) ----------
 app.get('/report', (req, res) => {
   const key = req.header('x-api-key');
   if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
@@ -489,8 +537,56 @@ app.get('/report', (req, res) => {
   res.send(csv);
 });
 
+// ---------- Analytics CSV (separate) ----------
+app.get('/report-analytics.csv', (req,res) => {
+  const key = req.header('x-api-key');
+  if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
+
+  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
+  const rows = buf.events || [];
+  res.setHeader('Content-Type','text/csv');
+  res.setHeader('Content-Disposition','attachment; filename="acp_analytics.csv"');
+  res.write('ts,event,offer_id,restaurant,user_id,meta\n');
+  for (const r of rows) {
+    const meta = r.meta ? JSON.stringify(r.meta).replace(/[\n\r,]/g,' ') : '';
+    res.write([r.ts, r.event, r.offer_id||'', r.restaurant||'', r.user_id||'', meta].join(',')+'\n');
+  }
+  res.end();
+});
+
+// ---------- Dashboard API + page ----------
+app.get('/api/dashboard/summary', (req, res) => {
+  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
+  const ev = buf.events || [];
+  const scans = ev.filter(e => e.event === 'scan').length;
+  const wallet_adds = ev.filter(e => e.event === 'wallet_add').length;
+  const redemptions = ev.filter(e => e.event === 'redeem').length;
+
+  const estimated_revenue = redemptions * AVG_TICKET;
+
+  // last 30 days by day
+  const cutoff = Date.now() - 30*24*60*60*1000;
+  const map = new Map();
+  ev.forEach(e => {
+    const t = new Date(e.ts).getTime();
+    if (isNaN(t) || t < cutoff) return;
+    const day = new Date(e.ts).toISOString().slice(0,10);
+    const cur = map.get(day) || { scans:0, redemptions:0 };
+    if (e.event === 'scan') cur.scans++;
+    if (e.event === 'redeem') cur.redemptions++;
+    map.set(day, cur);
+  });
+  const daily = [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0]))
+                  .map(([day,v])=>({ day, ...v }));
+
+  res.json({ scans, wallet_adds, redemptions, estimated_revenue, daily });
+});
+
+app.get('/dashboard', (req,res)=> res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
+
 app.get('/healthz', (req, res) => res.send('ok'));
 
+// ---------- Start ----------
 app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}, BASE_URL=${BASE_URL}`);
 });
