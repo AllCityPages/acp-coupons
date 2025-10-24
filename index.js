@@ -582,7 +582,9 @@ app.get('/api/dashboard/summary', (req, res) => {
   res.json({ scans, wallet_adds, redemptions, estimated_revenue, daily });
 });
 
-app.get('/dashboard', (req,res)=> res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
+app.get(['/dashboard', '/hub/dashboard'], (req, res) =>
+  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'))
+);
 
 app.get('/healthz', (req, res) => res.send('ok'));
 
