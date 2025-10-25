@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Redeem Coupon</title>
+<style>
+  :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+  body { margin: 0; padding: 24px; background: #0b1220; color: #eef2ff; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 20px; max-width: 720px; margin: 0 auto; }
+  label { display:block; margin: 12px 0 6px; color:#cbd5e1; }
+  input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #334155; background:#0f172a; color:#e2e8f0; }
+  .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn { display:inline-block; padding: 10px 14px; border-radius: 10px; background:#2563eb; color:white; text-decoration:none; border:0; cursor:pointer; }
+  .muted { color:#94a3b8; font-size: 12px; }
+  .ok { color:#34d399; }
+  .err { color:#f87171; }
+</style>
+</head>
+<body>
+  <section class="card">
+    <h1>Cashier Redeem</h1>
+    <p class="muted">Scan or paste token below. Press Enter to submit.</p>
+
+    <label>Token</label>
+    <input id="token" placeholder="scan or paste token…" />
+
+    <div class="row">
+      <div>
+        <label>Store ID</label>
+        <input id="store" placeholder="e.g. 2331" />
+      </div>
+      <div>
+        <label>API Key</label>
+        <input id="key" placeholder="x-api-key" />
+      </div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <button class="btn" id="redeemBtn">Redeem</button>
+    </div>
+
+    <p id="msg" class="muted" style="margin-top:12px;"></p>
+  </section>
+
+<script>
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('token')) document.getElementById('token').value = qs.get('token');
+
+  document.getElementById('redeemBtn').addEventListener('click', redeem);
+  document.getElementById('token').addEventListener('keydown', (e) => { if (e.key === 'Enter') redeem(); });
+
+  async function redeem() {
+    const token = document.getElementById('token').value.trim();
+    const store_id = document.getElementById('store').value.trim();
+    const key = document.getElementById('key').value.trim();
+    const msg = document.getElementById('msg');
+
+    msg.className = 'muted';
+    msg.textContent = 'Submitting…';
+
+    try {
+      const res = await fetch('/api/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': key },
+        body: JSON.stringify({ token, store_id })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        msg.className = 'err';
+        msg.textContent = data.error || 'Redeem failed';
+        return;
+      }
+      msg.className = 'ok';
+      msg.textContent = `Redeemed at ${data.redeemed_at}`;
+    } catch (e) {
+      msg.className = 'err';
+      msg.textContent = 'Network error';
+    }
+  }
+</script>
+</body>
+</html>
