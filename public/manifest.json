@@ -1,0 +1,9 @@
+{
+  "name": "ACP Coupons",
+  "short_name": "Coupons",
+  "start_url": "/offers.html",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#111827",
+  "icons": []
+}
