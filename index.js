@@ -465,7 +465,7 @@ app.post('/api/redeem', async (req, res) => {
   }
 });
 
-// ---------- Admin page (CSV download after API key paste) ----------
+// ---------- Admin page (POST form; Safari-safe) ----------
 app.get('/admin', (req, res) => {
   res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Admin — Download Redemption CSV</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -478,12 +478,12 @@ app.get('/admin', (req, res) => {
       <button type="submit" style="margin-top:8px;padding:8px 12px">Download CSV</button>
     </form>
 
-    <p style="margin-top:16px;color:#666">Tip: this uses a normal POST file download, so it works in Safari/Chrome/Edge.</p>
+    <p style="margin-top:16px;color:#666">This uses a normal POST download, so it works in Safari/Chrome/Edge.</p>
     <p style="margin-top:8px"><a href="/admin-analytics">Admin Analytics CSV</a> • <a href="/dashboard">Dashboard</a> • <a href="/hub">Deals Hub</a></p>
   </body></html>`);
 });
 
-// ---------- /report — protected CSV (existing redemption CSV) ----------
+// ---------- /report — protected CSV (legacy GET) ----------
 app.get('/report', (req, res) => {
   const key = req.header('x-api-key');
   if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
@@ -514,7 +514,7 @@ app.get('/report', (req, res) => {
   res.send(csv);
 });
 
-// ---------- Analytics CSV (multi-path: core + hub aliases) ----------
+// ---------- Analytics CSV (GET multi-path: core + hub aliases) ----------
 app.get(
   ['/report-analytics.csv', '/hub/report-analytics.csv', '/hub/dashboard/report-analytics.csv'],
   (req, res) => {
@@ -534,7 +534,7 @@ app.get(
   }
 );
 
-// --- Admin-friendly POST endpoints (work in Safari; no custom headers needed)
+// ---------- Admin-friendly POST endpoints (Safari-safe) ----------
 app.post('/admin/report', express.urlencoded({ extended: false }), (req, res) => {
   const key = (req.body && req.body.api_key) || '';
   if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
@@ -580,7 +580,7 @@ app.post('/admin/report-analytics', express.urlencoded({ extended: false }), (re
   res.end();
 });
 
-// ---------- Admin Analytics page (easy CSV download) ----------
+// ---------- Admin Analytics page (POST form; Safari-safe) ----------
 app.get('/admin-analytics', (req, res) => {
   res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Admin — Analytics CSV</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -630,6 +630,22 @@ app.get('/dashboard', (req,res)=> res.sendFile(path.join(__dirname, 'views', 'da
 
 // ---------- Alias routes for Hub convenience ----------
 app.get('/hub/dashboard', (req, res) => res.redirect(302, '/dashboard'));
+
+// ---------- Root: quick links ----------
+app.get('/', (req, res) => {
+  res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Coupons</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
+    <h1>Coupon Server</h1>
+    <ul>
+      <li><a href="/hub">Deals Hub</a></li>
+      <li><a href="/dashboard">Dashboard</a></li>
+      <li><a href="/admin">Admin (Redemptions CSV)</a></li>
+      <li><a href="/admin-analytics">Admin Analytics CSV</a></li>
+      <li><a href="/healthz">Health</a></li>
+    </ul>
+  </body></html>`);
+});
 
 // ---------- Health ----------
 app.get('/healthz', (req, res) => res.send('ok'));
