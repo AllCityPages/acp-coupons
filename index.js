@@ -557,6 +557,52 @@ app.get(
   }
 );
 
+// --- Admin-friendly POST endpoints (work in Safari; no custom headers needed)
+app.post('/admin/report', express.urlencoded({ extended: false }), (req, res) => {
+  const key = (req.body && req.body.api_key) || '';
+  if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
+
+  const db = readJsonSafe(PASSES_FILE, { passes: [] });
+  const headers = [
+    'id','offer_id','restaurant','status','issued_at','expires_at',
+    'redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'
+  ];
+  const rows = db.passes.map(p => [
+    p.id,
+    p.offer_id || '',
+    p.restaurant || '',
+    p.status || '',
+    p.issued_at || '',
+    p.expires_at || '',
+    p.redeemed_at || '',
+    (p.redeemed_by && p.redeemed_by.store_code) || '',
+    (p.redeemed_by && p.redeemed_by.staff_id) || '',
+    p.token_hash || ''
+  ]);
+  const csv = [headers.join(',')]
+    .concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')))
+    .join('\n');
+
+  res.setHeader('Content-Type','text/csv');
+  res.setHeader('Content-Disposition','attachment; filename="redeem_report.csv"');
+  res.send(csv);
+});
+
+app.post('/admin/report-analytics', express.urlencoded({ extended: false }), (req, res) => {
+  const key = (req.body && req.body.api_key) || '';
+  if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
+
+  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
+  res.setHeader('Content-Type','text/csv');
+  res.setHeader('Content-Disposition','attachment; filename="acp_analytics.csv"');
+  res.write('ts,event,offer_id,restaurant,user_id,meta\n');
+  for (const r of (buf.events || [])) {
+    const meta = r.meta ? JSON.stringify(r.meta).replace(/[\n\r,]/g,' ') : '';
+    res.write([r.ts, r.event, r.offer_id||'', r.restaurant||'', r.user_id||'', meta].join(',')+'\n');
+  }
+  res.end();
+});
+
 // ---------- Admin Analytics page (easy CSV download) ----------
 app.get('/admin-analytics', (req, res) => {
   res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Admin — Analytics CSV</title></head>
