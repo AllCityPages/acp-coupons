@@ -25,6 +25,7 @@
   input[type="search"]{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
   select{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
   .notice { font-size:12px; color:#94a3b8; }
+  .msg { color:#94a3b8; padding:12px 0; }
 </style>
 </head>
 <body>
@@ -41,6 +42,7 @@
     <button class="btn secondary" id="clear">Clear</button>
   </div>
 
+  <div id="msg" class="msg"></div>
   <div id="grid" class="grid"></div>
 </div>
 
@@ -51,9 +53,12 @@
 
   async function loadOffers(){
     const res = await fetch('/api/offers');
+    if (!res.ok) throw new Error('Failed to load /api/offers');
     const j = await res.json();
     return j.offers || [];
   }
+
+  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
 
   function renderGrid(list){
     const grid = document.getElementById('grid');
@@ -80,64 +85,59 @@
       const matchB = !b || o.restaurant.toLowerCase() === b;
       return matchQ && matchB;
     });
+    setMsg(out.length ? '' : 'No offers match your filters.');
     renderGrid(out);
   }
 
   async function init(){
-    const offers = await loadOffers();
-    window.__offers = offers;
+    try {
+      setMsg('Loading offers…');
+      const offers = await loadOffers();
+      window.__offers = offers;
 
-    // populate brands
-    const brands = Array.from(new Set(offers.map(o => o.restaurant))).sort();
-    const sel = document.getElementById('brand');
-    brands.forEach(b => { const opt = document.createElement('option'); opt.value=b; opt.textContent=b; sel.appendChild(opt); });
+      // populate brands
+      const brands = Array.from(new Set(offers.map(o => o.restaurant))).sort();
+      const sel = document.getElementById('brand');
+      brands.forEach(b => { const opt = document.createElement('option'); opt.value=b; opt.textContent=b; sel.appendChild(opt); });
 
-    if (prefillBrand) { sel.value = prefillBrand; }
-    applyFilters();
+      if (prefillBrand) { sel.value = prefillBrand; }
+      setMsg('');
+      applyFilters();
 
-    // log gallery view
-    fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'gallery_view', meta:{ source } }) });
+      // log gallery view
+      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'gallery_view', meta:{ source } }) });
 
-    document.getElementById('apply').onclick = applyFilters;
-    document.getElementById('clear').onclick = ()=>{ document.getElementById('q').value=''; sel.value=''; applyFilters(); };
+      document.getElementById('apply').onclick = applyFilters;
+      document.getElementById('clear').onclick = ()=>{ document.getElementById('q').value=''; sel.value=''; applyFilters(); };
 
-    // prompt notifications once
-    if ('Notification' in window && Notification.permission === 'default') {
-      setTimeout(()=> Notification.requestPermission(), 1500);
-    }
+      // service worker (optional)
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js');
 
-    // basic geo nudge when page open
-    if ('geolocation' in navigator) {
-      try {
-        navigator.geolocation.getCurrentPosition(pos => {
-          fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'geo_check', meta:{ lat:pos.coords.latitude, lon:pos.coords.longitude } }) });
-        });
-      } catch {}
+      // ask notifications nicely
+      if ('Notification' in window && Notification.permission === 'default') {
+        setTimeout(()=> Notification.requestPermission(), 1500);
+      }
+    } catch (e) {
+      console.error(e);
+      setMsg('Could not load offers. Check /api/offers and offers.json.');
     }
   }
 
   async function saveOffer(id, brand, client_slug){
-    // client wallet
     const key='wallet_offers';
     const cur = JSON.parse(localStorage.getItem(key)||'[]');
     if (!cur.includes(id)) cur.push(id);
     localStorage.setItem(key, JSON.stringify(cur));
-
-    // server log
     await fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ offer_id:id }) });
-
-    // event
     await fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'save_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
-
     alert('Saved to your Wallet on this device.');
   }
 
-  async function logClick(id, brand, client_slug){
+  function logClick(id, brand, client_slug){
     fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
   }
 
-  <script> 'serviceWorker' in navigator && navigator.serviceWorker.register('/service-worker.js'); </script>
-
+  // run
   init();
 </script>
 </body>
