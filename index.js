@@ -1,10 +1,9 @@
 // index.js
-// One-time coupon server (Node 18+)
-// Requires env: COUPON_BASE_URL or BASE_URL, API_KEY
+// One-time coupon server with Admin + Client dashboards (Node 18+)
 
 const express = require('express');
 const fs = require('fs');
-const path = require('path');                 // <- keep this ONCE
+const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 
@@ -14,643 +13,342 @@ app.use(express.urlencoded({ extended: false }));
 
 // ---------- CORS (allow local redeem.html and other origins) ----------
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*'); // restrict to specific origins if needed
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, x-user-id');
-  res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(200); // preflight
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, x-client-token');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
 
-// ---------- Static assets (/public -> /static/...) ----------
-app.use('/static', express.static(path.join(__dirname, 'public')));
-
-// ---------- CONFIG (require env vars) ----------
+// ---------- ENV ----------
 const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.COUPON_BASE_URL || process.env.BASE_URL;
-if (!BASE_URL) {
-  console.error('FATAL: Missing environment variable COUPON_BASE_URL or BASE_URL.');
-  process.exit(1);
-}
-const API_KEY = process.env.API_KEY;
-if (!API_KEY) {
-  console.error('FATAL: Missing environment variable API_KEY.');
-  process.exit(1);
-}
-const AVG_TICKET = Number(process.env.AVG_TICKET || 18);
+const API_KEY = process.env.API_KEY || process.env.X_API_KEY || 'dev-key';
+const BASE_URL = process.env.COUPON_BASE_URL || process.env.BASE_URL || `http://localhost:${PORT}`;
 
-// ---------- Paths ----------
-const PASSES_FILE = path.join(__dirname, 'passes.json');
-const OFFERS_FILE = path.join(__dirname, 'offers.json');
-const STORES_FILE = path.join(__dirname, 'stores.json');
-const ANALYTICS_FILE = path.join(__dirname, 'analytics.json');
-const LOYALTY_FILE = path.join(__dirname, 'loyalty.json');
+const CLIENT_POPEYES_SLUG = process.env.CLIENT_POPEYES_SLUG || 'popeyes-mckinney';
+const CLIENT_POPEYES_TOKEN = process.env.CLIENT_POPEYES_TOKEN || 'change-me-long-random';
 
-// ---------- Helpers for JSON files ----------
-function readJsonSafe(filePath, fallback) {
-  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
-  catch { return fallback; }
+// ---------- FILE PATHS ----------
+const DATA_DIR = path.join(__dirname, 'data');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const PASSES_PATH = path.join(DATA_DIR, 'passes.json');
+
+// ---------- FS HELPERS ----------
+function ensureDirs() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+  // seed a tiny cashier page if not present
+  const clientDir = path.join(PUBLIC_DIR, 'client');
+  if (!fs.existsSync(clientDir)) fs.mkdirSync(clientDir, { recursive: true });
+  const redeemHtml = path.join(PUBLIC_DIR, 'redeem.html');
+  if (!fs.existsSync(redeemHtml)) {
+    fs.writeFileSync(
+      redeemHtml,
+      `<!doctype html><meta charset="utf-8"><title>Redeem</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px;max-width:520px;margin:0 auto}input,button{padding:10px;border:1px solid #ddd;border-radius:8px}label{display:block;margin:.5rem 0 .25rem}button{cursor:pointer}</style>
+<h1>Coupon Redeem</h1>
+<p>Paste or scan the <b>token</b> below and submit with your store/staff IDs.</p>
+<label>Token</label><input id="token" autofocus>
+<label>Store ID</label><input id="store" placeholder="Store #2331">
+<label>Staff</label><input id="staff" placeholder="John S.">
+<label>API Key</label><input id="key" placeholder="Required">
+<p><button onclick="redeem()">Redeem</button></p>
+<pre id="out"></pre>
+<script>
+async function redeem(){
+  const token=document.getElementById('token').value.trim();
+  const store=document.getElementById('store').value.trim();
+  const staff=document.getElementById('staff').value.trim();
+  const key=document.getElementById('key').value.trim();
+  const res=await fetch('/api/redeem',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key},body:JSON.stringify({token,store_id:store,staff})});
+  document.getElementById('out').textContent = await res.text();
 }
-function writeJsonSafe(filePath, obj) {
-  fs.writeFileSync(filePath, JSON.stringify(obj, null, 2));
+</script>`
+    );
+  }
 }
+ensureDirs();
 
-// Ensure files exist
-if (!fs.existsSync(PASSES_FILE)) writeJsonSafe(PASSES_FILE, { passes: [] });
-if (!fs.existsSync(ANALYTICS_FILE)) writeJsonSafe(ANALYTICS_FILE, { events: [] });
-if (!fs.existsSync(LOYALTY_FILE)) writeJsonSafe(LOYALTY_FILE, { entries: [] });
-
-// Load offers & stores (canonical sources)
-const OFFERS = readJsonSafe(OFFERS_FILE, {});
-const STORES = readJsonSafe(STORES_FILE, {});
-
-// ---------- Analytics helpers ----------
-function appendAnalyticsEvent(evt) {
-  const now = new Date().toISOString();
-  const record = { ts: now, ...evt };
-  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
-  buf.events.push(record);
-  writeJsonSafe(ANALYTICS_FILE, buf);
-  return record;
+function loadPasses() {
+  if (!fs.existsSync(PASSES_PATH)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(PASSES_PATH, 'utf8'));
+  } catch {
+    return [];
+  }
 }
-
-// ---------- Loyalty helpers ----------
-function addLoyalty({ user_id = 'anon', restaurant, points = 10, reason = 'coupon_redeem' }) {
-  const buf = readJsonSafe(LOYALTY_FILE, { entries: [] });
-  buf.entries.push({ ts: new Date().toISOString(), user_id, restaurant, points, reason });
-  writeJsonSafe(LOYALTY_FILE, buf);
-}
-
-// ---------- Token helpers ----------
-function genToken(bytes = 12) {
-  return crypto.randomBytes(bytes).toString('base64')
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-function hashToken(raw) {
-  return crypto.createHash('sha256').update(raw).digest('hex');
+function savePasses(arr) {
+  fs.writeFileSync(PASSES_PATH, JSON.stringify(arr, null, 2));
 }
 
-// Create pass (store token hash only)
-function createPass(rawToken, offerId) {
-  const token_hash = hashToken(rawToken);
-  const now = Math.floor(Date.now() / 1000);
-  const offer = OFFERS[offerId] || null;
-  const expires_at = offer && offer.expires_days
-    ? now + offer.expires_days * 24 * 60 * 60
-    : now + 90 * 24 * 60 * 60;
+function nowISO() {
+  return new Date().toISOString().slice(0, 19).replace('T', ' ');
+}
 
-  const pass = {
-    id: crypto.randomUUID(),
+function hashToken(s) {
+  return crypto.createHash('sha256').update(s).digest('hex').slice(0, 12);
+}
+
+// ---------- STATIC ----------
+app.use(express.static(PUBLIC_DIR));
+
+// ---------- HEALTH ----------
+app.get('/healthz', (_, res) => res.json({ ok: true, time: new Date().toISOString() }));
+
+// ---------- ISSUE: GET /coupon?offer=...&restaurant=... ----------
+app.get('/coupon', async (req, res) => {
+  const offer_id = String(req.query.offer || req.query.offer_id || 'generic-offer').trim();
+  const restaurant = String(req.query.restaurant || 'Unknown Restaurant').trim();
+  const expires_at = req.query.expires || ''; // optional
+  const id = crypto.randomUUID();
+  const token = `${offer_id}.${id}.${Date.now()}`;
+  const token_hash = hashToken(token);
+
+  const passes = loadPasses();
+  passes.push({
+    id,
+    offer_id,
+    restaurant,
+    token,
     token_hash,
     status: 'issued',
-    issued_at: now,
-    expires_at,
-    redeemed_at: null,
-    redeemed_by: null,
-    offer_id: offerId || null,
-    restaurant: offer ? offer.restaurant : null
-  };
-
-  const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  db.passes.push(pass);
-  writeJsonSafe(PASSES_FILE, db);
-  return pass;
-}
-
-function findPassByRawToken(rawToken) {
-  const token_hash = hashToken(rawToken);
-  const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  return db.passes.find(p => p.token_hash === token_hash);
-}
-
-/**
- * Redeem by raw token with:
- * - invalid/already used/expired checks
- * - store existence check
- * - OPTIONAL store-restriction enforcement (offer.store_id)
- * - brand safety check (restaurant mismatch)
- */
-function redeemPassByRawToken(rawToken, store_code, staff_id) {
-  const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const token_hash = hashToken(rawToken);
-  const p = db.passes.find(x => x.token_hash === token_hash);
-  if (!p) return { ok: false, reason: 'invalid', message: 'Invalid coupon' };
-  if (p.status === 'redeemed') return { ok: false, reason: 'already_used', message: 'Coupon already redeemed' };
-
-  const now = Math.floor(Date.now() / 1000);
-  if (p.expires_at && now > p.expires_at) return { ok: false, reason: 'expired', message: 'Coupon expired' };
-
-  // store metadata may be a string (brand) or object {brand, pos, ...}
-  const storeRecord = STORES[store_code];
-  const storeName = typeof storeRecord === 'string'
-    ? storeRecord
-    : (storeRecord && storeRecord.brand) || null;
-  if (!storeName) return { ok: false, reason: 'unknown_store', message: 'Unknown store code' };
-
-  const offer = OFFERS[p.offer_id] || {};
-  // enforce store-specific restriction
-  if (offer.store_id && store_code !== offer.store_id) {
-    return { ok: false, reason: 'wrong_store', message: `Coupon only valid at store ${offer.store_id}` };
-  }
-  // brand safety
-  if (p.restaurant && storeName !== p.restaurant) {
-    return { ok: false, reason: 'mismatch', message: `Coupon is for ${p.restaurant} — not valid at this store.` };
-  }
-
-  // mark redeemed
-  p.status = 'redeemed';
-  p.redeemed_at = now;
-  p.redeemed_by = { store_code, staff_id: staff_id || null };
-  writeJsonSafe(PASSES_FILE, db);
-  return { ok: true, message: 'Redeemed', offer_id: p.offer_id };
-}
-
-// ---------- POS adapter stubs (optional; fill with real API calls or local bridge) ----------
-const adapters = {
-  async square(ctx) { console.log('[POS:square] apply', ctx); },
-  async toast(ctx)  { console.log('[POS:toast] apply', ctx);  },
-  async clover(ctx) { console.log('[POS:clover] apply', ctx); },
-  async 'local-bridge'(ctx) {
-    if (!ctx.store.bridge_url) throw new Error('bridge_url missing for local-bridge');
-    const res = await fetch(ctx.store.bridge_url, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        offer_id: ctx.offer_id,
-        order_id: ctx.order_id || null,
-        discount: ctx.offer.discount || null
-      })
-    }).catch(e => { throw new Error('local-bridge unreachable: ' + e.message); });
-    if (!res.ok) throw new Error('local-bridge HTTP ' + res.status);
-  }
-};
-async function applyDiscountToPOS({ store_meta, offer, offer_id, order_id }) {
-  const provider = (store_meta && store_meta.pos) || null;
-  if (!provider) { console.log('[POS] no provider; skipping'); return; }
-  const fn = adapters[provider];
-  if (!fn) { console.log('[POS] unknown provider', provider); return; }
-  const ctx = { store: store_meta, offer, offer_id, order_id };
-  await fn(ctx);
-}
-
-// ---------- Offers catalog API (Hub) ----------
-app.get('/api/offers', (req, res) => {
-  const { lat, lon, limit = 100 } = req.query;
-  const items = Object.entries(OFFERS)
-    .filter(([id]) => !String(id).startsWith('//')) // ignore comment keys
-    .map(([id, o]) => ({
-      offer_id: id,
-      title: o.title,
-      details: o.description || '',
-      restaurant: o.restaurant || '',
-      address: o.store_address || '',
-      logo: o.logo || '',
-      lat: o.lat ?? null,  // optional if you add coords later
-      lon: o.lon ?? null
-    }));
-
-  let rows = items;
-  if (lat && lon) {
-    const toRad = d => (d * Math.PI) / 180;
-    const R = 6371; // km
-    rows = items.map(r => {
-      if (r.lat != null && r.lon != null) {
-        const dLat = toRad(r.lat - Number(lat));
-        const dLon = toRad(r.lon - Number(lon));
-        const a = Math.sin(dLat/2)**2 + Math.cos(toRad(Number(lat))) * Math.cos(toRad(r.lat)) * Math.sin(dLon/2)**2;
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return { ...r, distance_km: R * c };
-      }
-      return { ...r, distance_km: null };
-    }).sort((a,b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
-  }
-
-  res.json(rows.slice(0, Number(limit)));
-});
-
-app.get('/api/offers/:offerId', (req, res) => {
-  const o = OFFERS[req.params.offerId];
-  if (!o) return res.status(404).json({ error: 'Not found' });
-  appendAnalyticsEvent({ event: 'view', offer_id: req.params.offerId, restaurant: o.restaurant || null });
-  res.json({ offer_id: req.params.offerId, ...o });
-});
-
-// ---------- Analytics event ingest ----------
-app.post('/api/analytics/event', (req, res) => {
-  const { event, offer_id=null, restaurant=null, user_id=null, meta=null } = req.body || {};
-  if (!event) return res.status(400).json({ error: 'event required' });
-  const rec = appendAnalyticsEvent({ event, offer_id, restaurant, user_id, meta });
-  res.json({ ok: true, ts: rec.ts });
-});
-
-// ---------- Hub page ----------
-app.get('/hub', (req,res) => res.sendFile(path.join(__dirname, 'views', 'hub.html')));
-
-// ---------- Wallet add (stub; logs wallet_add) ----------
-app.get('/wallet/add', (req,res) => {
-  const offer = req.query.offer;
-  const o = offer ? OFFERS[offer] : null;
-  if (!o) return res.status(404).send('Offer not found');
-  appendAnalyticsEvent({ event: 'wallet_add', offer_id: offer, restaurant: o.restaurant || null });
-
-  res.send(`
-    <!doctype html><html><head><meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Added to Wallet</title></head>
-    <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;padding:18px">
-      <h2>Wallet Pass Ready</h2>
-      <p>Your device may prompt you to save this pass when fully integrated with Apple/Google Wallet.</p>
-      <p><a href="/coupon?offer=${encodeURIComponent(offer)}">Back to coupon</a></p>
-    </body></html>
-  `);
-});
-
-// ---------- PNG QR endpoint for a raw token (links to validate page) ----------
-app.get('/api/qrcode/:token', async (req, res) => {
-  const token = req.params.token;
-  const url = `${BASE_URL}/validate?token=${encodeURIComponent(token)}`;
-  try {
-    const png = await QRCode.toBuffer(url, { type: 'png', width: 300 });
-    res.setHeader('Content-Type', 'image/png');
-    res.send(png);
-  } catch (err) {
-    console.error('QR generation error', err);
-    res.status(500).send('QR error');
-  }
-});
-
-// ---------- Styled coupon page: create a token and display QR + branding ----------
-app.get('/coupon', (req, res) => {
-  const offerId = req.query.offer;
-  const offer = offerId ? OFFERS[offerId] : null;
-  if (!offer) return res.status(400).send('Invalid offer id');
-
-  // analytics: scan-on-open
-  appendAnalyticsEvent({ event: 'scan', offer_id: offerId, restaurant: offer ? offer.restaurant : null });
-
-  const rawToken = genToken();
-  createPass(rawToken, offerId);
-
-  const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const last = db.passes.slice(-1)[0] || {};
-  const expiresDate = last && last.expires_at ? new Date(last.expires_at * 1000) : null;
-  const expires = expiresDate ? expiresDate.toLocaleDateString() : 'N/A';
-
-  // Offer fields (with fallbacks)
-  const title       = offer.title || 'Your Coupon';
-  const brand       = offer.restaurant || '';
-  const addr        = offer.store_address || '';
-  const logo        = offer.logo || '';
-  const hero        = offer.hero_image || '';
-  const brandColor  = offer.brand_color || '#111';
-  const accentColor = offer.accent_color || '#333';
-  const finePrint   = offer.fine_print || 'One redemption per customer.';
-  const descHtml    = offer.desc_html || '';
-  const plainDesc   = offer.description || 'Show this coupon to the cashier to redeem. One redemption per customer.';
-  const ogImg       = hero || logo || '';
-
-  const html = `
-  <!doctype html>
-  <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>${title}</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    ${ogImg ? `<meta property="og:image" content="${ogImg}">` : ''}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-      :root{ --brand:${brandColor}; --accent:${accentColor}; }
-      *{box-sizing:border-box}
-      body{font-family:Inter,system-ui,Arial,Helvetica,sans-serif;background:#fff;margin:0}
-      .wrap{max-width:760px;margin:0 auto;padding:18px}
-      .brandbar{display:flex;align-items:center;gap:14px;margin:6px 0 10px}
-      .brandbar img.logo{height:64px}
-      .brandname{color:var(--brand);font-weight:800}
-      h1{font-size:40px;line-height:1.1;margin:6px 0 2px;color:#111}
-      .brand{color:#666;font-style:italic;margin:0 0 6px}
-      .desc{margin:10px 0 12px 0;font-size:16px;color:#111}
-      .validonly{margin:8px 0 16px 0;color:#444}
-      .validonly strong{color:#000}
-      .hero{width:100%;border-radius:12px;display:block;margin:10px 0 16px 0}
-      .card{border:1px solid #e7e7e7;border-radius:14px;padding:16px;margin:16px 0}
-      .qrwrap{text-align:center;margin:10px 0}
-      .code{margin:10px 0;font-size:16px}
-      .code .pill{display:inline-block;background:#f2f2f2;border-radius:10px;padding:8px 12px;font-family:ui-monospace,monospace}
-      .expires{margin:0 0 8px 0;color:#111}
-      .fine{color:#666;font-size:13px}
-      .tag{display:inline-block;background:var(--brand);color:#fff;padding:4px 8px;border-radius:6px;font-weight:600;font-size:12px}
-      .divider{height:1px;background:#eee;margin:16px 0}
-      .footerTip{color:#777;font-size:13px}
-      .badge{display:inline-flex;align-items:center;gap:6px}
-      .badge .dot{width:8px;height:8px;border-radius:50%;background:var(--brand)}
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <div class="brandbar">
-        ${logo
-          ? `<img class="logo" alt="${brand} logo" src="${logo}">`
-          : `<span class="badge"><span class="dot"></span><span class="brandname">${brand || ''}</span></span>`
-        }
-      </div>
-
-      <h1>${title}</h1>
-      <p class="brand">${brand}</p>
-
-      ${descHtml ? `<div class="desc">${descHtml}</div>` : `<p class="desc">${plainDesc}</p>`}
-      ${addr ? `<p class="validonly"><strong>Valid only at:</strong> ${addr}</p>` : ''}
-
-      ${hero ? `<img class="hero" alt="Offer image" src="${hero}">` : ''}
-
-      <div class="card">
-        <div class="qrwrap">
-          <img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" />
-        </div>
-        <p class="code">Code: <span class="pill">${rawToken}</span></p>
-        <p class="expires">Expires: ${expires}</p>
-        <div class="divider"></div>
-        <p class="fine">${finePrint}</p>
-      </div>
-
-      <p class="footerTip"><small>
-        Tip: Add this page to your phone's Home Screen for quick access. Show this screen to the cashier to redeem. One redemption per coupon.
-      </small></p>
-    </div>
-  </body>
-  </html>`;
-  res.send(html);
-});
-
-// ---------- validate page (view coupon + staff-friendly info) ----------
-app.get('/validate', (req, res) => {
-  const rawToken = req.query.token || '';
-  const p = rawToken ? findPassByRawToken(rawToken) : null;
-  const now = Math.floor(Date.now() / 1000);
-  const ok = p && p.status === 'issued' && (now <= (p.expires_at || 0));
-  const expires = p ? new Date(p.expires_at * 1000).toLocaleDateString() : 'N/A';
-
-  const offer = p ? (OFFERS[p.offer_id] || {}) : {};
-  const validStoreText = offer.store_id ? offer.store_id : ('Any ' + (offer.restaurant || 'location'));
-  const addr = offer.store_address || '';
-  const title = offer.title || 'Coupon';
-  const brand = offer.restaurant || '';
-  const desc = offer.description || '';
-
-  // analytics: view
-  if (p && p.offer_id) {
-    appendAnalyticsEvent({ event: 'view', offer_id: p.offer_id, restaurant: brand || null });
-  }
-
-  const html = `
-  <!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"></head>
-  <body style="font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:auto;padding:18px">
-    <h1 style="margin:0 0 4px 0">${title}</h1>
-    ${brand ? `<p style="margin:0 0 18px 0;color:#666;font-style:italic">${brand}</p>` : ''}
-    ${desc ? `<p style="margin:0 0 18px 0">${desc}</p>` : ''}
-    <p><strong>Valid Store:</strong> ${validStoreText}</p>
-    ${addr ? `<p><strong>Address:</strong> ${addr}</p>` : ''}
-
-    <hr style="margin:18px 0"/>
-    ${ rawToken ? `<div style="text-align:center"><img alt="coupon qr" src="/api/qrcode/${encodeURIComponent(rawToken)}" /></div>` : '<p>No token provided</p>' }
-    <p style="font-family:monospace">Code: <strong>${rawToken || ''}</strong></p>
-    <p>Status: <strong>${ok ? 'Valid' : (rawToken ? 'Invalid or Redeemed' : '—')}</strong></p>
-    <p>Expires: ${expires}</p>
-
-    <p><small>For redemption, open your register’s redeem.html, select your store, then scan/paste the Code.</small></p>
-  </body></html>`;
-  res.send(html);
-});
-
-// ---------- POST /api/redeem (protected by x-api-key) ----------
-app.post('/api/redeem', async (req, res) => {
-  const key = req.header('x-api-key');
-  if (!key || key !== API_KEY) return res.status(401).json({ ok: false, message: 'Invalid API key' });
-
-  const { token, store_id, staff_id, order_id } = req.body || {};
-  if (!token || !store_id) return res.status(400).json({ ok: false, message: 'Missing token or store_id', reason: 'missing' });
-
-  const result = redeemPassByRawToken(token, store_id, staff_id);
-  if (result.ok) {
-    const pass = findPassByRawToken(token);
-    const offer = OFFERS[pass.offer_id] || {};
-    const rawStore = STORES[store_id];
-    const store_meta = (typeof rawStore === 'string') ? { brand: rawStore } : (rawStore || {});
-
-    // analytics + loyalty
-    appendAnalyticsEvent({ event: 'redeem', offer_id: pass.offer_id, restaurant: offer.restaurant || null, meta: { store_id } });
-    addLoyalty({ user_id: (req.headers['x-user-id'] || 'anon'), restaurant: offer.restaurant || '', points: 10 });
-
-    // Try POS apply (optional)
-    try {
-      await applyDiscountToPOS({
-        store_meta,
-        offer,
-        offer_id: pass.offer_id,
-        order_id: order_id || null
-      });
-    } catch (e) {
-      console.error('POS apply error:', e.message);
-    }
-
-    return res.json({
-      ok: true,
-      message: 'Redeemed',
-      offer: { id: pass.offer_id, title: offer.title || '', restaurant: offer.restaurant || '' },
-      token_hash: pass.token_hash
-    });
-  } else {
-    return res.status(400).json({ ok: false, message: result.message || 'Error', reason: result.reason });
-  }
-});
-
-// ---------- Admin page (POST form; Safari-safe) ----------
-app.get('/admin', (req, res) => {
-  res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Admin — Download Redemption CSV</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"></head>
-  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
-    <h1>Admin — Download Redemption CSV</h1>
-    <p>Paste the API key below (it is not stored) then click "Download CSV".</p>
-
-    <form method="POST" action="/admin/report" target="_blank" style="margin-top:12px">
-      <input name="api_key" type="password" style="width:100%;padding:8px" placeholder="Paste API key here" required />
-      <button type="submit" style="margin-top:8px;padding:8px 12px">Download CSV</button>
-    </form>
-
-    <p style="margin-top:16px;color:#666">This uses a normal POST download, so it works in Safari/Chrome/Edge.</p>
-    <p style="margin-top:8px"><a href="/admin-analytics">Admin Analytics CSV</a> • <a href="/dashboard">Dashboard</a> • <a href="/hub">Deals Hub</a></p>
-  </body></html>`);
-});
-
-// ---------- /report — protected CSV (legacy GET) ----------
-app.get('/report', (req, res) => {
-  const key = req.header('x-api-key');
-  if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
-
-  const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const headers = [
-    'id','offer_id','restaurant','status','issued_at','expires_at',
-    'redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'
-  ];
-  const rows = db.passes.map(p => [
-    p.id,
-    p.offer_id || '',
-    p.restaurant || '',
-    p.status || '',
-    p.issued_at || '',
-    p.expires_at || '',
-    p.redeemed_at || '',
-    (p.redeemed_by && p.redeemed_by.store_code) || '',
-    (p.redeemed_by && p.redeemed_by.staff_id) || '',
-    p.token_hash || ''
-  ]);
-  const csv = [headers.join(',')]
-    .concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')))
-    .join('\n');
-
-  res.setHeader('Content-Type','text/csv');
-  res.setHeader('Content-Disposition','attachment; filename="redeem_report.csv"');
-  res.send(csv);
-});
-
-// ---------- Analytics CSV (GET multi-path: core + hub aliases) ----------
-app.get(
-  ['/report-analytics.csv', '/hub/report-analytics.csv', '/hub/dashboard/report-analytics.csv'],
-  (req, res) => {
-    const key = req.header('x-api-key');
-    if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
-
-    const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
-    const rows = buf.events || [];
-    res.setHeader('Content-Type','text/csv');
-    res.setHeader('Content-Disposition','attachment; filename="acp_analytics.csv"');
-    res.write('ts,event,offer_id,restaurant,user_id,meta\n');
-    for (const r of rows) {
-      const meta = r.meta ? JSON.stringify(r.meta).replace(/[\n\r,]/g,' ') : '';
-      res.write([r.ts, r.event, r.offer_id||'', r.restaurant||'', r.user_id||'', meta].join(',')+'\n');
-    }
-    res.end();
-  }
-);
-
-// ---------- Admin-friendly POST endpoints (Safari-safe) ----------
-app.post('/admin/report', express.urlencoded({ extended: false }), (req, res) => {
-  const key = (req.body && req.body.api_key) || '';
-  if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
-
-  const db = readJsonSafe(PASSES_FILE, { passes: [] });
-  const headers = [
-    'id','offer_id','restaurant','status','issued_at','expires_at',
-    'redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'
-  ];
-  const rows = db.passes.map(p => [
-    p.id,
-    p.offer_id || '',
-    p.restaurant || '',
-    p.status || '',
-    p.issued_at || '',
-    p.expires_at || '',
-    p.redeemed_at || '',
-    (p.redeemed_by && p.redeemed_by.store_code) || '',
-    (p.redeemed_by && p.redeemed_by.staff_id) || '',
-    p.token_hash || ''
-  ]);
-  const csv = [headers.join(',')]
-    .concat(rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')))
-    .join('\n');
-
-  res.setHeader('Content-Type','text/csv');
-  res.setHeader('Content-Disposition','attachment; filename="redeem_report.csv"');
-  res.send(csv);
-});
-
-app.post('/admin/report-analytics', express.urlencoded({ extended: false }), (req, res) => {
-  const key = (req.body && req.body.api_key) || '';
-  if (!key || key !== API_KEY) return res.status(401).send('Invalid API key');
-
-  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
-  res.setHeader('Content-Type','text/csv');
-  res.setHeader('Content-Disposition','attachment; filename="acp_analytics.csv"');
-  res.write('ts,event,offer_id,restaurant,user_id,meta\n');
-  for (const r of (buf.events || [])) {
-    const meta = r.meta ? JSON.stringify(r.meta).replace(/[\n\r,]/g,' ') : '';
-    res.write([r.ts, r.event, r.offer_id||'', r.restaurant||'', r.user_id||'', meta].join(',')+'\n');
-  }
-  res.end();
-});
-
-// ---------- Admin Analytics page (POST form; Safari-safe) ----------
-app.get('/admin-analytics', (req, res) => {
-  res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Admin — Analytics CSV</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"></head>
-  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
-    <h1>Admin — Download Analytics CSV</h1>
-    <p>Paste the API key below (not stored) then click "Download CSV".</p>
-
-    <form method="POST" action="/admin/report-analytics" target="_blank" style="margin-top:12px">
-      <input name="api_key" type="password" style="width:100%;padding:8px" placeholder="Paste API key here" required />
-      <button type="submit" style="margin-top:8px;padding:8px 12px">Download CSV</button>
-    </form>
-
-    <p style="margin-top:16px;color:#666">This POST download avoids Safari’s fetch+download quirks.</p>
-    <p style="margin-top:8px"><a href="/admin">Redemptions CSV</a> • <a href="/dashboard">Dashboard</a> • <a href="/hub">Deals Hub</a></p>
-  </body></html>`);
-});
-
-// ---------- Dashboard API + page ----------
-app.get('/api/dashboard/summary', (req, res) => {
-  const buf = readJsonSafe(ANALYTICS_FILE, { events: [] });
-  const ev = buf.events || [];
-  const scans = ev.filter(e => e.event === 'scan').length;
-  const wallet_adds = ev.filter(e => e.event === 'wallet_add').length;
-  const redemptions = ev.filter(e => e.event === 'redeem').length;
-
-  const estimated_revenue = redemptions * AVG_TICKET;
-
-  // last 30 days by day
-  const cutoff = Date.now() - 30*24*60*60*1000;
-  const map = new Map();
-  ev.forEach(e => {
-    const t = new Date(e.ts).getTime();
-    if (isNaN(t) || t < cutoff) return;
-    const day = new Date(e.ts).toISOString().slice(0,10);
-    const cur = map.get(day) || { scans:0, redemptions:0 };
-    if (e.event === 'scan') cur.scans++;
-    if (e.event === 'redeem') cur.redemptions++;
-    map.set(day, cur);
+    issued_at: nowISO(),
+    expires_at: expires_at || '',
+    redeemed_at: '',
+    redeemed_by_store: '',
+    redeemed_by_staff: ''
   });
-  const daily = [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0]))
-                  .map(([day,v])=>({ day, ...v }));
+  savePasses(passes);
 
-  res.json({ scans, wallet_adds, redemptions, estimated_revenue, daily });
+  const couponUrl = `${BASE_URL}/coupon/view?token=${encodeURIComponent(token)}`;
+  const qrDataUrl = await QRCode.toDataURL(couponUrl);
+
+  res.send(`<!doctype html>
+<meta charset="utf-8"><title>Coupon Issued</title>
+<style>
+ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px;max-width:720px;margin:0 auto}
+ .card{border:1px solid #eee;border-radius:12px;padding:16px}
+ .row{display:flex;gap:20px;align-items:center}
+ img{width:180px;height:180px}
+ .muted{color:#777}
+ .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef;border:1px solid #dde}
+</style>
+<h1>${restaurant}</h1>
+<p class="badge">${offer_id}</p>
+<div class="card">
+  <div class="row">
+   <img src="${qrDataUrl}" alt="QR">
+   <div>
+     <h2>Show this at checkout</h2>
+     <p class="muted">Scan QR to view & save coupon on your phone.</p>
+     <p><b>Token (short):</b> ${token_hash}</p>
+     <p><a href="${couponUrl}">${couponUrl}</a></p>
+   </div>
+  </div>
+</div>
+<p class="muted">Cashier page: <a href="/redeem.html">/redeem.html</a></p>`);
 });
 
-app.get('/dashboard', (req,res)=> res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
-
-// ---------- Alias routes for Hub convenience ----------
-app.get('/hub/dashboard', (req, res) => res.redirect(302, '/dashboard'));
-
-// ---------- Root: quick links ----------
-app.get('/', (req, res) => {
-  res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Coupons</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"></head>
-  <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
-    <h1>Coupon Server</h1>
-    <ul>
-      <li><a href="/hub">Deals Hub</a></li>
-      <li><a href="/dashboard">Dashboard</a></li>
-      <li><a href="/admin">Admin (Redemptions CSV)</a></li>
-      <li><a href="/admin-analytics">Admin Analytics CSV</a></li>
-      <li><a href="/healthz">Health</a></li>
-    </ul>
-  </body></html>`);
+// ---------- VIEW COUPON ----------
+app.get('/coupon/view', (req, res) => {
+  const token = String(req.query.token || '');
+  const passes = loadPasses();
+  const pass = passes.find(p => p.token === token);
+  if (!pass) return res.status(404).send('Coupon not found');
+  const isRedeemed = pass.status === 'redeemed';
+  res.send(`<!doctype html>
+<meta charset="utf-8"><title>Coupon</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px;max-width:620px;margin:0 auto}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef;border:1px solid #dde}</style>
+<h1>${pass.restaurant}</h1>
+<p class="badge">${pass.offer_id}</p>
+<p>Status: <b>${pass.status.toUpperCase()}</b>${isRedeemed ? ' ✅' : ''}</p>
+<p>Token (short): ${pass.token_hash}</p>
+<p>Show this screen to the cashier.</p>`);
 });
 
-// ---------- Health ----------
-app.get('/healthz', (req, res) => res.send('ok'));
+// ---------- REDEEM API (POST /api/redeem) ----------
+app.post('/api/redeem', (req, res) => {
+  const key = req.headers['x-api-key'];
+  if (key !== API_KEY) return res.status(401).send('Unauthorized: invalid API key');
 
-// ---------- Start ----------
+  const token = String(req.body.token || '').trim();
+  const store_id = String(req.body.store_id || req.body.store || '').trim();
+  const staff = String(req.body.staff || req.body.employee || '').trim();
+
+  if (!token) return res.status(400).send('Missing token');
+
+  const passes = loadPasses();
+  const pass = passes.find(p => p.token === token);
+  if (!pass) return res.status(404).send('Token not found');
+  if (pass.status === 'redeemed') return res.status(409).send('Already redeemed');
+
+  pass.status = 'redeemed';
+  pass.redeemed_at = nowISO();
+  pass.redeemed_by_store = store_id;
+  pass.redeemed_by_staff = staff;
+  savePasses(passes);
+
+  res.json({ ok: true, token_hash: pass.token_hash, redeemed_at: pass.redeemed_at });
+});
+
+// ---------- ADMIN: HUB + DASHBOARD ----------
+app.get('/hub', (req, res) => {
+  const rows = loadPasses();
+  const items = rows.slice(-100).reverse().map(r =>
+    `<tr><td>${r.token_hash}</td><td>${r.offer_id}</td><td>${r.restaurant}</td><td>${r.status}</td><td>${r.issued_at}</td><td>${r.redeemed_at||''}</td></tr>`
+  ).join('');
+  res.send(`<!doctype html><meta charset="utf-8"><title>Hub</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #eee;padding:8px;text-align:left}</style>
+<h1>Admin Hub</h1>
+<p><a href="/hub/dashboard">Analytics Admin</a></p>
+<table><thead><tr><th>Token</th><th>Offer</th><th>Restaurant</th><th>Status</th><th>Issued</th><th>Redeemed</th></tr></thead><tbody>${items}</tbody></table>`);
+});
+
+app.get('/hub/dashboard', (req, res) => {
+  res.send(`<!doctype html><meta charset="utf-8"><title>Analytics Admin</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px;max-width:760px;margin:0 auto}</style>
+<h1>Analytics Admin</h1>
+<p>Enter your API key to download the full redemption CSV.</p>
+<p><input id="k" placeholder="API key" style="padding:10px;border:1px solid #ddd;border-radius:8px;width:260px">
+<button onclick="dl()" style="padding:10px 14px;border:1px solid #ddd;border-radius:8px;cursor:pointer">Download CSV</button></p>
+<script>
+function dl(){
+  const k=document.getElementById('k').value.trim();
+  const u='/hub/dashboard/report-analytics.csv';
+  const a=document.createElement('a');
+  a.href=u; a.download='redeem_report.csv';
+  fetch(u,{headers:{'x-api-key':k}})
+    .then(r=>{ if(!r.ok) throw new Error('bad'); return r.blob(); })
+    .then(b=>{ const url=URL.createObjectURL(b); a.href=url; a.click(); setTimeout(()=>URL.revokeObjectURL(url), 5000); })
+    .catch(()=>alert('Invalid API key or server error'));
+}
+</script>`);
+});
+
+// Admin CSV (protected)
+app.get('/hub/dashboard/report-analytics.csv', (req, res) => {
+  const key = req.headers['x-api-key'];
+  if (key !== API_KEY) return res.status(401).send('Unauthorized');
+
+  const rows = loadPasses();
+  const headers = [
+    'id','offer_id','restaurant','status','issued_at','expires_at',
+    'redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'
+  ];
+  const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => (r[h] ?? '').toString().replace(/,/g, ' ')).join(','))).join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="redeem_report.csv"');
+  res.send(csv);
+});
+
+// ---------- CLIENT-FACING DASHBOARD (Popeyes) ----------
+
+// Load rows for client API from passes.json
+function loadRedemptionRows() {
+  const passes = loadPasses();
+  // Normalize to the public shape
+  return passes.map(r => ({
+    id: r.id || r.token || '',
+    offer_id: r.offer_id || '',
+    restaurant: r.restaurant || '',
+    status: r.status || (r.redeemed_at ? 'redeemed' : 'issued'),
+    issued_at: r.issued_at || '',
+    expires_at: r.expires_at || '',
+    redeemed_at: r.redeemed_at || '',
+    redeemed_by_store: r.redeemed_by_store || '',
+    redeemed_by_staff: r.redeemed_by_staff || '',
+    token_hash: r.token_hash || (r.token ? hashToken(r.token) : '')
+  }));
+}
+
+function authClient(req, res, next) {
+  const token = req.query.token || req.headers['x-client-token'];
+  if (!CLIENT_POPEYES_TOKEN) return res.status(500).send('Client access not configured');
+  if (token !== CLIENT_POPEYES_TOKEN) return res.status(401).send('Unauthorized');
+  next();
+}
+
+// Serve the client dashboard page file if present; otherwise serve a minimal one
+app.get(`/client/${CLIENT_POPEYES_SLUG}`, authClient, (req, res) => {
+  const htmlPath = path.join(PUBLIC_DIR, 'client', 'popeyes.html');
+  if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
+  // Minimal fallback (so the route always works)
+  res.send(`<!doctype html><meta charset="utf-8"><title>Popeyes Dashboard</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #eee;padding:8px;text-align:left}</style>
+<h1>🍗 Popeyes McKinney — Coupon Performance</h1>
+<p>This is a minimal placeholder. For the full UI, add <code>/public/client/popeyes.html</code> as provided.</p>
+<p><a id="csv">Download CSV</a></p>
+<table id="t"><thead><tr><th>ID</th><th>Offer</th><th>Status</th><th>Issued</th><th>Redeemed</th><th>Store</th><th>Staff</th></tr></thead><tbody></tbody></table>
+<script>
+const token=new URLSearchParams(location.search).get('token');
+fetch('/api/client-report?restaurant=' + encodeURIComponent('Popeyes McKinney') + '&token=' + encodeURIComponent(token), {headers:{'x-client-token':token}})
+.then(r=>r.json()).then(j=>{
+  const tb=document.querySelector('tbody');
+  tb.innerHTML=(j.rows||[]).map(r=>\`<tr><td>\${r.id||''}</td><td>\${r.offer_id||''}</td><td>\${r.status||''}</td><td>\${r.issued_at||''}</td><td>\${r.redeemed_at||''}</td><td>\${r.redeemed_by_store||''}</td><td>\${r.redeemed_by_staff||''}</td></tr>\`).join('');
+  document.getElementById('csv').href='/api/client-report.csv?restaurant=' + encodeURIComponent('Popeyes McKinney') + '&token=' + encodeURIComponent(token);
+  document.getElementById('csv').download='popeyes_report.csv';
+});
+</script>`);
+});
+
+// Client JSON API (filters: restaurant, from, to, offer, status)
+app.get('/api/client-report', authClient, (req, res) => {
+  const { restaurant, from, to, offer, status } = req.query;
+  let rows = loadRedemptionRows();
+
+  if (restaurant) {
+    const needle = restaurant.toLowerCase();
+    rows = rows.filter(r => (r.restaurant || '').toLowerCase().includes(needle));
+  }
+  if (offer) {
+    const needle = offer.toLowerCase();
+    rows = rows.filter(r => (r.offer_id || '').toLowerCase().includes(needle));
+  }
+  if (status) {
+    const allowed = new Set(String(status).split(',').map(s => s.trim().toLowerCase()));
+    rows = rows.filter(r => allowed.has((r.status || '').toLowerCase()));
+  }
+  if (from) {
+    const t = new Date(from).getTime();
+    rows = rows.filter(r => r.issued_at && new Date(r.issued_at).getTime() >= t);
+  }
+  if (to) {
+    const t = new Date(to).getTime();
+    rows = rows.filter(r => r.issued_at && new Date(r.issued_at).getTime() <= t);
+  }
+
+  res.json({ rows });
+});
+
+// Client CSV export
+app.get('/api/client-report.csv', authClient, (req, res) => {
+  const { restaurant, from, to, offer, status } = req.query;
+  let rows = loadRedemptionRows();
+
+  if (restaurant) rows = rows.filter(r => (r.restaurant || '').toLowerCase().includes(restaurant.toLowerCase()));
+  if (offer) rows = rows.filter(r => (r.offer_id || '').toLowerCase().includes(offer.toLowerCase()));
+  if (status) {
+    const allowed = new Set(String(status).split(',').map(s => s.trim().toLowerCase()));
+    rows = rows.filter(r => allowed.has((r.status || '').toLowerCase()));
+  }
+  if (from) rows = rows.filter(r => r.issued_at && new Date(r.issued_at) >= new Date(from));
+  if (to) rows = rows.filter(r => r.issued_at && new Date(r.issued_at) <= new Date(to));
+
+  const headers = [
+    'id','offer_id','restaurant','status','issued_at','expires_at',
+    'redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'
+  ];
+  const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => (r[h] ?? '').toString().replace(/,/g, ' ')).join(','))).join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="popeyes_report.csv"');
+  res.send(csv);
+});
+
+// ---------- START ----------
 app.listen(PORT, () => {
-  console.log(`Server listening on ${PORT}, BASE_URL=${BASE_URL}`);
+  console.log(`Coupon server running on ${PORT}`);
+  console.log(`Admin Hub: ${BASE_URL}/hub`);
+  console.log(`Cashier Redeem page: ${BASE_URL}/redeem.html`);
+  console.log(`Client (Popeyes): ${BASE_URL}/client/${CLIENT_POPEYES_SLUG}?token=${CLIENT_POPEYES_TOKEN}`);
 });
