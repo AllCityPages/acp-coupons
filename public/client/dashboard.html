@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Client — Coupon Performance</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+  body { margin: 0; padding: 24px; background: #0b1220; color: #eef2ff; }
+  .card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 20px; max-width: 1100px; margin: 0 auto; }
+  h1 { margin: 0 0 12px; font-size: 24px; }
+  .row { display:grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  label { font-size:12px; color:#cbd5e1; display:block; margin-bottom:6px; }
+  input, select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #334155; background:#0f172a; color:#e2e8f0; }
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin: 14px 0; }
+  .btn { display:inline-block; padding: 10px 14px; border-radius: 10px; background:#f97316; color:white; text-decoration:none; border:0; cursor:pointer; }
+  .btn.secondary { background:#2563eb; }
+  .kpis { display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0 18px; }
+  .kpi { background:#0f172a; border:1px solid #1f2937; border-radius:12px; padding:14px; }
+  .muted { color:#94a3b8; font-size: 12px; }
+  .table-wrap { overflow:auto; border: 1px solid #1f2937; border-radius: 12px; }
+  table { width:100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px; border-bottom: 1px solid #1f2937; text-align: left; white-space: nowrap; }
+  @media (max-width: 900px){ .row{ grid-template-columns: 1fr 1fr 1fr; } .kpis{ grid-template-columns: 1fr; } }
+  @media print { body { background:#fff; color:#000; } .toolbar { display:none; } .card { border:0; } }
+</style>
+</head>
+<body>
+<section class="card">
+  <h1 id="title">Client — Coupon Performance</h1>
+
+  <div class="row">
+    <div>
+      <label>From</label>
+      <input type="date" id="from">
+    </div>
+    <div>
+      <label>To</label>
+      <input type="date" id="to">
+    </div>
+    <div>
+      <label>Offer</label>
+      <input id="offer" placeholder="e.g. pop-bogo">
+    </div>
+    <div>
+      <label>Status</label>
+      <select id="status">
+        <option value="">Any</option>
+        <option>issued</option>
+        <option>redeemed</option>
+      </select>
+    </div>
+    <div>
+      <label>&nbsp;</label>
+      <button class="btn secondary" id="apply">Apply Filters</button>
+    </div>
+    <div>
+      <label>&nbsp;</label>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="csv">Download CSV</button>
+    <button class="btn secondary" onclick="window.print()">Print / Save PDF</button>
+    <span class="muted">Use filters first, then export.</span>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="muted">Total Issued</div><div id="k_issued" style="font-size:22px;font-weight:700;">0</div></div>
+    <div class="kpi"><div class="muted">Total Redeemed</div><div id="k_redeemed" style="font-size:22px;font-weight:700;">0</div></div>
+    <div class="kpi"><div class="muted">Redemption Rate</div><div id="k_rate" style="font-size:22px;font-weight:700;">0%</div></div>
+  </div>
+
+  <canvas id="trend" width="1000" height="360"></canvas>
+  <canvas id="byStore" width="1000" height="360" style="margin-top:18px;"></canvas>
+
+  <div class="table-wrap" style="margin-top:18px;">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>ID</th><th>Offer</th><th>Status</th><th>Issued</th><th>Redeemed</th><th>Store</th><th>Staff</th><th>Token</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token') || '';
+  const slug = location.pathname.split('/').filter(Boolean).pop(); // /client/:slug
+
+  const clientNames = {
+    'popeyes-mckinney': '🍗 Popeyes McKinney',
+    'sonic-frisco': '🌀 Sonic Frisco',
+    'braums-stacy': "🍦 Braum's Stacy Rd",
+    'rudys-mckinney': "🔥 Rudy's BBQ McKinney",
+    'babes-allen': "🍗 Babe's Chicken — Allen"
+  };
+  document.getElementById('title').textContent = (clientNames[slug] || 'Client') + ' — Coupon Performance';
+
+  async function fetchRows(params={}){
+    const qs = new URLSearchParams();
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    if (params.offer) qs.set('offer', params.offer);
+    if (params.status) qs.set('status', params.status);
+    const res = await fetch('/api/client/' + slug + '/report?' + qs.toString(),
+      { headers: { 'x-client-token': token } }
+    );
+    const j = await res.json();
+    return j.rows || [];
+  }
+
+  function setKPIs(rows){
+    const issued = rows.length;
+    const redeemed = rows.filter(r => (r.status||'').toLowerCase()==='redeemed').length;
+    const rate = issued ? Math.round((redeemed/issued)*1000)/10 : 0;
+    document.getElementById('k_issued').textContent = issued;
+    document.getElementById('k_redeemed').textContent = redeemed;
+    document.getElementById('k_rate').textContent = rate + '%';
+  }
+
+  function fmtDate(s){ if(!s) return ''; const d = new Date(s); return isNaN(d) ? s : d.toISOString().slice(0,16).replace('T',' '); }
+  function fillTable(rows){
+    const tbody = document.querySelector('#tbl tbody');
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r.id||''}</td>
+        <td>${r.offer_id||''}</td>
+        <td>${r.status||''}</td>
+        <td>${fmtDate(r.issued_at)}</td>
+        <td>${fmtDate(r.redeemed_at)}</td>
+        <td>${r.redeemed_by_store||''}</td>
+        <td>${r.redeemed_by_staff||''}</td>
+        <td>${(r.token_hash||'').slice(0,12)}</td>
+      </tr>`).join('');
+  }
+
+  let trendChart, storeChart;
+  function renderCharts(rows){
+    const redeemed = rows.filter(r => (r.status||'').toLowerCase()==='redeemed');
+    const byDay = {};
+    redeemed.forEach(r=>{ const k=(r.redeemed_at||'').slice(0,10); if(k) byDay[k]=(byDay[k]||0)+1; });
+    const days = Object.keys(byDay).sort();
+    const counts = days.map(d=>byDay[d]);
+
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(document.getElementById('trend'), {
+      type:'line', data:{ labels:days, datasets:[{ label:'Daily Redemptions', data:counts }] },
+      options:{ responsive:true }
+    });
+
+    const byStore = {};
+    redeemed.forEach(r=>{ const k=r.redeemed_by_store||'Unknown'; byStore[k]=(byStore[k]||0)+1; });
+    const stores = Object.keys(byStore);
+    const storeCounts = stores.map(s=>byStore[s]);
+    if (storeChart) storeChart.destroy();
+    storeChart = new Chart(document.getElementById('byStore'), {
+      type:'bar', data:{ labels:stores, datasets:[{ label:'Redemptions by Store', data:storeCounts }] },
+      options:{ responsive:true }
+    });
+  }
+
+  async function apply(){
+    const from = document.getElementById('from').value;
+    const to = document.getElementById('to').value;
+    const offer = document.getElementById('offer').value;
+    const status = document.getElementById('status').value;
+    const rows = await fetchRows({ from, to, offer, status });
+    setKPIs(rows); fillTable(rows); renderCharts(rows);
+  }
+  document.getElementById('apply').onclick = apply;
+  document.getElementById('reset').onclick = ()=>{ document.getElementById('from').value=''; document.getElementById('to').value=''; document.getElementById('offer').value=''; document.getElementById('status').value=''; apply(); };
+
+  document.getElementById('csv').onclick = ()=>{
+    const qs = new URLSearchParams();
+    const from = document.getElementById('from').value; if (from) qs.set('from', from);
+    const to = document.getElementById('to').value; if (to) qs.set('to', to);
+    const offer = document.getElementById('offer').value; if (offer) qs.set('offer', offer);
+    const status = document.getElementById('status').value; if (status) qs.set('status', status);
+
+    fetch('/api/client/' + slug + '/report.csv?' + qs.toString(), { headers: { 'x-client-token': token }})
+      .then(r=>r.blob()).then(b => { const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=slug + '_report.csv'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); });
+  }
+
+  apply();
+</script>
+</body>
+</html>
