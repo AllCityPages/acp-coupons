@@ -7,56 +7,82 @@
 <style>
   :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
   body{ margin:0; background:#0b1220; color:#e5e7eb; }
-  header { padding:14px 18px; background:#020617; position:sticky; top:0; }
+  header { padding:14px 18px; background:#020617; position:sticky; top:0; display:flex; align-items:center; gap:12px; }
+  header a { color:#93c5fd; text-decoration:none; }
   .wrap { max-width:900px; margin:0 auto; padding:18px; }
   .card{ background:#111827; border:1px solid #1f2937; border-radius:16px; padding:14px; margin:8px 0; display:flex; gap:12px; align-items:center; }
-  img { width:96px; height:64px; object-fit:cover; border-radius:8px; }
+  img { width:96px; height:64px; object-fit:cover; border-radius:8px; background:#0f172a; }
   .btn{ background:#2563eb; color:#fff; border:0; padding:10px 12px; border-radius:10px; cursor:pointer; }
   .btn.secondary{ background:#f97316; }
+  .muted{ color:#94a3b8; }
 </style>
 </head>
 <body>
-<header><a href="/offers.html" style="color:#93c5fd;text-decoration:none">&larr; Offers</a></header>
+<header><a href="/offers.html">&larr; Offers</a></header>
 <div class="wrap">
-  <h1>My Wallet</h1>
+  <h1 style="margin:8px 0 10px">My Wallet</h1>
+  <p class="muted" id="msg"></p>
   <div id="list"></div>
 </div>
+
 <script>
-  async function loadOffers(){
-    const res = await fetch('/api/offers'); const j = await res.json();
+  const KEY = 'wallet_offers';
+
+  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
+
+  async function loadCatalog(){
+    const res = await fetch('/api/offers');
+    if(!res.ok) throw new Error('Failed to load /api/offers');
+    const j = await res.json();
     return j.offers || [];
   }
+
+  function getSaved(){
+    try {
+      const raw = localStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  function removeOffer(id){
+    const cur = getSaved().filter(x => x !== id);
+    localStorage.setItem(KEY, JSON.stringify(cur));
+    init(); // re-render
+  }
+
   function render(list, catalog){
     const root = document.getElementById('list');
-    if (!list.length) { root.innerHTML = '<p>No saved offers yet.</p>'; return; }
+    if (!list.length){
+      setMsg('No saved offers yet. Go to the Offers page and tap “Save”.');
+      root.innerHTML = '';
+      return;
+    }
+    setMsg('');
     root.innerHTML = list.map(id => {
-      const o = catalog.find(x=>x.id===id) || { title:id, restaurant:'', hero_image:'' };
+      const o = catalog.find(x => x.id === id) || { id, title:id, restaurant:'', hero_image:'' };
       return `
         <div class="card">
-          ${o.hero_image ? `<img src="${o.hero_image}">` : `<div style="width:96px;height:64px;background:#0f172a;border-radius:8px"></div>`}
+          ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="width:96px;height:64px;border-radius:8px;background:#0f172a"></div>`}
           <div style="flex:1">
             <div style="font-weight:700">${o.title}</div>
-            <div style="color:#94a3b8;font-size:13px">${o.restaurant||''}</div>
+            <div class="muted" style="font-size:13px">${o.restaurant||''}</div>
           </div>
           <a class="btn secondary" href="/coupon?offer=${encodeURIComponent(o.id)}">Redeem</a>
           <button class="btn" onclick="removeOffer('${o.id}')">Remove</button>
         </div>`;
     }).join('');
   }
-  function removeOffer(id){
-    const key='wallet_offers';
-    const cur = JSON.parse(localStorage.getItem(key)||'[]').filter(x=>x!==id);
-    localStorage.setItem(key, JSON.stringify(cur));
-    init();
-  }
-  async function init(){
-    const key='wallet_offers';
-    const saved = JSON.parse(localStorage.getItem(key)||'[]');
-    const catalog = await loadOffers();
-    render(saved, catalog);
-  }
 
-  <script> 'serviceWorker' in navigator && navigator.serviceWorker.register('/service-worker.js'); </script>
+  async function init(){
+    try {
+      const saved = getSaved();
+      const catalog = await loadCatalog();
+      render(saved, catalog);
+    } catch (e) {
+      console.error(e);
+      setMsg('Could not load wallet. Check /api/offers is reachable.');
+    }
+  }
 
   init();
 </script>
