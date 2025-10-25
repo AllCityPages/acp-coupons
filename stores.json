@@ -1,18 +1,5 @@
 {
-  "MCD-001": { "brand": "McDonalds", "pos": "square", "pos_location_id": "LOC_MCD_001" },
-  "WEND-001": { "brand": "Wendy's", "pos": "toast", "pos_rest_id": "REST_WEND_001" },
-  "TB-001": { "brand": "Taco Bell", "pos": "clover", "merchant_id": "MERCH_TB_001" },
-  "POPE-001": { "brand": "Popeye's", "pos": "local-bridge", "bridge_url": "http://127.0.0.1:1969/apply-discount" },
-
-  "TB-FRISCO-123": {
-    "brand": "Taco Bell",
-    "pos": "local-bridge",
-    "bridge_url": "http://127.0.0.1:1969/apply-discount"
-  },
-
-  "PH-001": "Pizza Hut",
-  "KFC-001": "KFC",
-  "CHIL-001": "Chili's",
-  "BK-001": "Burger King",
-  "SUB-001": "Subway"
+  "WEND-001": { "brand": "Wendy's", "lat": 33.103, "lng": -96.670, "pos": "toast", "pos_rest_id": "REST_WEND_001" },
+  "POPE-001": { "brand": "Popeye's", "lat": 33.201, "lng": -96.638, "pos": "local-bridge", "bridge_url": "http://127.0.0.1:1969/apply-discount" },
 }
+
