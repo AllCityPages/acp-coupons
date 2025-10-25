@@ -467,43 +467,20 @@ app.post('/api/redeem', async (req, res) => {
 
 // ---------- Admin page (CSV download after API key paste) ----------
 app.get('/admin', (req, res) => {
-  const html = `
-  <!doctype html><html><head><meta charset="utf-8"><title>Admin — Download CSV</title></head>
+  res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Admin — Download Redemption CSV</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body style="font-family:Arial;max-width:720px;margin:auto;padding:18px">
     <h1>Admin — Download Redemption CSV</h1>
     <p>Paste the API key below (it is not stored) then click "Download CSV".</p>
-    <input id="apiKey" type="password" style="width:100%;padding:8px" placeholder="Paste API key here" />
-    <button id="dl" style="margin-top:8px;padding:8px 12px">Download CSV</button>
-    <p id="status" style="margin-top:12px;color:#444"></p>
-    <script>
-      document.getElementById('dl').addEventListener('click', async () => {
-        const key = document.getElementById('apiKey').value.trim();
-        if (!key) { alert('Paste the API key first'); return; }
-        document.getElementById('status').textContent = 'Requesting report...';
-        try {
-          const resp = await fetch('/report', { headers: { 'x-api-key': key }});
-          if (!resp.ok) {
-            const txt = await resp.text();
-            document.getElementById('status').textContent = 'Error: ' + txt;
-            return;
-          }
-          const blob = await resp.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'redeem_report.csv';
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-          document.getElementById('status').textContent = 'Downloaded redeem_report.csv';
-        } catch (e) {
-          document.getElementById('status').textContent = 'Network or error: ' + e.message;
-        }
-      });
-    </script>
-  </body></html>`;
-  res.send(html);
+
+    <form method="POST" action="/admin/report" target="_blank" style="margin-top:12px">
+      <input name="api_key" type="password" style="width:100%;padding:8px" placeholder="Paste API key here" required />
+      <button type="submit" style="margin-top:8px;padding:8px 12px">Download CSV</button>
+    </form>
+
+    <p style="margin-top:16px;color:#666">Tip: this uses a normal POST file download, so it works in Safari/Chrome/Edge.</p>
+    <p style="margin-top:8px"><a href="/admin-analytics">Admin Analytics CSV</a> • <a href="/dashboard">Dashboard</a> • <a href="/hub">Deals Hub</a></p>
+  </body></html>`);
 });
 
 // ---------- /report — protected CSV (existing redemption CSV) ----------
