@@ -136,6 +136,8 @@
     fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
   }
 
+  <script> 'serviceWorker' in navigator && navigator.serviceWorker.register('/service-worker.js'); </script>
+
   init();
 </script>
 </body>
