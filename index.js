@@ -1,33 +1,29 @@
 // index.js
-// One-time coupon server (Node 18+)
-// Features:
-// - Coupon issuance page (/coupon?offer=...)
-// - Cashier redeem API (POST /api/redeem) with API-key protection
-// - Simple cashier page (/redeem.html) served from /public (with dynamic fallback)
-// - Admin hub (/hub) + Analytics Admin page (/hub/dashboard)
-// - Admin CSV download (/hub/dashboard/report-analytics.csv) with API-key protection
-// - Client-facing dashboard for Popeyes McKinney (/client/popeyes?token=...)
-// - Client JSON + CSV endpoints with filters (/api/client-report, /api/client-report.csv)
-// - Data persisted to ./data/passes.json (auto-creates)
-// - Works on Render/Node 18+
-// Env vars required: PORT, API_KEY, BASE_URL (or COUPON_BASE_URL)
-// Client token/slug: CLIENT_POPEYES_TOKEN, CLIENT_POPEYES_SLUG
+// One-time coupon server with multi-client dashboards (Node 18+ / Render)
+// Env: PORT, API_KEY, BASE_URL (or COUPON_BASE_URL)
+// Client tokens: CLIENT_POPEYES_TOKEN, CLIENT_SONIC_TOKEN, CLIENT_BRAUMS_TOKEN, CLIENT_RUDYS_TOKEN, CLIENT_BABES_TOKEN
+// Optional email (used by scripts/send-monthly-report.js): REPORT_<SLUG>_TO (see .env example)
+// Persists: ./data/passes.json
 
 const express = require('express');
 const fs = require('fs');
+const fsp = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
-const os = require('os');
+const QRCode = require('qrcode');
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// ---------- CORS (loose: allow local tools & designers) ----------
+// ---------- CORS ----------
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, x-api-key, x-client-token'
+  );
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
@@ -35,565 +31,513 @@ app.use((req, res, next) => {
 // ---------- ENV ----------
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || '';
-const BASE_URL = (process.env.BASE_URL || process.env.COUPON_BASE_URL || '').replace(/\/+$/, '');
-const CLIENT_POPEYES_TOKEN = process.env.CLIENT_POPEYES_TOKEN || '';
-const CLIENT_POPEYES_SLUG = (process.env.CLIENT_POPEYES_SLUG || 'popeyes-mckinney').toLowerCase();
+const BASE_URL = (process.env.COUPON_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
 
-// ---------- STORAGE ----------
+// ---------- CLIENT REGISTRY (edit names or add more as needed) ----------
+const CLIENTS = {
+  'popeyes-mckinney': {
+    name: 'Popeyes McKinney',
+    token: process.env.CLIENT_POPEYES_TOKEN || '',
+    restaurants: ['Popeyes McKinney'],
+  },
+  'sonic-frisco': {
+    name: 'Sonic Frisco',
+    token: process.env.CLIENT_SONIC_TOKEN || '',
+    restaurants: ['Sonic Frisco'],
+  },
+  'braums-stacy': {
+    name: "Braum's Stacy Rd",
+    token: process.env.CLIENT_BRAUMS_TOKEN || '',
+    restaurants: ["Braum's Stacy Rd", "Braum’s Stacy Rd"],
+  },
+  'rudys-mckinney': {
+    name: "Rudy's BBQ McKinney",
+    token: process.env.CLIENT_RUDYS_TOKEN || '',
+    restaurants: ["Rudy's BBQ McKinney", 'Rudy’s BBQ McKinney'],
+  },
+  'babes-allen': {
+    name: "Babe's Chicken — Allen",
+    token: process.env.CLIENT_BABES_TOKEN || '',
+    restaurants: ["Babe's Chicken Allen", 'Babe’s Chicken Allen', "Babe's Chicken — Allen"],
+  },
+};
+
+// ---------- PATHS ----------
 const DATA_DIR = path.join(__dirname, 'data');
-const PASSES_PATH = path.join(DATA_DIR, 'passes.json');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const DB_FILE = path.join(DATA_DIR, 'passes.json');
 
-function ensureStorage() {
+// ---------- Ensure data / public ----------
+function ensureDataStore() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(PASSES_PATH)) fs.writeFileSync(PASSES_PATH, JSON.stringify({ passes: [] }, null, 2));
-}
-function loadPasses() {
-  ensureStorage();
-  try {
-    const raw = fs.readFileSync(PASSES_PATH, 'utf8');
-    const parsed = JSON.parse(raw || '{}');
-    return Array.isArray(parsed.passes) ? parsed.passes : [];
-  } catch {
-    return [];
+  if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
+  const clientDir = path.join(PUBLIC_DIR, 'client');
+  if (!fs.existsSync(clientDir)) fs.mkdirSync(clientDir, { recursive: true });
+  if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ passes: [], redemptions: [] }, null, 2));
   }
 }
-function savePasses(passes) {
-  ensureStorage();
-  fs.writeFileSync(PASSES_PATH, JSON.stringify({ passes }, null, 2));
+ensureDataStore();
+
+async function loadDB() {
+  const raw = await fsp.readFile(DB_FILE, 'utf8');
+  return JSON.parse(raw || '{"passes":[],"redemptions":[]}');
 }
-function nowISO() {
-  return new Date().toISOString();
-}
-function safeStr(v) {
-  return (v || '').toString().trim();
-}
-function csvEscape(val) {
-  if (val == null) return '';
-  const s = String(val);
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-function toCSV(rows) {
-  if (!rows.length) return 'token,offer,status,created_at,redeemed,redeemed_at,store_id,slug,source_ip\n';
-  const headers = Object.keys(rows[0]);
-  const out = [headers.join(',')].concat(
-    rows.map(r => headers.map(h => csvEscape(r[h])).join(','))
-  );
-  return out.join('\n') + '\n';
+async function saveDB(db) {
+  await fsp.writeFile(DB_FILE, JSON.stringify(db, null, 2));
 }
 
-// ---------- SECURITY MIDDLEWARE ----------
+// ---------- Helpers ----------
 function requireApiKey(req, res, next) {
-  const key = req.headers['x-api-key'] || req.query.api_key;
-  if (!API_KEY) return res.status(500).json({ error: 'Server missing API_KEY' });
-  if (key !== API_KEY) return res.status(401).json({ error: 'Invalid or missing x-api-key' });
+  const k = req.header('x-api-key') || req.query.key || '';
+  if (!API_KEY) return res.status(500).json({ error: 'Server API_KEY not set' });
+  if (k !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
   next();
 }
-function requireClientToken(req, res, next) {
-  const token = req.query.token || req.headers['x-client-token'];
-  if (!CLIENT_POPEYES_TOKEN) return res.status(500).json({ error: 'Server missing CLIENT_POPEYES_TOKEN' });
-  if (token !== CLIENT_POPEYES_TOKEN) return res.status(401).json({ error: 'Invalid or missing client token' });
-  next();
+function nowISO() { return new Date().toISOString(); }
+function randToken() { return crypto.randomBytes(16).toString('hex'); }
+function escapeHTML(s = '') {
+  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
-
-// ---------- STATIC (public) ----------
-const PUBLIC_DIR = path.join(__dirname, 'public');
-if (fs.existsSync(PUBLIC_DIR)) {
-  app.use(express.static(PUBLIC_DIR, { index: false }));
+function csvEscape(v) {
+  const s = (v ?? '').toString();
+  if (/[",\n]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
+  return s;
 }
-
-// ---------- HTML HELPERS ----------
-function htmlPage(title, body, opts = {}) {
-  const styles = `
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;line-height:1.45;}
-    .wrap{max-width:980px;margin:0 auto}
-    h1,h2,h3{margin:0 0 12px}
-    .card{border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-    .muted{color:#6b7280}
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-    .btn{display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;text-decoration:none}
-    .btn.primary{border-color:#111827}
-    table{border-collapse:collapse;width:100%}
-    th,td{border:1px solid #e5e7eb;padding:8px;text-align:left}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-    .badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff}
-    input,select{padding:8px;border:1px solid #e5e7eb;border-radius:8px}
-    code{background:#f3f4f6;padding:2px 6px;border-radius:6px}
+function baseCss() {
+  return `
+    :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    body { margin: 0; padding: 24px; background: #0b1220; color: #eef2ff; }
+    a { color: #93c5fd; }
+    .card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 20px; max-width: 1100px; margin: 0 auto; }
+    h1 { margin: 0 0 12px; font-size: 24px; }
+    h2 { margin: 12px 0 8px; font-size: 18px; }
+    .grid { display: grid; grid-template-columns: 1fr 280px; gap: 16px; align-items: center; }
+    .offer { font-size: 20px; font-weight: 600; }
+    .qr img { width: 100%; height: auto; background: #fff; padding: 8px; border-radius: 8px; }
+    .btn { display:inline-block; padding: 10px 14px; border-radius: 10px; background:#2563eb; color:white; text-decoration:none; }
+    .btn + .btn, .cta button { margin-left: 8px; }
+    .cta button { padding: 10px 14px; border-radius: 10px; border: 1px solid #334155; background:#0f172a; color:#e2e8f0; cursor:pointer; }
+    .tip { font-size: 12px; color:#94a3b8; margin-top:8px; }
+    .muted { color:#94a3b8; font-size: 12px; }
+    .toolbar { display:flex; flex-wrap: wrap; gap:10px; margin-bottom: 12px; }
+    .table-wrap { overflow:auto; border: 1px solid #1f2937; border-radius: 12px; }
+    table { width:100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px; border-bottom: 1px solid #1f2937; text-align: left; white-space: nowrap; }
+    .metrics { display:flex; gap:18px; margin-bottom: 16px; flex-wrap: wrap; }
+    details { margin-top: 10px; }
+    code { background:#0b1220; padding:2px 6px; border-radius:6px; border:1px solid #1f2937; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+    @media print { body { background:#fff; color:#000; } .card { border:0; } .toolbar { display:none; } }
   `;
-  const base = BASE_URL || '';
+}
+function htmlPage(title, bodyHtml) {
   return `<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>${title}</title>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>${escapeHTML(title)}</title>
 <link rel="icon" href="data:,">
-<style>${styles}</style>
-${opts.meta || ''}
 </head>
 <body>
-<div class="wrap">
-  <div class="row" style="justify-content:space-between;align-items:baseline">
-    <h1>${title}</h1>
-    <div class="muted">${base ? `<span class="badge">BASE_URL: ${base}</span>` : ''}</div>
-  </div>
-  ${body}
-</div>
-</body></html>`;
+${bodyHtml}
+</body>
+</html>`;
 }
 
-// ---------- COUPON ISSUANCE (/coupon) ----------
-app.get('/coupon', (req, res) => {
-  const offer = safeStr(req.query.offer) || 'default-offer';
-  const slug = safeStr(req.query.slug) || CLIENT_POPEYES_SLUG; // optional override
-  const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomBytes(4).toString('hex');
+// ---------- Client slug resolver ----------
+function resolveClientSlug({ client, restaurant, offer }) {
+  const c = (client || '').toLowerCase().trim();
+  if (c && CLIENTS[c]) return c;
 
-  const passes = loadPasses();
-  const pass = {
-    token,
-    offer,
-    status: 'issued',
-    created_at: nowISO(),
-    redeemed: false,
-    redeemed_at: null,
-    store_id: null,
-    slug,
-    source_ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress || '',
-  };
-  passes.push(pass);
-  savePasses(passes);
-
-  const redeemUrl = `${BASE_URL || ''}/redeem.html`;
-  const cashierHint = `<code>${token}</code>`;
-
-  const body = `
-  <div class="card">
-    <h2>✅ Your Offer is Ready</h2>
-    <p>Show this screen at the register. The cashier will scan or enter your one-time code below.</p>
-    <div class="card">
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <div>
-          <div class="muted">Offer</div>
-          <div style="font-size:20px;font-weight:600">${offer}</div>
-        </div>
-        <div style="text-align:right">
-          <div class="muted">One-time Code</div>
-          <div style="font-size:22px;font-weight:700;letter-spacing:1px">${token.slice(0,6).toUpperCase()}-${token.slice(-6).toUpperCase()}</div>
-        </div>
-      </div>
-      <div class="muted" style="margin-top:8px">Created: ${pass.created_at}</div>
-    </div>
-    <div class="row">
-      <a class="btn" href="${redeemUrl}">Cashier Redeem Page</a>
-      <a class="btn" href="javascript:window.print()">Print</a>
-      <a class="btn" href="#" onclick="(async()=>{try{await navigator.clipboard.writeText('${token}');alert('Token copied');}catch(e){alert('Copy failed')}})()">Copy Token</a>
-    </div>
-    <p class="muted">Cashier will enter token ${cashierHint} with their store ID.</p>
-  </div>
-  <div class="muted">Need help? Provide this token to support: <code>${token}</code></div>
-  `;
-  res.type('html').send(htmlPage('Coupon', body));
-});
-
-// ---------- CASHIER PAGE (/redeem.html) ----------
-app.get('/redeem.html', (req, res) => {
-  // Dynamic fallback (works even if no /public/redeem.html file exists)
-  const body = `
-  <div class="card">
-    <h2>Cashier Redeem</h2>
-    <p class="muted">Enter the customer’s one-time code and your Store ID. Requires valid API key.</p>
-    <div class="grid">
-      <div>
-        <label>One-time Token</label><br/>
-        <input id="token" placeholder="paste token (no spaces)" style="width:100%"/>
-      </div>
-      <div>
-        <label>Store ID</label><br/>
-        <input id="store_id" placeholder="e.g. MCK-001" style="width:100%"/>
-      </div>
-      <div>
-        <label>API Key</label><br/>
-        <input id="api_key" placeholder="x-api-key" style="width:100%"/>
-      </div>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <button class="btn primary" onclick="redeem()">Redeem Now</button>
-      <button class="btn" onclick="resetForm()">Reset</button>
-    </div>
-    <pre id="out" class="card" style="white-space:pre-wrap"></pre>
-  </div>
-  <script>
-    async function redeem(){
-      const token = document.getElementById('token').value.trim();
-      const store_id = document.getElementById('store_id').value.trim();
-      const api_key = document.getElementById('api_key').value.trim();
-      const out = document.getElementById('out');
-      out.textContent = 'Redeeming...';
-      try{
-        const res = await fetch('/api/redeem', {
-          method:'POST',
-          headers:{'Content-Type':'application/json','x-api-key':api_key},
-          body: JSON.stringify({ token, store_id })
-        });
-        const data = await res.json();
-        out.textContent = JSON.stringify(data,null,2);
-      }catch(e){
-        out.textContent = 'Error: ' + e.message;
-      }
+  const r = (restaurant || '').toLowerCase();
+  if (r) {
+    for (const [slug, cfg] of Object.entries(CLIENTS)) {
+      if ((cfg.restaurants || []).some(n => r.includes(n.toLowerCase()))) return slug;
     }
-    function resetForm(){
-      document.getElementById('token').value='';
-      document.getElementById('store_id').value='';
-      document.getElementById('api_key').value='';
-      document.getElementById('out').textContent='';
-    }
-  </script>
-  `;
-  res.type('html').send(htmlPage('Redeem • Cashier', body));
-});
-
-// ---------- REDEEM API (POST /api/redeem) ----------
-app.post('/api/redeem', requireApiKey, (req, res) => {
-  const token = safeStr(req.body.token);
-  const store_id = safeStr(req.body.store_id) || 'unknown';
-  if (!token) return res.status(400).json({ error: 'token required' });
-
-  const passes = loadPasses();
-  const idx = passes.findIndex(p => p.token === token);
-  if (idx === -1) return res.status(404).json({ error: 'token not found' });
-
-  const pass = passes[idx];
-  if (pass.redeemed) {
-    return res.status(409).json({
-      error: 'already redeemed',
-      redeemed_at: pass.redeemed_at,
-      store_id: pass.store_id
-    });
   }
 
-  pass.redeemed = true;
-  pass.redeemed_at = nowISO();
-  pass.status = 'redeemed';
-  pass.store_id = store_id;
-  passes[idx] = pass;
-  savePasses(passes);
+  const o = (offer || '').toLowerCase();
+  if (o.startsWith('pop-')) return 'popeyes-mckinney';
+  if (o.startsWith('sonic-')) return 'sonic-frisco';
+  if (o.startsWith('braums-') || o.startsWith('braum-')) return 'braums-stacy';
+  if (o.startsWith('rudys-') || o.startsWith('rudy-')) return 'rudys-mckinney';
+  if (o.startsWith('babes-') || o.startsWith('babe-')) return 'babes-allen';
 
-  res.json({ ok: true, token, offer: pass.offer, redeemed_at: pass.redeemed_at, store_id });
-});
-
-// ---------- ADMIN: HUB (/hub) ----------
-app.get('/hub', (req, res) => {
-  const passes = loadPasses();
-  const total = passes.length;
-  const redeemed = passes.filter(p => p.redeemed).length;
-  const unredeemed = total - redeemed;
-
-  const sampleLinks = `
-    <div class="row">
-      <a class="btn" href="/coupon?offer=test-offer">Issue Test Coupon</a>
-      <a class="btn" href="/redeem.html">Cashier Page</a>
-      <a class="btn" href="/hub/dashboard">Analytics Admin</a>
-      <a class="btn" href="/client/popeyes?token=${encodeURIComponent(CLIENT_POPEYES_TOKEN)}">Client Dashboard (Popeyes)</a>
-    </div>
-  `;
-
-  const list = passes.slice(-50).reverse().map(p => `
-    <tr>
-      <td><code>${p.token.slice(0,8)}…</code></td>
-      <td>${p.offer}</td>
-      <td>${p.slug || ''}</td>
-      <td>${p.status}</td>
-      <td>${p.created_at}</td>
-      <td>${p.redeemed ? 'yes' : 'no'}</td>
-      <td>${p.redeemed_at || ''}</td>
-      <td>${p.store_id || ''}</td>
-    </tr>
-  `).join('');
-
-  const body = `
-  <div class="grid">
-    <div class="card"><div class="muted">Total</div><div style="font-size:26px;font-weight:700">${total}</div></div>
-    <div class="card"><div class="muted">Redeemed</div><div style="font-size:26px;font-weight:700">${redeemed}</div></div>
-    <div class="card"><div class="muted">Unredeemed</div><div style="font-size:26px;font-weight:700">${unredeemed}</div></div>
-  </div>
-  ${sampleLinks}
-  <div class="card">
-    <h3>Recent (last 50)</h3>
-    <table>
-      <thead><tr><th>token</th><th>offer</th><th>slug</th><th>status</th><th>created_at</th><th>redeemed</th><th>redeemed_at</th><th>store_id</th></tr></thead>
-      <tbody>${list || '<tr><td colspan="8" class="muted">No passes yet.</td></tr>'}</tbody>
-    </table>
-  </div>`;
-  res.type('html').send(htmlPage('Admin Hub', body));
-});
-
-// ---------- ADMIN: DASHBOARD (/hub/dashboard) ----------
-app.get('/hub/dashboard', (req, res) => {
-  const q = {
-    offer: safeStr(req.query.offer),
-    store_id: safeStr(req.query.store_id),
-    from: safeStr(req.query.from),
-    to: safeStr(req.query.to),
-    slug: safeStr(req.query.slug)
-  };
-  const passes = loadPasses();
-
-  const fromTs = q.from ? Date.parse(q.from) : null;
-  const toTs = q.to ? Date.parse(q.to) : null;
-
-  const filtered = passes.filter(p => {
-    if (q.offer && p.offer !== q.offer) return false;
-    if (q.store_id && (p.store_id || '') !== q.store_id) return false;
-    if (q.slug && (p.slug || '') !== q.slug) return false;
-    if (fromTs && Date.parse(p.created_at) < fromTs) return false;
-    if (toTs && Date.parse(p.created_at) > toTs) return false;
-    return true;
-  });
-
-  const totals = {
-    total: filtered.length,
-    redeemed: filtered.filter(p => p.redeemed).length,
-    unredeemed: filtered.filter(p => !p.redeemed).length,
-  };
-
-  const byOffer = Object.entries(filtered.reduce((acc, p) => {
-    acc[p.offer] = acc[p.offer] || { issued: 0, redeemed: 0 };
-    acc[p.offer].issued += 1;
-    if (p.redeemed) acc[p.offer].redeemed += 1;
-    return acc;
-  }, {})).map(([offer, v]) => ({ offer, ...v }));
-
-  const rows = filtered.slice().reverse().map(p => `
-    <tr>
-      <td><code>${p.token.slice(0,8)}…</code></td>
-      <td>${p.offer}</td>
-      <td>${p.slug || ''}</td>
-      <td>${p.status}</td>
-      <td>${p.created_at}</td>
-      <td>${p.redeemed ? 'yes' : 'no'}</td>
-      <td>${p.redeemed_at || ''}</td>
-      <td>${p.store_id || ''}</td>
-    </tr>
-  `).join('');
-
-  const queryStr = new URLSearchParams(Object.fromEntries(Object.entries(q).filter(([,v]) => v))).toString();
-  const csvPath = `/hub/dashboard/report-analytics.csv${queryStr ? `?${queryStr}` : ''}`;
-
-  const body = `
-  <div class="card">
-    <h2>Filters</h2>
-    <form class="row" method="GET" action="/hub/dashboard">
-      <input name="offer" placeholder="offer" value="${q.offer}"/>
-      <input name="slug" placeholder="slug" value="${q.slug}"/>
-      <input name="store_id" placeholder="store_id" value="${q.store_id}"/>
-      <input name="from" placeholder="from (YYYY-MM-DD)" value="${q.from}"/>
-      <input name="to" placeholder="to (YYYY-MM-DD)" value="${q.to}"/>
-      <button class="btn primary" type="submit">Apply</button>
-      <a class="btn" href="/hub/dashboard">Reset</a>
-      <a class="btn" href="${csvPath}">Download CSV (API key required)</a>
-    </form>
-  </div>
-
-  <div class="grid">
-    <div class="card"><div class="muted">Total</div><div style="font-size:26px;font-weight:700">${totals.total}</div></div>
-    <div class="card"><div class="muted">Redeemed</div><div style="font-size:26px;font-weight:700">${totals.redeemed}</div></div>
-    <div class="card"><div class="muted">Unredeemed</div><div style="font-size:26px;font-weight:700">${totals.unredeemed}</div></div>
-  </div>
-
-  <div class="card">
-    <h3>By Offer</h3>
-    <table>
-      <thead><tr><th>Offer</th><th>Issued</th><th>Redeemed</th></tr></thead>
-      <tbody>
-        ${byOffer.length ? byOffer.map(r => `<tr><td>${r.offer}</td><td>${r.issued}</td><td>${r.redeemed}</td></tr>`).join('') : '<tr><td colspan="3" class="muted">No data</td></tr>'}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h3>Records</h3>
-    <table>
-      <thead><tr><th>token</th><th>offer</th><th>slug</th><th>status</th><th>created_at</th><th>redeemed</th><th>redeemed_at</th><th>store_id</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="8" class="muted">No records</td></tr>'}</tbody>
-    </table>
-  </div>
-  `;
-  res.type('html').send(htmlPage('Analytics Admin', body));
-});
-
-// ---------- ADMIN CSV (exact path under /hub/dashboard) ----------
-app.get('/hub/dashboard/report-analytics.csv', requireApiKey, (req, res) => {
-  const q = {
-    offer: safeStr(req.query.offer),
-    store_id: safeStr(req.query.store_id),
-    from: safeStr(req.query.from),
-    to: safeStr(req.query.to),
-    slug: safeStr(req.query.slug)
-  };
-  const passes = loadPasses();
-  const fromTs = q.from ? Date.parse(q.from) : null;
-  const toTs = q.to ? Date.parse(q.to) : null;
-
-  const filtered = passes.filter(p => {
-    if (q.offer && p.offer !== q.offer) return false;
-    if (q.store_id && (p.store_id || '') !== q.store_id) return false;
-    if (q.slug && (p.slug || '') !== q.slug) return false;
-    if (fromTs && Date.parse(p.created_at) < fromTs) return false;
-    if (toTs && Date.parse(p.created_at) > toTs) return false;
-    return true;
-  });
-
-  const rows = filtered.map(p => ({
-    token: p.token,
-    offer: p.offer,
-    status: p.status,
-    created_at: p.created_at,
-    redeemed: p.redeemed ? 'yes' : 'no',
-    redeemed_at: p.redeemed_at || '',
-    store_id: p.store_id || '',
-    slug: p.slug || '',
-    source_ip: p.source_ip || ''
-  }));
-
-  const csv = toCSV(rows);
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="report-analytics.csv"');
-  res.send(csv);
-});
-
-// ---------- CLIENT-FACING DASHBOARD (Popeyes McKinney) ----------
-app.get('/client/popeyes', requireClientToken, (req, res) => {
-  const slug = CLIENT_POPEYES_SLUG;
-  const passes = loadPasses().filter(p => (p.slug || '').toLowerCase() === slug);
-
-  const total = passes.length;
-  const redeemed = passes.filter(p => p.redeemed).length;
-  const unredeemed = total - redeemed;
-
-  // Links to client endpoints with auth token passed in header or query
-  const baseQuery = new URLSearchParams({ slug, token: CLIENT_POPEYES_TOKEN }).toString();
-  const jsonUrl = `/api/client-report?${baseQuery}`;
-  const csvUrl = `/api/client-report.csv?${baseQuery}`;
-
-  const body = `
-  <div class="card">
-    <h2>${slug.replace(/-/g, ' ')} — Client Dashboard</h2>
-    <div class="grid">
-      <div class="card"><div class="muted">Total Issued</div><div style="font-size:26px;font-weight:700">${total}</div></div>
-      <div class="card"><div class="muted">Redeemed</div><div style="font-size:26px;font-weight:700">${redeemed}</div></div>
-      <div class="card"><div class="muted">Unredeemed</div><div style="font-size:26px;font-weight:700">${unredeemed}</div></div>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <a class="btn" href="${jsonUrl}">Download JSON</a>
-      <a class="btn" href="${csvUrl}">Download CSV</a>
-    </div>
-  </div>
-  <div class="card">
-    <h3>Filters (client-side)</h3>
-    <form class="row" onsubmit="go(event)">
-      <input id="offer" placeholder="offer"/>
-      <input id="from" placeholder="from (YYYY-MM-DD)"/>
-      <input id="to" placeholder="to (YYYY-MM-DD)"/>
-      <button class="btn primary" type="submit">Apply</button>
-      <a class="btn" href="/client/popeyes?token=${encodeURIComponent(CLIENT_POPEYES_TOKEN)}">Reset</a>
-    </form>
-  </div>
-  <script>
-    function go(e){
-      e.preventDefault();
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('token') || '';
-      const offer = document.getElementById('offer').value.trim();
-      const from = document.getElementById('from').value.trim();
-      const to = document.getElementById('to').value.trim();
-      const q = new URLSearchParams({ token });
-      if (offer) q.set('offer', offer);
-      if (from) q.set('from', from);
-      if (to) q.set('to', to);
-      window.location.href = '/client/popeyes?' + q.toString();
-    }
-  </script>
-  `;
-  res.type('html').send(htmlPage('Client Dashboard • Popeyes McKinney', body));
-});
-
-// ---------- CLIENT REPORT ENDPOINTS (JSON / CSV) ----------
-function filterForClient(req) {
-  const slug = (req.query.slug || CLIENT_POPEYES_SLUG).toLowerCase();
-  const offer = safeStr(req.query.offer);
-  const fromTs = req.query.from ? Date.parse(req.query.from) : null;
-  const toTs = req.query.to ? Date.parse(req.query.to) : null;
-
-  const passes = loadPasses().filter(p => (p.slug || '').toLowerCase() === slug);
-  return passes.filter(p => {
-    if (offer && p.offer !== offer) return false;
-    if (fromTs && Date.parse(p.created_at) < fromTs) return false;
-    if (toTs && Date.parse(p.created_at) > toTs) return false;
-    return true;
-  });
+  return 'general';
 }
-// Require client token for both
-app.get('/api/client-report', requireClientToken, (req, res) => {
-  const rows = filterForClient(req).map(p => ({
-    token: p.token,
-    offer: p.offer,
-    status: p.status,
-    created_at: p.created_at,
-    redeemed: !!p.redeemed,
-    redeemed_at: p.redeemed_at,
-    store_id: p.store_id || '',
-    slug: p.slug || ''
-  }));
-  res.json({ slug: (req.query.slug || CLIENT_POPEYES_SLUG), count: rows.length, rows });
-});
-app.get('/api/client-report.csv', requireClientToken, (req, res) => {
-  const rows = filterForClient(req).map(p => ({
-    token: p.token,
-    offer: p.offer,
-    status: p.status,
-    created_at: p.created_at,
-    redeemed: p.redeemed ? 'yes' : 'no',
-    redeemed_at: p.redeemed_at || '',
-    store_id: p.store_id || '',
-    slug: p.slug || ''
-  }));
-  const csv = toCSV(rows);
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="client-report.csv"');
-  res.send(csv);
-});
 
-// ---------- HEALTH / ROOT ----------
-app.get('/', (req, res) => {
+// ---------- Static files ----------
+app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+
+// ---------- Health ----------
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// ---------- Issuance page (/coupon) ----------
+app.get('/coupon', async (req, res) => {
+  const offer = (req.query.offer || req.query.offer_id || 'generic-offer').toString().trim();
+  const restaurant = (req.query.restaurant || 'Unknown Restaurant').toString().trim();
+  const client = (req.query.client || '').toString().trim();
+
+  const client_slug = resolveClientSlug({ client, restaurant, offer });
+  const client_name = CLIENTS[client_slug]?.name || 'General Client';
+
+  const db = await loadDB();
+  const token = randToken();
+  const pass = {
+    id: crypto.randomUUID(),
+    token,
+    token_hash: crypto.createHash('sha256').update(token).digest('hex').slice(0, 12),
+    offer, offer_id: offer,
+    client_slug, client_name,
+    restaurant,
+    status: 'issued',
+    issued_at: nowISO(),
+    redeemed_at: null,
+    store_id: null,
+    redeemed_by_store: '',
+    redeemed_by_staff: '',
+    user_agent: req.headers['user-agent'] || null,
+    ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString(),
+  };
+  db.passes.push(pass);
+  await saveDB(db);
+
+  const couponUrl = `${BASE_URL}/coupon/view?token=${encodeURIComponent(token)}`;
+  const qrDataUrl = await QRCode.toDataURL(couponUrl);
+
   const body = `
-    <div class="card">
-      <h2>Coupon Server</h2>
+    <section class="card">
+      <h1>${escapeHTML(restaurant)}</h1>
+      <p class="offer">${escapeHTML(offer)}</p>
       <div class="grid">
-        <div class="card">
-          <div class="muted">Issue</div>
-          <a class="btn" href="/coupon?offer=test-offer">/coupon?offer=test-offer</a>
+        <div>
+          <h2>Your Coupon Is Ready</h2>
+          <p><strong>Client:</strong> ${escapeHTML(client_name)} (${client_slug})</p>
+          <p><strong>Token (short):</strong> ${pass.token_hash}</p>
+          <p><a href="${couponUrl}">${couponUrl}</a></p>
+          <div class="cta">
+            <a class="btn" href="${couponUrl}">Open Coupon</a>
+            <button onclick="navigator.clipboard.writeText('${couponUrl}')">Copy Link</button>
+          </div>
+          <p class="tip">Tip: Add this page to your phone’s Home Screen for quick access.</p>
         </div>
-        <div class="card">
-          <div class="muted">Cashier</div>
-          <a class="btn" href="/redeem.html">/redeem.html</a>
-        </div>
-        <div class="card">
-          <div class="muted">Admin</div>
-          <a class="btn" href="/hub">/hub</a>
-          <a class="btn" href="/hub/dashboard">/hub/dashboard</a>
-        </div>
-        <div class="card">
-          <div class="muted">Client</div>
-          <a class="btn" href="/client/popeyes?token=${encodeURIComponent(CLIENT_POPEYES_TOKEN)}">/client/popeyes</a>
+        <div class="qr">
+          <img src="${qrDataUrl}" alt="QR code to open coupon" />
+          <p class="muted">Scan to open</p>
         </div>
       </div>
-      <p class="muted">Host: ${os.hostname()}</p>
-    </div>
+    </section>
+    <style>${baseCss()}</style>
   `;
-  res.type('html').send(htmlPage('Coupon Server', body));
+  res.send(htmlPage('Coupon Issued', body));
 });
 
-// ---------- START ----------
+// ---------- View coupon ----------
+app.get('/coupon/view', async (req, res) => {
+  const token = (req.query.token || '').toString();
+  const db = await loadDB();
+  const pass = db.passes.find((p) => p.token === token);
+  if (!pass) return res.status(404).send('Coupon not found');
+
+  const body = `
+    <section class="card">
+      <h1>${escapeHTML(pass.restaurant || pass.client_name || 'Coupon')}</h1>
+      <p class="offer">${escapeHTML(pass.offer || pass.offer_id || '')}</p>
+      <p>Status: <strong>${pass.status.toUpperCase()}</strong>${pass.status === 'redeemed' ? ' ✅' : ''}</p>
+      <p>Token (short): <code>${pass.token_hash}</code></p>
+      <div class="cta"><a class="btn" href="/redeem.html?token=${encodeURIComponent(pass.token)}">Show Cashier</a></div>
+    </section>
+    <style>${baseCss()}</style>
+  `;
+  res.send(htmlPage('Coupon', body));
+});
+
+// ---------- Redeem API (POST /api/redeem) ----------
+app.post('/api/redeem', requireApiKey, async (req, res) => {
+  const { token, store_id, staff } = req.body || {};
+  if (!token || !store_id) {
+    return res.status(400).json({ error: 'Missing token or store_id' });
+  }
+
+  const db = await loadDB();
+  const pass = db.passes.find((p) => p.token === token);
+
+  if (!pass) return res.status(404).json({ error: 'Token not found' });
+  if (pass.status === 'redeemed') {
+    return res.status(409).json({ error: 'Already redeemed', redeemed_at: pass.redeemed_at });
+  }
+  if (pass.status === 'void') return res.status(410).json({ error: 'Token is void' });
+
+  pass.status = 'redeemed';
+  pass.redeemed_at = nowISO();
+  pass.store_id = store_id;
+  pass.redeemed_by_store = String(store_id);
+  pass.redeemed_by_staff = staff || '';
+
+  db.redemptions.push({
+    token,
+    offer: pass.offer || pass.offer_id,
+    client_slug: pass.client_slug,
+    store_id,
+    staff: pass.redeemed_by_staff,
+    redeemed_at: pass.redeemed_at,
+  });
+
+  await saveDB(db);
+  return res.json({ ok: true, token_hash: pass.token_hash, redeemed_at: pass.redeemed_at });
+});
+
+// ---------- Admin Hub ----------
+app.get('/hub', requireApiKey, async (req, res) => {
+  const db = await loadDB();
+  const rows = db.passes
+    .slice()
+    .reverse()
+    .map(
+      (p) => `
+      <tr>
+        <td><code>${p.token_hash}</code></td>
+        <td>${escapeHTML(p.offer || p.offer_id || '')}</td>
+        <td>${escapeHTML(p.restaurant || '')}</td>
+        <td>${escapeHTML(p.client_slug || '')}</td>
+        <td>${p.status}</td>
+        <td>${p.issued_at || ''}</td>
+        <td>${p.redeemed_at || ''}</td>
+        <td>${p.store_id || ''}</td>
+      </tr>`
+    )
+    .join('');
+
+  const body = `
+    <section class="card">
+      <h1>Admin Hub</h1>
+      <nav class="toolbar">
+        <a class="btn" href="/hub/dashboard?key=${encodeURIComponent(req.query.key || '')}">Analytics Admin</a>
+        <a class="btn" href="/hub/dashboard/report-analytics.csv?key=${encodeURIComponent(req.query.key || '')}">Download Analytics CSV</a>
+      </nav>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Token</th><th>Offer</th><th>Restaurant</th><th>Client</th><th>Status</th><th>Issued</th><th>Redeemed</th><th>Store</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="8">No passes yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </section>
+    <style>${baseCss()}</style>
+  `;
+  res.send(htmlPage('Admin Hub', body));
+});
+
+// ---------- Analytics Admin ----------
+function summarizeAnalytics(db) {
+  const passes = db.passes || [];
+  const byDay = {};
+  const byOffer = {};
+  let issued = 0, redeemed = 0;
+
+  for (const p of passes) {
+    if (p.issued_at) {
+      const d = p.issued_at.slice(0,10);
+      byDay[d] = byDay[d] || { issued: 0, redeemed: 0 };
+      byDay[d].issued++;
+      issued++;
+    }
+    if (p.redeemed_at) {
+      const d2 = p.redeemed_at.slice(0,10);
+      byDay[d2] = byDay[d2] || { issued: 0, redeemed: 0 };
+      byDay[d2].redeemed++;
+      redeemed++;
+    }
+    const o = p.offer || p.offer_id || 'unknown';
+    byOffer[o] = byOffer[o] || { issued: 0, redeemed: 0 };
+    byOffer[o].issued += 1;
+    if (p.status === 'redeemed') byOffer[o].redeemed += 1;
+  }
+
+  const rate = issued ? Math.round((redeemed / issued) * 1000) / 10 : 0;
+
+  return { totalIssued: issued, totalRedeemed: redeemed, redemptionRate: rate, byDay, byOffer };
+}
+
+app.get('/hub/dashboard', requireApiKey, async (req, res) => {
+  const db = await loadDB();
+  const metrics = summarizeAnalytics(db);
+
+  const body = `
+    <section class="card">
+      <h1>Analytics Admin</h1>
+      <nav class="toolbar">
+        <a class="btn" href="/hub?key=${encodeURIComponent(req.query.key || '')}">Back to Hub</a>
+        <a class="btn" href="/hub/dashboard/report-analytics.csv?key=${encodeURIComponent(req.query.key || '')}">Download CSV</a>
+      </nav>
+      <div class="metrics">
+        <div><strong>Total Issued:</strong> ${metrics.totalIssued}</div>
+        <div><strong>Total Redeemed:</strong> ${metrics.totalRedeemed}</div>
+        <div><strong>Redemption Rate:</strong> ${metrics.redemptionRate}%</div>
+      </div>
+      <canvas id="byDay" width="900" height="360"></canvas>
+      <canvas id="byOffer" width="900" height="360" style="margin-top:24px;"></canvas>
+    </section>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+      const byDay = ${JSON.stringify(metrics.byDay)};
+      const byOffer = ${JSON.stringify(metrics.byOffer)};
+      new Chart(document.getElementById('byDay'), {
+        type: 'line',
+        data: { labels: Object.keys(byDay), datasets: [
+          { label: 'Issued', data: Object.values(byDay).map(x => x.issued) },
+          { label: 'Redeemed', data: Object.values(byDay).map(x => x.redeemed) }
+        ]}
+      });
+      new Chart(document.getElementById('byOffer'), {
+        type: 'bar',
+        data: { labels: Object.keys(byOffer), datasets: [
+          { label: 'Issued', data: Object.values(byOffer).map(x => x.issued) },
+          { label: 'Redeemed', data: Object.values(byOffer).map(x => x.redeemed) }
+        ]}
+      });
+    </script>
+    <style>${baseCss()}</style>
+  `;
+  res.send(htmlPage('Analytics Admin', body));
+});
+
+// ---------- Analytics CSV (admin-protected) ----------
+app.get('/hub/dashboard/report-analytics.csv', requireApiKey, async (req, res) => {
+  const db = await loadDB();
+  const rows = [
+    ['id','offer','restaurant','client_slug','status','issued_at','redeemed_at','store_id','token_hash'],
+    ...db.passes.map((p) => [
+      p.id || '',
+      p.offer || p.offer_id || '',
+      p.restaurant || '',
+      p.client_slug || '',
+      p.status || '',
+      p.issued_at || '',
+      p.redeemed_at || '',
+      p.store_id || '',
+      p.token_hash || '',
+    ]),
+  ];
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename=report-analytics.csv');
+  res.send(rows.map((r) => r.map(csvEscape).join(',')).join('\n'));
+});
+
+// ---------- Client auth ----------
+function authClientForSlug(req, res, next) {
+  const slug = (req.params.slug || '').toLowerCase();
+  const cfg = CLIENTS[slug];
+  if (!cfg) return res.status(404).send('Unknown client');
+  const t = (req.query.token || req.headers['x-client-token'] || '').toString();
+  if (!cfg.token) return res.status(500).send('Client access not configured');
+  if (t !== cfg.token) return res.status(401).send('Unauthorized');
+  req.clientCfg = cfg;
+  req.clientSlug = slug;
+  next();
+}
+
+// ---------- Client page (shared HTML for all slugs) ----------
+app.get('/client/:slug', authClientForSlug, async (req, res) => {
+  const pagePath = path.join(PUBLIC_DIR, 'client', 'dashboard.html');
+  if (fs.existsSync(pagePath)) return res.sendFile(pagePath);
+  // Minimal fallback if the dashboard file is missing
+  res.send(htmlPage('Client Dashboard', `
+    <section class="card">
+      <h1>${escapeHTML(req.clientCfg.name)} — Client Dashboard</h1>
+      <p>Add <code>/public/client/dashboard.html</code> for full UI.</p>
+      <ul>
+        <li><a href="/api/client/${req.clientSlug}/report">JSON</a></li>
+        <li><a href="/api/client/${req.clientSlug}/report.csv">CSV</a></li>
+      </ul>
+    </section>
+    <style>${baseCss()}</style>
+  `));
+});
+
+// ---------- Client JSON/CSV (namespaced) ----------
+function shapeClientRows(passes) {
+  return passes.map(r => ({
+    id: r.id || r.token || '',
+    offer_id: r.offer || r.offer_id || '',
+    restaurant: r.restaurant || '',
+    client_slug: r.client_slug || '',
+    status: r.status || (r.redeemed_at ? 'redeemed' : 'issued'),
+    issued_at: r.issued_at || '',
+    expires_at: r.expires_at || '',
+    redeemed_at: r.redeemed_at || '',
+    redeemed_by_store: r.redeemed_by_store || r.store_id || '',
+    redeemed_by_staff: r.redeemed_by_staff || '',
+    token_hash: r.token_hash || (r.token ? crypto.createHash('sha256').update(r.token).digest('hex').slice(0,12) : '')
+  }));
+}
+
+// GET /api/client/:slug/report?from=...&to=...&offer=...&status=issued,redeemed
+app.get('/api/client/:slug/report', authClientForSlug, async (req, res) => {
+  const db = await loadDB();
+  let rows = shapeClientRows(db.passes).filter(r => r.client_slug === req.clientSlug);
+
+  const { from, to, offer, status } = req.query;
+  if (offer) rows = rows.filter(r => (r.offer_id||'').toLowerCase().includes(String(offer).toLowerCase()));
+  if (status) {
+    const allowed = new Set(String(status).split(',').map(s => s.trim().toLowerCase()));
+    rows = rows.filter(r => allowed.has((r.status||'').toLowerCase()));
+  }
+  if (from) rows = rows.filter(r => r.issued_at && new Date(r.issued_at) >= new Date(from));
+  if (to) rows = rows.filter(r => r.issued_at && new Date(r.issued_at) <= new Date(to));
+
+  res.json({ count: rows.length, rows });
+});
+
+// GET /api/client/:slug/report.csv (same filters)
+app.get('/api/client/:slug/report.csv', authClientForSlug, async (req, res) => {
+  const db = await loadDB();
+  let rows = shapeClientRows(db.passes).filter(r => r.client_slug === req.clientSlug);
+
+  const { from, to, offer, status } = req.query;
+  if (offer) rows = rows.filter(r => (r.offer_id||'').toLowerCase().includes(String(offer).toLowerCase()));
+  if (status) {
+    const allowed = new Set(String(status).split(',').map(s => s.trim().toLowerCase()));
+    rows = rows.filter(r => allowed.has((r.status||'').toLowerCase()));
+  }
+  if (from) rows = rows.filter(r => r.issued_at && new Date(r.issued_at) >= new Date(from));
+  if (to) rows = rows.filter(r => r.issued_at && new Date(r.issued_at) <= new Date(to));
+
+  const headers = ['id','offer_id','restaurant','status','issued_at','expires_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
+  const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => (r[h] ?? '').toString().replace(/,/g,' ')).join(','))).join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${req.clientSlug}_report.csv"`);
+  res.send(csv);
+});
+
+// ---------- Home ----------
+app.get('/', (_req, res) => {
+  const body = `
+    <section class="card">
+      <h1>ACP One-Time Coupon Server — Multi-Client</h1>
+      <ul>
+        <li>Issue: <code>/coupon?offer=pop-bogo&restaurant=Popeyes%20McKinney&client=popeyes-mckinney</code></li>
+        <li>Cashier: <code>/redeem.html</code></li>
+        <li>Admin Hub: <code>/hub?key=YOUR_API_KEY</code></li>
+        <li>Analytics: <code>/hub/dashboard?key=YOUR_API_KEY</code></li>
+        <li>Client (Popeyes): <code>/client/popeyes-mckinney?token=...</code></li>
+        <li>Client (Sonic): <code>/client/sonic-frisco?token=...</code></li>
+        <li>Client (Braum’s): <code>/client/braums-stacy?token=...</code></li>
+        <li>Client (Rudy’s): <code>/client/rudys-mckinney?token=...</code></li>
+        <li>Client (Babe’s): <code>/client/babes-allen?token=...</code></li>
+      </ul>
+    </section>
+    <style>${baseCss()}</style>
+  `;
+  res.send(htmlPage('Welcome', body));
+});
+
+// ---------- Start ----------
 app.listen(PORT, () => {
-  console.log(`Coupon server running on :${PORT}`);
-  if (!API_KEY) console.warn('⚠️  Missing API_KEY env');
-  if (!BASE_URL && !process.env.COUPON_BASE_URL) console.warn('⚠️  Missing BASE_URL/COUPON_BASE_URL env');
-  if (!CLIENT_POPEYES_TOKEN) console.warn('⚠️  Missing CLIENT_POPEYES_TOKEN env');
+  console.log(`Server listening on :${PORT}`);
 });
