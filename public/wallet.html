@@ -55,6 +55,9 @@
     const catalog = await loadOffers();
     render(saved, catalog);
   }
+
+  <script> 'serviceWorker' in navigator && navigator.serviceWorker.register('/service-worker.js'); </script>
+
   init();
 </script>
 </body>
