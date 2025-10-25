@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Offers — All City Pages</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#111827">
+<style>
+  :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+  body { margin:0; background:#0b1220; color:#e5e7eb; }
+  header { position:sticky; top:0; backdrop-filter:saturate(180%) blur(8px); background:rgba(2,6,23,.8); padding:14px 18px; display:flex; gap:12px; align-items:center; z-index:10; }
+  header a { color:#93c5fd; text-decoration:none; }
+  .wrap { max-width:1100px; margin:0 auto; padding:18px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+  .card { background:#111827; border:1px solid #1f2937; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
+  .card img { width:100%; height:160px; object-fit:cover; }
+  .body { padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .title { font-weight:700; }
+  .brand { color:#94a3b8; font-size:13px; }
+  .btn { display:inline-block; text-align:center; border:0; border-radius:10px; padding:10px 12px; cursor:pointer; color:#fff; background:#2563eb; }
+  .btn.secondary { background:#f97316; }
+  .row { display:flex; gap:8px; }
+  .filters { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
+  input[type="search"]{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
+  select{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
+  .notice { font-size:12px; color:#94a3b8; }
+</style>
+</head>
+<body>
+<header>
+  <strong>⭐ Offers</strong>
+  <a href="/wallet.html">My Wallet</a>
+  <span class="notice">Allow notifications for “nearby” alerts.</span>
+</header>
+<div class="wrap">
+  <div class="filters">
+    <input id="q" type="search" placeholder="Search offers or brand">
+    <select id="brand"><option value="">All brands</option></select>
+    <button class="btn" id="apply">Apply</button>
+    <button class="btn secondary" id="clear">Clear</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const prefillBrand = params.get('rest') || '';
+  const source = params.get('src') || 'gallery';
+
+  async function loadOffers(){
+    const res = await fetch('/api/offers');
+    const j = await res.json();
+    return j.offers || [];
+  }
+
+  function renderGrid(list){
+    const grid = document.getElementById('grid');
+    grid.innerHTML = list.map(o => `
+      <div class="card" data-id="${o.id}" data-brand="${o.restaurant}">
+        ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
+        <div class="body">
+          <div class="title">${o.title}</div>
+          <div class="brand">${o.restaurant}</div>
+          <div class="row">
+            <button class="btn" onclick="saveOffer('${o.id}','${o.restaurant}','${o.client_slug}')">Save</button>
+            <a class="btn secondary" href="/coupon?offer=${encodeURIComponent(o.id)}" onclick="logClick('${o.id}','${o.restaurant}','${o.client_slug}')">Redeem</a>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function applyFilters(){
+    const q = (document.getElementById('q').value || '').toLowerCase();
+    const b = (document.getElementById('brand').value || '').toLowerCase();
+    const all = window.__offers || [];
+    const out = all.filter(o => {
+      const matchQ = !q || o.title.toLowerCase().includes(q) || o.restaurant.toLowerCase().includes(q);
+      const matchB = !b || o.restaurant.toLowerCase() === b;
+      return matchQ && matchB;
+    });
+    renderGrid(out);
+  }
+
+  async function init(){
+    const offers = await loadOffers();
+    window.__offers = offers;
+
+    // populate brands
+    const brands = Array.from(new Set(offers.map(o => o.restaurant))).sort();
+    const sel = document.getElementById('brand');
+    brands.forEach(b => { const opt = document.createElement('option'); opt.value=b; opt.textContent=b; sel.appendChild(opt); });
+
+    if (prefillBrand) { sel.value = prefillBrand; }
+    applyFilters();
+
+    // log gallery view
+    fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'gallery_view', meta:{ source } }) });
+
+    document.getElementById('apply').onclick = applyFilters;
+    document.getElementById('clear').onclick = ()=>{ document.getElementById('q').value=''; sel.value=''; applyFilters(); };
+
+    // prompt notifications once
+    if ('Notification' in window && Notification.permission === 'default') {
+      setTimeout(()=> Notification.requestPermission(), 1500);
+    }
+
+    // basic geo nudge when page open
+    if ('geolocation' in navigator) {
+      try {
+        navigator.geolocation.getCurrentPosition(pos => {
+          fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'geo_check', meta:{ lat:pos.coords.latitude, lon:pos.coords.longitude } }) });
+        });
+      } catch {}
+    }
+  }
+
+  async function saveOffer(id, brand, client_slug){
+    // client wallet
+    const key='wallet_offers';
+    const cur = JSON.parse(localStorage.getItem(key)||'[]');
+    if (!cur.includes(id)) cur.push(id);
+    localStorage.setItem(key, JSON.stringify(cur));
+
+    // server log
+    await fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ offer_id:id }) });
+
+    // event
+    await fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'save_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
+
+    alert('Saved to your Wallet on this device.');
+  }
+
+  async function logClick(id, brand, client_slug){
+    fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
+  }
+
+  init();
+</script>
+</body>
+</html>
