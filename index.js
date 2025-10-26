@@ -364,7 +364,56 @@ app.get('/r/:slug', async (req,res)=>{
 // ---- Home → Offer Gallery ----
 app.get('/', (_req,res)=> res.redirect('/offers.html'));
 
+// --- API: list stores for the cashier dropdown ---
+const fs = require('fs');
+const path = require('path');
+
+app.get('/api/stores', (req, res) => {
+  try {
+    const STORES_FILE = path.join(__dirname, 'stores.json');
+    const raw = fs.readFileSync(STORES_FILE, 'utf8');
+    const obj = JSON.parse(raw); // { "TB-001": {brand:"Taco Bell", ...}, "POPE-001":"Popeyes", ... }
+
+    const list = Object.entries(obj).map(([code, meta]) => {
+      if (typeof meta === 'string') {
+        return { code, brand: meta, label: meta };
+      }
+      return { code, brand: meta.brand || '', label: meta.brand || code };
+    }).sort((a,b) => a.code.localeCompare(b.code));
+
+    res.json({ stores: list });
+  } catch (e) {
+    console.error('stores api error:', e.message);
+    res.status(500).json({ stores: [] });
+  }
+});
+
 // ---- Start ----
 app.listen(PORT, () => {
   console.log(`ACP Coupons listening on :${PORT}`);
+});
+
+function listEndpoints(app) {
+  const routes = [];
+  app._router.stack.forEach(layer => {
+    if (layer.route && layer.route.path) {
+      const methods = Object.keys(layer.route.methods)
+        .map(m => m.toUpperCase()).join(',');
+      routes.push(`${methods} ${layer.route.path}`);
+    } else if (layer.name === 'router' && layer.handle && layer.handle.stack) {
+      layer.handle.stack.forEach(r => {
+        if (r.route && r.route.path) {
+          const methods = Object.keys(r.route.methods)
+            .map(m => m.toUpperCase()).join(',');
+          routes.push(`${methods} ${r.route.path}`);
+        }
+      });
+    }
+  });
+  console.log('\n--- Registered Routes ---\n' + routes.sort().join('\n') + '\n-------------------------\n');
+}
+
+app.listen(PORT, () => {
+  console.log(`Coupon server running on ${PORT}`);
+  listEndpoints(app);  // <— add this line
 });
