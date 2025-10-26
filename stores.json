@@ -1,5 +1,5 @@
 {
-  "WEND-001": { "brand": "Wendy's", "lat": 33.103, "lng": -96.670, "pos": "toast", "pos_rest_id": "REST_WEND_001" },
+  "TACB-001": { "brand": "Taco Bell", "lat": 33.103, "lng": -96.670, "pos": "toast", "pos_rest_id": "REST_TACB_001" },
   "POPE-001": { "brand": "Popeye's", "lat": 33.201, "lng": -96.638, "pos": "local-bridge", "bridge_url": "http://127.0.0.1:1969/apply-discount" },
 }
 
