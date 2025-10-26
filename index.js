@@ -369,12 +369,10 @@ app.get('/api/stores', (req, res) => {
   try {
     const STORES_FILE = path.join(__dirname, 'stores.json');
     const raw = fs.readFileSync(STORES_FILE, 'utf8');
-    const obj = JSON.parse(raw); // { "TB-001": {brand:"Taco Bell", ...}, "POPE-001":"Popeyes", ... }
+    const obj = JSON.parse(raw); // { "TB-001": {...} , "POPE-001": "Popeyes", ... }
 
     const list = Object.entries(obj).map(([code, meta]) => {
-      if (typeof meta === 'string') {
-        return { code, brand: meta, label: meta };
-      }
+      if (typeof meta === 'string') return { code, brand: meta, label: meta };
       return { code, brand: meta.brand || '', label: meta.brand || code };
     }).sort((a,b) => a.code.localeCompare(b.code));
 
@@ -384,6 +382,7 @@ app.get('/api/stores', (req, res) => {
     res.status(500).json({ stores: [] });
   }
 });
+
 
 // ---- Start ----
 app.listen(PORT, () => {
