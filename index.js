@@ -410,6 +410,6 @@ function listEndpoints(app) {
 }
 
 app.listen(PORT, () => {
-  console.log(`Coupon server running on ${PORT}`);
+  console.log(`ACP Coupons listening on ${PORT}`);
   listEndpoints(app);  // <— add this line
 });
