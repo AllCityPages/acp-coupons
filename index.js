@@ -1,19 +1,11 @@
 // index.js
-// ACP Coupons — Gallery + Wallet + Geo + Multi-Client Dashboards (Node 18+ / Render)
+// ACP Coupons — Gallery + Wallet + Geo + Multi-Client Dashboards
 //
 // Env (Render):
 //  - API_KEY (admin)
 //  - COUPON_BASE_URL (or BASE_URL) e.g. https://acp-coupons.onrender.com
 //  - CLIENT_*_TOKEN for each client slug (see CLIENTS below)
 //  - (Optional) SMTP_* + REPORT_* for monthly report script
-//
-// Data files auto-created in ./data:
-//  - db.json { passes:[], redemptions:[] }
-//  - events.json { events:[] }  // gallery views, saves, clicks, tent attribution
-//
-// Static:
-//  - ./public  (offers.html, wallet.html, client dashboard, assets, sw, manifest)
-//  - /static/* -> ./public/*   (for legacy assets in offers.json)
 
 const express = require('express');
 const fs = require('fs');
@@ -26,7 +18,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// ---- CORS (simple) ----
+// ---- CORS ----
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-api-key, x-client-token');
@@ -40,7 +32,7 @@ const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || '';
 const BASE_URL = (process.env.COUPON_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
 
-// ---- CLIENTS registry (extend as needed) ----
+// ---- CLIENTS registry ----
 const CLIENTS = {
   'popeyes-mckinney': {
     name: 'Popeyes McKinney',
@@ -80,9 +72,10 @@ const DATA_DIR = path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
-const OFFERS_FILE = path.join(__dirname, 'offers.json');  // your brand catalog with images
-const STORES_FILE = path.join(__dirname, 'stores.json');  // now with lat/lng per store
+const OFFERS_FILE = path.join(__dirname, 'offers.json');
+const STORES_FILE = path.join(__dirname, 'stores.json');
 
+// Ensure data dirs/files
 function ensureDirs() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
@@ -104,7 +97,7 @@ function sha12(s) { return crypto.createHash('sha256').update(s).digest('hex').s
 function nowISO() { return new Date().toISOString(); }
 function csvEscape(v) {
   const s = (v ?? '').toString();
-  if (/[",\n]/.test(s)) return `"${s.replaceAll('"','""')}"`;
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
   return s;
 }
 function baseCss() {
@@ -127,38 +120,51 @@ function requireApiKey(req,res,next){
   next();
 }
 
-// ---- static (root) and legacy /static path ----
+// ---- static + legacy /static ----
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
 app.use('/static', express.static(PUBLIC_DIR));
 
 // ---- health ----
+app.get('/healthz', (_req,res)=>res.json({ok:true,time:nowISO()}));
 app.get('/health', (_req,res)=>res.json({ok:true,time:nowISO()}));
 
-// ---- LOAD CATALOG (offers + stores) ----
+// ---- load catalog ----
 async function loadCatalog() {
   const offers = await loadJSON(OFFERS_FILE, {});
   const stores = await loadJSON(STORES_FILE, {});
   return { offers, stores };
 }
 
-// ---- DEVICE ID cookie for wallet sync ----
+// ---- minimal cookie parser (read) ----
+app.use((req, _res, next) => {
+  const raw = req.headers.cookie || '';
+  req.cookies = raw.split(';').map(s=>s.trim()).filter(Boolean).reduce((acc,p)=>{
+    const i=p.indexOf('=');
+    if(i>0) acc[p.slice(0,i)]=decodeURIComponent(p.slice(i+1));
+    return acc;
+  },{});
+  next();
+});
+
+// ---- device id cookie setter (write) ----
 function ensureDeviceId(req,res,next){
   let did = req.cookies?.did;
   if (!did) {
     did = 'dev_' + randToken(12);
-    res.cookie?.('did', did, { httpOnly: false, sameSite: 'Lax', maxAge: 3600*24*365*2*1000 });
+    // set cookie manually (no cookie-parser)
+    const cookie = [
+      `did=${encodeURIComponent(did)}`,
+      'Path=/',
+      'Max-Age='+(60*60*24*365*2), // 2 years
+      'SameSite=Lax'
+    ].join('; ');
+    res.setHeader('Set-Cookie', cookie);
   }
   req.deviceId = did;
   next();
 }
-// lightweight cookie parser (no external dep)
-app.use((req, _res, next) => {
-  const raw = req.headers.cookie || '';
-  req.cookies = raw.split(';').map(s=>s.trim()).filter(Boolean).reduce((acc,p)=>{ const i=p.indexOf('='); if(i>0) acc[p.slice(0,i)]=decodeURIComponent(p.slice(i+1)); return acc; },{});
-  next();
-});
 
-// ---------- ISSUANCE + VIEW + REDEEM (same as earlier with small tweaks) ----------
+// ---------- ISSUANCE + VIEW + REDEEM ----------
 
 app.get('/coupon', async (req, res) => {
   const { offers } = await loadCatalog();
@@ -223,7 +229,7 @@ app.get('/coupon/view', async (req, res) => {
   </section>`));
 });
 
-// simple redeem API (admin key)
+// Redeem API (admin key)
 app.post('/api/redeem', async (req, res) => {
   if ((req.header('x-api-key') || '') !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
   const { token, store_id, staff } = req.body || {};
@@ -244,7 +250,7 @@ app.post('/api/redeem', async (req, res) => {
   res.json({ ok: true, token_hash: pass.token_hash, redeemed_at: pass.redeemed_at });
 });
 
-// ---------- ADMIN: Hub + CSV (unchanged semantics) ----------
+// ---------- ADMIN: Hub + CSV ----------
 app.get('/hub', requireApiKey, async (req,res)=>{
   const db = await loadJSON(DB_FILE, {passes:[]});
   const rows = db.passes.slice().reverse().map(p => `
@@ -290,10 +296,9 @@ app.get('/hub/dashboard/report-analytics.csv', requireApiKey, async (req,res)=>{
 
 // ---------- OFFER GALLERY + WALLET APIs ----------
 
-// Offers API (gallery loads this)
+// Offers API
 app.get('/api/offers', async (_req,res)=>{
   const { offers } = await loadCatalog();
-  // normalize into array
   const rows = Object.entries(offers).map(([id,o]) => ({
     id,
     title: o.title || id,
@@ -306,7 +311,7 @@ app.get('/api/offers', async (_req,res)=>{
   res.json({ offers: rows });
 });
 
-// Save to wallet (server-sync; also stored client-side via localStorage)
+// Save to wallet (server-sync)
 app.post('/api/save', ensureDeviceId, async (req,res)=>{
   const { offer_id } = req.body || {};
   if (!offer_id) return res.status(400).json({ error:'offer_id required' });
@@ -316,7 +321,7 @@ app.post('/api/save', ensureDeviceId, async (req,res)=>{
   res.json({ ok:true, device: req.deviceId });
 });
 
-// Generic event logger (views, clicks, tents, geo)
+// Generic event logger
 app.post('/api/event', async (req,res)=>{
   const { type, offer_id, restaurant, client_slug, meta } = req.body || {};
   const evlog = await loadJSON(EVENTS_FILE, { events:[] });
@@ -334,7 +339,7 @@ app.post('/api/event', async (req,res)=>{
   res.json({ ok:true });
 });
 
-// Event CSV for analysis
+// Event CSV
 app.get('/events.csv', requireApiKey, async (_req,res)=>{
   const ev = await loadJSON(EVENTS_FILE, {events:[]});
   const headers = ['t','type','offer_id','restaurant','client_slug','meta','ua','ip'];
@@ -346,13 +351,11 @@ app.get('/events.csv', requireApiKey, async (_req,res)=>{
   res.send(lines.join('\n'));
 });
 
-// Table-tent short links -> redirect to gallery filtered and attributed
-// Example: /r/popeyes-mckinney   (adds ?src=table_tent&rest=Popeyes%20McKinney)
+// Table-tent redirects -> gallery
 app.get('/r/:slug', async (req,res)=>{
   const slug = (req.params.slug||'').toLowerCase();
   const cfg = CLIENTS[slug];
   const restaurant = cfg?.restaurants?.[0] || '';
-  // log view
   const evlog = await loadJSON(EVENTS_FILE, { events:[] });
   evlog.events.push({ t: nowISO(), type:'tent_click', client_slug: slug, restaurant, meta:{ slug } });
   await saveJSON(EVENTS_FILE, evlog);
@@ -361,21 +364,18 @@ app.get('/r/:slug', async (req,res)=>{
   res.redirect(`/offers.html?${qs.toString()}`);
 });
 
-// ---- Home → Offer Gallery ----
+// Home → Offer Gallery
 app.get('/', (_req,res)=> res.redirect('/offers.html'));
 
-// --- API: list stores for the cashier dropdown ---
+// Stores API for cashier dropdown
 app.get('/api/stores', (req, res) => {
   try {
-    const STORES_FILE = path.join(__dirname, 'stores.json');
     const raw = fs.readFileSync(STORES_FILE, 'utf8');
-    const obj = JSON.parse(raw); // { "TB-001": {...} , "POPE-001": "Popeyes", ... }
-
+    const obj = JSON.parse(raw); // { "TB-001": {...}, "POPE-001": "Popeyes", ... }
     const list = Object.entries(obj).map(([code, meta]) => {
       if (typeof meta === 'string') return { code, brand: meta, label: meta };
       return { code, brand: meta.brand || '', label: meta.brand || code };
     }).sort((a,b) => a.code.localeCompare(b.code));
-
     res.json({ stores: list });
   } catch (e) {
     console.error('stores api error:', e.message);
@@ -383,24 +383,17 @@ app.get('/api/stores', (req, res) => {
   }
 });
 
-
-// ---- Start ----
-app.listen(PORT, () => {
-  console.log(`ACP Coupons listening on :${PORT}`);
-});
-
+// ---- Start (single listen!) ----
 function listEndpoints(app) {
   const routes = [];
   app._router.stack.forEach(layer => {
     if (layer.route && layer.route.path) {
-      const methods = Object.keys(layer.route.methods)
-        .map(m => m.toUpperCase()).join(',');
+      const methods = Object.keys(layer.route.methods).map(m => m.toUpperCase()).join(',');
       routes.push(`${methods} ${layer.route.path}`);
     } else if (layer.name === 'router' && layer.handle && layer.handle.stack) {
       layer.handle.stack.forEach(r => {
         if (r.route && r.route.path) {
-          const methods = Object.keys(r.route.methods)
-            .map(m => m.toUpperCase()).join(',');
+          const methods = Object.keys(r.route.methods).map(m => m.toUpperCase()).join(',');
           routes.push(`${methods} ${r.route.path}`);
         }
       });
@@ -410,6 +403,6 @@ function listEndpoints(app) {
 }
 
 app.listen(PORT, () => {
-  console.log(`ACP Coupons listening on ${PORT}`);
-  listEndpoints(app);  // <— add this line
+  console.log(`ACP Coupons listening on :${PORT}`);
+  listEndpoints(app);
 });
