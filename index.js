@@ -365,9 +365,6 @@ app.get('/r/:slug', async (req,res)=>{
 app.get('/', (_req,res)=> res.redirect('/offers.html'));
 
 // --- API: list stores for the cashier dropdown ---
-const fs = require('fs');
-const path = require('path');
-
 app.get('/api/stores', (req, res) => {
   try {
     const STORES_FILE = path.join(__dirname, 'stores.json');
