@@ -137,6 +137,15 @@
     alert('Saved to your Wallet on this device.');
   }
 
+  document.addEventListener('click', (e) => {
+  const b = e.target.closest('.save-btn');
+  if (!b) return;
+  const id = b.dataset.id;
+  const restaurant = decodeURIComponent(b.dataset.restaurant || '');
+  const client = b.dataset.client || '';
+  saveOffer(id, restaurant, client);
+});
+
   function logClick(id, brand, client_slug){
     fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
   }
