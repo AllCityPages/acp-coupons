@@ -3,36 +3,59 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Redeem Coupon</title>
+<title>Cashier Redeem</title>
 <style>
   :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-  body { margin: 0; padding: 24px; background: #0b1220; color: #eef2ff; }
-  .card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 20px; max-width: 720px; margin: 0 auto; }
-  label { display:block; margin: 12px 0 6px; color:#cbd5e1; }
-  input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #334155; background:#0f172a; color:#e2e8f0; }
-  .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .btn { display:inline-block; padding: 10px 14px; border-radius: 10px; background:#2563eb; color:white; text-decoration:none; border:0; cursor:pointer; }
-  .muted { color:#94a3b8; font-size: 12px; }
+  body { margin:0; padding:24px; background:#0b1220; color:#eef2ff; }
+  .wrap { max-width:760px; margin:0 auto; }
+  .card { background:#111827; border:1px solid #1f2937; border-radius:16px; padding:20px; }
+  h1 { margin:0 0 6px }
+  .muted { color:#94a3b8; font-size:13px; margin:0 0 12px }
+  label { display:block; margin:12px 0 6px; color:#cbd5e1; }
+  input, select { width:100%; padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .btn { display:inline-block; padding:10px 14px; border-radius:10px; background:#2563eb; color:white; border:0; cursor:pointer; }
   .ok { color:#34d399; }
   .err { color:#f87171; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 </style>
 </head>
 <body>
+<div class="wrap">
   <section class="card">
     <h1>Cashier Redeem</h1>
-    <p class="muted">Scan or paste token below. Press Enter to submit.</p>
+    <p class="muted">Focus the token field, then scan the customer’s QR. Press <span class="mono">Enter</span>.</p>
 
-    <label>Token</label>
-    <input id="token" placeholder="scan or paste token…" />
+    <label for="token">Token</label>
+    <input id="token" placeholder="scan or paste token…" autofocus />
 
     <div class="row">
       <div>
-        <label>Store ID</label>
-        <input id="store" placeholder="e.g. 2331" />
+        <label for="storeSelect">Store</label>
+        <select id="storeSelect">
+          <!-- Taco Bell -->
+          <option value="TB-001">TB-001 — Taco Bell</option>
+          <option value="TB-FRISCO-123">TB-FRISCO-123 — Taco Bell (Frisco)</option>
+          <!-- Popeyes -->
+          <option value="POPE-001">POPE-001 — Popeyes</option>
+          <!-- Custom -->
+          <option value="CUSTOM">Other… (type below)</option>
+        </select>
       </div>
       <div>
-        <label>API Key</label>
+        <label for="customStore">Custom store code (if “Other…”) </label>
+        <input id="customStore" placeholder="e.g., TB-002" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="key">API Key</label>
         <input id="key" placeholder="x-api-key" />
+      </div>
+      <div>
+        <label for="staff">Staff (optional)</label>
+        <input id="staff" placeholder="e.g., John S." />
       </div>
     </div>
 
@@ -42,37 +65,102 @@
 
     <p id="msg" class="muted" style="margin-top:12px;"></p>
   </section>
+</div>
 
 <script>
+  // Prefill token if passed as ?token=...
   const qs = new URLSearchParams(location.search);
   if (qs.get('token')) document.getElementById('token').value = qs.get('token');
 
+  const tokenInput   = document.getElementById('token');
+  const storeSelect  = document.getElementById('storeSelect');
+  const customStore  = document.getElementById('customStore');
+  const keyInput     = document.getElementById('key');
+  const staffInput   = document.getElementById('staff');
+  const msg          = document.getElementById('msg');
+
+  // Restore last-used values (nice for registers)
+  try {
+    const saved = JSON.parse(localStorage.getItem('redeem_prefs') || '{}');
+    if (saved.store) {
+      if ([...storeSelect.options].some(o => o.value === saved.store)) {
+        storeSelect.value = saved.store;
+      } else {
+        storeSelect.value = 'CUSTOM';
+        customStore.value = saved.store;
+      }
+    }
+    if (saved.key)   keyInput.value = saved.key;
+    if (saved.staff) staffInput.value = saved.staff;
+    if (saved.customStore) customStore.value = saved.customStore;
+  } catch {}
+
+  function getStoreId(){
+    return storeSelect.value === 'CUSTOM'
+      ? (customStore.value || '').trim()
+      : storeSelect.value;
+  }
+  function persist(){
+    try {
+      localStorage.setItem('redeem_prefs', JSON.stringify({
+        store: getStoreId(),
+        customStore: customStore.value || '',
+        key: keyInput.value || '',
+        staff: staffInput.value || ''
+      }));
+    } catch {}
+  }
+  storeSelect.addEventListener('change', persist);
+  customStore.addEventListener('input', persist);
+  keyInput.addEventListener('input', persist);
+  staffInput.addEventListener('input', persist);
+
   document.getElementById('redeemBtn').addEventListener('click', redeem);
-  document.getElementById('token').addEventListener('keydown', (e) => { if (e.key === 'Enter') redeem(); });
+  tokenInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') redeem(); });
+  document.body.addEventListener('click', () => tokenInput.focus());
+
+  function extractToken(scanned){
+    try {
+      if (scanned.includes('token=')) {
+        const u = new URL(scanned, location.href);
+        return u.searchParams.get('token') || scanned;
+      }
+    } catch {}
+    return (scanned || '').trim();
+  }
 
   async function redeem() {
-    const token = document.getElementById('token').value.trim();
-    const store_id = document.getElementById('store').value.trim();
-    const key = document.getElementById('key').value.trim();
-    const msg = document.getElementById('msg');
+    const raw = tokenInput.value.trim();
+    const token = extractToken(raw);
+    const store_id = getStoreId();
+    const key = keyInput.value.trim();
+    const staff = (staffInput.value || '').trim();
 
     msg.className = 'muted';
     msg.textContent = 'Submitting…';
+
+    if (!token) { msg.className='err'; msg.textContent='Missing token'; return; }
+    if (!store_id) { msg.className='err'; msg.textContent='Missing store code'; return; }
+    if (!key) { msg.className='err'; msg.textContent='Missing API key'; return; }
 
     try {
       const res = await fetch('/api/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': key },
-        body: JSON.stringify({ token, store_id })
+        body: JSON.stringify({ token, store_id, staff })
       });
-      const data = await res.json();
-      if (!res.ok) {
+      let data = {};
+      try { data = await res.json(); } catch {}
+      if (!res.ok || !data.ok) {
         msg.className = 'err';
-        msg.textContent = data.error || 'Redeem failed';
+        msg.textContent = (data && (data.message || data.error)) || 'Redeem failed';
         return;
       }
       msg.className = 'ok';
-      msg.textContent = `Redeemed at ${data.redeemed_at}`;
+      msg.textContent = `Accepted — ${data.redeemed_at || 'redeemed'}`;
+      persist();
+      tokenInput.value = '';
+      tokenInput.focus();
     } catch (e) {
       msg.className = 'err';
       msg.textContent = 'Network error';
