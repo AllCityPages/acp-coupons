@@ -33,13 +33,7 @@
       <div>
         <label for="storeSelect">Store</label>
         <select id="storeSelect">
-          <!-- Taco Bell -->
-          <option value="TB-001">TB-001 — Taco Bell</option>
-          <option value="TB-FRISCO-123">TB-FRISCO-123 — Taco Bell (Frisco)</option>
-          <!-- Popeyes -->
-          <option value="POPE-001">POPE-001 — Popeyes</option>
-          <!-- Custom -->
-          <option value="CUSTOM">Other… (type below)</option>
+          <option value="">Loading stores…</option>
         </select>
       </div>
       <div>
@@ -79,21 +73,43 @@
   const staffInput   = document.getElementById('staff');
   const msg          = document.getElementById('msg');
 
-  // Restore last-used values (nice for registers)
-  try {
-    const saved = JSON.parse(localStorage.getItem('redeem_prefs') || '{}');
-    if (saved.store) {
-      if ([...storeSelect.options].some(o => o.value === saved.store)) {
-        storeSelect.value = saved.store;
-      } else {
-        storeSelect.value = 'CUSTOM';
-        customStore.value = saved.store;
-      }
+  // Load stores from /api/stores and build dropdown
+  async function loadStores(){
+    try {
+      const res = await fetch('/api/stores');
+      if (!res.ok) throw new Error('stores fetch failed');
+      const j = await res.json(); // { stores: [{code, label, brand}, ...] }
+      const items = j.stores || [];
+      // Build options: brand-then-code
+      storeSelect.innerHTML = items.map(s =>
+        `<option value="${s.code}">${s.code} — ${s.brand || s.label || s.code}</option>`
+      ).join('') + `<option value="CUSTOM">Other… (type below)</option>`;
+
+      // restore after load
+      restorePrefs(true);
+    } catch (e) {
+      console.error(e);
+      storeSelect.innerHTML = `<option value="">Could not load stores</option><option value="CUSTOM">Other… (type below)</option>`;
     }
-    if (saved.key)   keyInput.value = saved.key;
-    if (saved.staff) staffInput.value = saved.staff;
-    if (saved.customStore) customStore.value = saved.customStore;
-  } catch {}
+  }
+
+  // Restore last-used values (nice for registers)
+  function restorePrefs(afterStoreLoad=false){
+    try {
+      const saved = JSON.parse(localStorage.getItem('redeem_prefs') || '{}');
+      if (saved.store) {
+        if (afterStoreLoad && [...storeSelect.options].some(o => o.value === saved.store)) {
+          storeSelect.value = saved.store;
+        } else if (saved.store && ![...storeSelect.options].some(o => o.value === saved.store)) {
+          storeSelect.value = 'CUSTOM';
+          customStore.value = saved.store;
+        }
+      }
+      if (saved.key)   keyInput.value = saved.key;
+      if (saved.staff) staffInput.value = saved.staff;
+      if (saved.customStore) customStore.value = saved.customStore;
+    } catch {}
+  }
 
   function getStoreId(){
     return storeSelect.value === 'CUSTOM'
@@ -166,6 +182,10 @@
       msg.textContent = 'Network error';
     }
   }
+
+  // Init
+  restorePrefs(false);
+  loadStores();
 </script>
 </body>
 </html>
