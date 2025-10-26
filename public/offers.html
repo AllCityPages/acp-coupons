@@ -60,21 +60,25 @@
 
   function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
 
-  function renderGrid(list){
-    const grid = document.getElementById('grid');
-    grid.innerHTML = list.map(o => `
-      <div class="card" data-id="${o.id}" data-brand="${o.restaurant}">
-        ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
-        <div class="body">
-          <div class="title">${o.title}</div>
-          <div class="brand">${o.restaurant}</div>
-          <div class="row">
-            <button class="btn" onclick="saveOffer('${o.id}','${o.restaurant}','${o.client_slug}')">Save</button>
-            <a class="btn secondary" href="/coupon?offer=${encodeURIComponent(o.id)}" onclick="logClick('${o.id}','${o.restaurant}','${o.client_slug}')">Redeem</a>
-          </div>
+ function renderGrid(list){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = list.map(o => `
+    <div class="card" data-id="${o.id}" data-brand="${o.restaurant}">
+      ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
+      <div class="body">
+        <div class="title">${o.title}</div>
+        <div class="brand">${o.restaurant}</div>
+        <div class="row">
+          <button class="btn save-btn"
+                  data-id="${o.id}"
+                  data-restaurant="${encodeURIComponent(o.restaurant||'')}"
+                  data-client="${o.client_slug||''}">Save</button>
+          <a class="btn secondary"
+             href="/coupon?offer=${encodeURIComponent(o.id)}">Redeem</a>
         </div>
-      </div>`).join('');
-  }
+      </div>
+    </div>`).join('');
+}
 
   function applyFilters(){
     const q = (document.getElementById('q').value || '').toLowerCase();
