@@ -47,9 +47,12 @@
 </div>
 
 <script>
+  const KEY = 'wallet_offers';
   const params = new URLSearchParams(location.search);
   const prefillBrand = params.get('rest') || '';
   const source = params.get('src') || 'gallery';
+
+  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
 
   async function loadOffers(){
     const res = await fetch('/api/offers');
@@ -58,27 +61,28 @@
     return j.offers || [];
   }
 
-  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
-
- function renderGrid(list){
-  const grid = document.getElementById('grid');
-  grid.innerHTML = list.map(o => `
-    <div class="card" data-id="${o.id}" data-brand="${o.restaurant}">
-      ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
-      <div class="body">
-        <div class="title">${o.title}</div>
-        <div class="brand">${o.restaurant}</div>
-        <div class="row">
-          <button class="btn save-btn"
-                  data-id="${o.id}"
-                  data-restaurant="${encodeURIComponent(o.restaurant||'')}"
-                  data-client="${o.client_slug||''}">Save</button>
-          <a class="btn secondary"
-             href="/coupon?offer=${encodeURIComponent(o.id)}">Redeem</a>
+  function renderGrid(list){
+    const grid = document.getElementById('grid');
+    grid.innerHTML = list.map(o => `
+      <div class="card" data-id="${o.id}">
+        ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
+        <div class="body">
+          <div class="title">${o.title}</div>
+          <div class="brand">${o.restaurant}</div>
+          <div class="row">
+            <button class="btn save-btn"
+                    data-id="${o.id}"
+                    data-restaurant="${encodeURIComponent(o.restaurant || '')}"
+                    data-client="${o.client_slug || ''}">Save</button>
+            <a class="btn secondary redeem-btn"
+               href="/coupon?offer=${encodeURIComponent(o.id)}"
+               data-id="${o.id}"
+               data-restaurant="${encodeURIComponent(o.restaurant || '')}"
+               data-client="${o.client_slug || ''}">Redeem</a>
+          </div>
         </div>
-      </div>
-    </div>`).join('');
-}
+      </div>`).join('');
+  }
 
   function applyFilters(){
     const q = (document.getElementById('q').value || '').toLowerCase();
@@ -93,64 +97,73 @@
     renderGrid(out);
   }
 
+  function getSaved(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+    catch { return []; }
+  }
+  function putSaved(arr){
+    localStorage.setItem(KEY, JSON.stringify(arr));
+  }
+
+  async function saveOffer(id, brand, client_slug){
+    const cur = getSaved();
+    if (!cur.includes(id)) { cur.push(id); putSaved(cur); }
+
+    // optional server/event logs
+    fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ offer_id:id }) }).catch(()=>{});
+    fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'save_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) }).catch(()=>{});
+    alert('Saved to your Wallet on this device.');
+  }
+
+  // ONE delegated listener for Save and Redeem (no inline JS, no quote bugs)
+  document.addEventListener('click', (e) => {
+    const saveBtn = e.target.closest('.save-btn');
+    if (saveBtn) {
+      const id = saveBtn.dataset.id;
+      const restaurant = decodeURIComponent(saveBtn.dataset.restaurant || '');
+      const client = saveBtn.dataset.client || '';
+      saveOffer(id, restaurant, client);
+      return;
+    }
+    const redeemBtn = e.target.closest('.redeem-btn');
+    if (redeemBtn) {
+      const id = redeemBtn.dataset.id;
+      const restaurant = decodeURIComponent(redeemBtn.dataset.restaurant || '');
+      const client = redeemBtn.dataset.client || '';
+      // fire-and-forget event log
+      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant, client_slug:client, meta:{ source } }) }).catch(()=>{});
+    }
+  });
+
   async function init(){
     try {
       setMsg('Loading offers…');
       const offers = await loadOffers();
       window.__offers = offers;
 
-      // populate brands
+      // brands
       const brands = Array.from(new Set(offers.map(o => o.restaurant))).sort();
       const sel = document.getElementById('brand');
       brands.forEach(b => { const opt = document.createElement('option'); opt.value=b; opt.textContent=b; sel.appendChild(opt); });
+      if (prefillBrand) sel.value = prefillBrand;
 
-      if (prefillBrand) { sel.value = prefillBrand; }
       setMsg('');
       applyFilters();
-
-      // log gallery view
-      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'gallery_view', meta:{ source } }) });
 
       document.getElementById('apply').onclick = applyFilters;
       document.getElementById('clear').onclick = ()=>{ document.getElementById('q').value=''; sel.value=''; applyFilters(); };
 
-      // service worker (optional)
+      // SW optional
       if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js');
 
-      // ask notifications nicely
-      if ('Notification' in window && Notification.permission === 'default') {
-        setTimeout(()=> Notification.requestPermission(), 1500);
-      }
+      // log gallery view
+      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'gallery_view', meta:{ source } }) }).catch(()=>{});
     } catch (e) {
       console.error(e);
       setMsg('Could not load offers. Check /api/offers and offers.json.');
     }
   }
 
-  async function saveOffer(id, brand, client_slug){
-    const key='wallet_offers';
-    const cur = JSON.parse(localStorage.getItem(key)||'[]');
-    if (!cur.includes(id)) cur.push(id);
-    localStorage.setItem(key, JSON.stringify(cur));
-    await fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ offer_id:id }) });
-    await fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'save_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
-    alert('Saved to your Wallet on this device.');
-  }
-
-  document.addEventListener('click', (e) => {
-  const b = e.target.closest('.save-btn');
-  if (!b) return;
-  const id = b.dataset.id;
-  const restaurant = decodeURIComponent(b.dataset.restaurant || '');
-  const client = b.dataset.client || '';
-  saveOffer(id, restaurant, client);
-});
-
-  function logClick(id, brand, client_slug){
-    fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) });
-  }
-
-  // run
   init();
 </script>
 </body>
