@@ -488,6 +488,19 @@ app.get('/hub/dashboard.pdf', requireKey, async (req, res) => {
 // ---- Home → Offer Gallery ----
 app.get('/', (_req,res)=> res.redirect('/offers.html'));
 
+// ------- Public aggregate stats per offer (issued & redeemed) -------
+app.get('/api/offer-stats', async (_req, res) => {
+  const db = await jread(DB_FILE, { passes:[], redemptions:[] });
+  const stats = {};
+  for (const p of db.passes) {
+    const id = p.offer || 'unknown';
+    if (!stats[id]) stats[id] = { issued: 0, redeemed: 0 };
+    stats[id].issued++;
+    if (p.status === 'redeemed') stats[id].redeemed++;
+  }
+  res.json({ stats });
+});
+
 // ---- Start ----
 app.listen(PORT, () => {
   console.log(`ACP Coupons listening on :${PORT}`);
