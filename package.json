@@ -1,19 +1,19 @@
 {
   "name": "acp-coupons",
-  "version": "1.1.0",
+  "version": "1.7.0",
   "private": true,
-  "description": "ACP Coupons — Gallery + Wallet + Geo + Multi-Client Dashboards",
+  "description": "ACP Coupons — Gallery + Wallet + Geo + Client Dashboards + PDF",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start:dev": "NODE_ENV=development node index.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "qrcode": "^1.5.3"
+    "qrcode": "^1.5.3",
+    "puppeteer": "^22.13.1"
   },
   "engines": {
     "node": "20.x"
   }
 }
-
