@@ -11,14 +11,15 @@
 <body>
   <div class="site">
     <header class="header">
-      <a href="/offers.html" class="logo" title="Back">←</a>
+      <a href="/offers.html" class="logo" title="Back" aria-label="Back to Offers">←</a>
       <div class="title">
         <h1>My Wallet</h1>
         <p>Saved offers: <span id="count">0</span></p>
       </div>
     </header>
 
-    <section id="grid" class="grid"></section>
+    <section id="grid" class="grid" aria-live="polite"></section>
+    <div id="empty" class="empty" style="display:none">You haven’t saved any offers yet.</div>
 
     <footer class="footer">
       AllCityPages.com | info@AllCityPages.com
@@ -28,12 +29,23 @@
   <script src="/shared.js"></script>
   <script>
     (async function init(){
-      const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers);
-      const savedIds = Shared.getSaved();
-      const subset = all.filter(o => savedIds.includes(o.id));
-      document.getElementById('count').textContent = subset.length;
-      const grid = document.getElementById('grid');
-      subset.forEach(o => grid.appendChild(Shared.makeCard(o, {wallet:true})));
+      const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
+      function render(){
+        const savedIds = Shared.getSaved();
+        const subset = all.filter(o => savedIds.includes(o.id));
+        document.getElementById('count').textContent = subset.length;
+
+        const grid = document.getElementById('grid');
+        const empty = document.getElementById('empty');
+        grid.innerHTML = '';
+        subset.forEach(o => grid.appendChild(Shared.makeCard(o, { wallet:true })));
+        empty.style.display = subset.length ? 'none' : 'block';
+      }
+
+      // Re-render when storage changes (e.g., another tab)
+      window.addEventListener('storage', (e)=>{ if (e.key === 'acp_saved_offers') render(); });
+
+      render();
     })();
   </script>
 </body>
