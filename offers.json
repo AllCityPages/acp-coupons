@@ -1,28 +1,105 @@
 {
   "tacobell-freeitem": {
-    "title": "Free Taco",
+    "title": "Free Taco!",
     "restaurant": "Taco Bell",
     "client_slug": "taco-bell-allen",
-    "description": "Buy 1 Crispy Taco, Get 1 Free. One redemption per customer.",
+    "description": "Buy One Crispy or Soft Taco, Get One of equal or lesser value FREE. One redemption per customer.",
     "expires_days": 30,
-    "discount": { "type": "amount", "value": 3.00, "currency": "USD" },
     "hero_image": "/static/tacobell/hero.png",
     "logo": "/static/tacobell/logo.png",
-    "brand_color": "#5F259F",
-    "accent_color": "#000000",
+    "brand_color": "#702082",
+    "accent_color": "#8A2BE2",
     "fine_print": "At participating locations. Not valid with other offers."
   },
+
   "popeyes-2pc": {
     "title": "Free 2pc Meal",
     "restaurant": "Popeyes",
     "client_slug": "popeyes-mckinney",
     "description": "Buy One 2pc Meal get One Free. One redemption per customer.",
     "expires_days": 45,
-    "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
     "hero_image": "/static/popeyes/hero-2pc.png",
     "logo": "/static/popeyes/logo.png",
-    "brand_color": "#F37E21",
-    "accent_color": "#000000",
+    "brand_color": "#F26C2A",
+    "accent_color": "#FF6A00",
     "fine_print": "Valid at participating locations. Not combinable."
+  },
+
+  "mcd-bogo": {
+    "title": "Buy 1 Get 1 Free — Any Sandwich",
+    "restaurant": "McDonald's",
+    "client_slug": "mcdonalds-allen",
+    "description": "Buy one sandwich, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer.",
+    "expires_days": 30,
+    "hero_image": "/static/mcd/hero-bogo.png",
+    "logo": "/static/mcd/logo.png",
+    "brand_color": "#DA291C",
+    "accent_color": "#FF0000",
+    "fine_print": "Not valid with any other offers. Valid only at participating McDonald's."
+  },
+
+  "wendys-free-side": {
+    "title": "Free Side with Any Entrée",
+    "restaurant": "Wendy's",
+    "client_slug": "wendys-frisco",
+    "description": "Get a free side with any entrée purchase.",
+    "expires_days": 40,
+    "hero_image": "/static/wendys/hero-side.png",
+    "logo": "/static/wendys/logo.png",
+    "brand_color": "#C8102E",
+    "accent_color": "#E2231A",
+    "fine_print": "One redemption per customer. Not redeemable for cash."
+  },
+
+  "chilis-free-app": {
+    "title": "Free Appetizer with Entrée",
+    "restaurant": "Chili's",
+    "client_slug": "chilis-frisco",
+    "description": "Enjoy a free appetizer with the purchase of any entrée.",
+    "expires_days": 60,
+    "hero_image": "/static/chilis/hero-app.png",
+    "logo": "/static/chilis/logo.png",
+    "brand_color": "#007A33",
+    "accent_color": "#00A651",
+    "fine_print": "Valid at select Chili’s restaurants only."
+  },
+
+  "kfc-bucket-10": {
+    "title": "$10 Off Family Bucket",
+    "restaurant": "KFC",
+    "client_slug": "kfc-mckinney",
+    "description": "Get $10 off any Family Bucket. One redemption per customer.",
+    "expires_days": 30,
+    "hero_image": "/static/kfc/hero-bucket.png",
+    "logo": "/static/kfc/logo.png",
+    "brand_color": "#EE0016",
+    "accent_color": "#E4002B",
+    "fine_print": "Offer available at participating locations."
+  },
+
+  "bk-bogo-whopper": {
+    "title": "BOGO Whopper®",
+    "restaurant": "Burger King",
+    "client_slug": "bk-frisco",
+    "description": "Buy one Whopper®, get one of equal or lesser value free.",
+    "expires_days": 35,
+    "hero_image": "/static/bk/hero-whopper.png",
+    "logo": "/static/bk/logo.png",
+    "brand_color": "#A64A29",
+    "accent_color": "#C4622D",
+    "fine_print": "Limit one per customer."
+  },
+
+  "pizzahut-large-5": {
+    "title": "$5 Off Any Large Pizza",
+    "restaurant": "Pizza Hut",
+    "client_slug": "pizzahut-mckinney",
+    "description": "Take $5 off any large pizza. One redemption per customer.",
+    "expires_days": 50,
+    "hero_image": "/static/pizzahut/hero-large.png",
+    "logo": "/static/pizzahut/logo.png",
+    "brand_color": "#EE232C",
+    "accent_color": "#EB0029",
+    "fine_print": "Must present coupon at time of order."
   }
 }
