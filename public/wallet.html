@@ -18,11 +18,16 @@
       </div>
     </header>
 
-    <!-- ✅ Category & Filters now in wallet -->
+    <div class="actionbar">
+      <a class="chip" href="/offers.html">Browse All Deals</a>
+    </div>
+
+    <!-- Push notify CTA will insert right below via JS -->
+
     <div id="cats" class="cats"></div>
 
     <div class="filters">
-      <input id="q" class="input" placeholder="Search offers or brand" autocomplete="off">
+      <input id="q" class="input" placeholder="Search saved offers or brand" autocomplete="off">
       <select id="brand" class="select" aria-label="Filter by brand">
         <option value="">All brands</option>
       </select>
@@ -33,9 +38,10 @@
     <section id="grid" class="grid" aria-live="polite"></section>
     <div id="empty" class="empty" style="display:none">You haven’t saved any offers yet.</div>
 
-    <footer class="footer">
-      AllCityPages.com | info@AllCityPages.com
-    </footer>
+    <h3 id="moreTitle" class="section-title" style="display:none">More you might like</h3>
+    <section id="more" class="grid"></section>
+
+    <footer class="footer">AllCityPages.com | info@AllCityPages.com</footer>
   </div>
 
   <script src="/shared.js"></script>
@@ -43,86 +49,85 @@
     (async function init(){
       const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
 
-      // Pull saved offers only
+      // Push notifications CTA if blocked
+      Shared.renderNotifyCTA(document.querySelector('.actionbar'));
+
       const grid = document.getElementById('grid');
       const empty = document.getElementById('empty');
 
       // Load state from URL
       const state = Shared.readQuery();
 
-      // 🏷 Populate brand dropdown based on saved offers
-      function populateFilters(subset){
-        const brandSel = document.getElementById('brand');
-        brandSel.innerHTML = '<option value="">All brands</option>';
-        Shared.populateBrandFilter(subset, brandSel);
-
-        // Restore input/selection
-        if (state.q) document.getElementById('q').value = state.q;
-        if (state.brand) document.getElementById('brand').value = state.brand;
-      }
-
-      // 🔁 Category pill elements
+      // Category chips
       const catsEl = document.getElementById('cats');
-      function setupCats(){
-        Shared.renderCategoryChips(catsEl, state, ()=>{
-          Shared.writeQuery(state);
-          render();
-        });
-      }
+      Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
 
-      // 🧠 Pull + apply filters
-      function getSubset(){
-        const savedIds = Shared.getSaved();
-        let subset = all.filter(o => savedIds.includes(o.id));
+      function getSavedSubset(){
+        const ids = new Set(Shared.getSaved());
+        let subset = all.filter(o => ids.has(o.id));
         subset = Shared.applyFilter(subset, state);
         return subset;
       }
 
+      function populateBrand(subset){
+        const brandSel = document.getElementById('brand');
+        brandSel.innerHTML = '<option value="">All brands</option>';
+        Shared.populateBrandFilter(subset, brandSel);
+        if (state.brand) brandSel.value = state.brand;
+      }
+
       function render(){
-        const subset = getSubset();
+        const subset = getSavedSubset();
         document.getElementById('count').textContent = subset.filter(o=>Shared.isSaved(o.id)).length;
 
         grid.innerHTML = '';
         subset.forEach(o => grid.appendChild(Shared.makeCard(o, { wallet:true })));
-
         empty.style.display = subset.length ? 'none' : 'block';
 
-        populateFilters(subset);
+        populateBrand(subset);
+
+        // Suggestions: unsaved offers matching filters
+        const more = document.getElementById('more');
+        const moreTitle = document.getElementById('moreTitle');
+        more.innerHTML = '';
+        const suggestions = Shared.suggest(all, state, 8);
+        if (suggestions.length) {
+          moreTitle.style.display = 'block';
+          suggestions.forEach(o => more.appendChild(Shared.makeCard(o, { wallet:false })));
+        } else {
+          moreTitle.style.display = 'none';
+        }
       }
 
-      // Search + brand event handlers
+      // Restore UI inputs
+      if (state.q) document.getElementById('q').value = state.q;
+
+      // Event handlers
       document.getElementById('apply').onclick = ()=>{
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
-        Shared.writeQuery(state);
-        render();
+        Shared.writeQuery(state); render();
       };
       document.getElementById('clear').onclick = ()=>{
         state.q=''; state.brand=''; state.category='';
         Shared.writeQuery(state);
-        document.getElementById('q').value = '';
-        document.getElementById('brand').value = '';
-        setupCats(); // Reset chip states
+        document.getElementById('q').value=''; document.getElementById('brand').value='';
+        Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
         render();
       };
       document.getElementById('q').addEventListener('input', Shared.debounce(()=>{
-        state.q = document.getElementById('q').value.trim();
-        Shared.writeQuery(state);
-        render();
+        state.q = document.getElementById('q').value.trim(); Shared.writeQuery(state); render();
       }, 250));
       document.getElementById('brand').addEventListener('change', ()=>{
-        state.brand = document.getElementById('brand').value;
-        Shared.writeQuery(state);
-        render();
+        state.brand = document.getElementById('brand').value; Shared.writeQuery(state); render();
       });
 
-      // Keep page up to date if user favorite/unfavorites elsewhere
-      window.addEventListener('storage', (e)=>{
-        if (e.key === 'acp_saved_offers') render();
-      });
+      // Re-render when favorites change in another tab
+      window.addEventListener('storage', (e)=>{ if (e.key === 'acp_saved_offers') render(); });
 
-      // Init category UI + render
-      setupCats();
+      // Try to compute brand distances for distance badges
+      await Shared.computeNearbySort();
+
       render();
     })();
   </script>
