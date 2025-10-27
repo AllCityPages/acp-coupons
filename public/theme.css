@@ -1,4 +1,4 @@
-/* theme.css — Light marketplace theme (brand-accent ready) */
+/* theme.css — Light marketplace theme (brand-accent + categories) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -34,12 +34,22 @@ html,body{background:var(--bg);color:var(--ink)}
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
-  margin:8px 0 18px;border:1px solid #f2c900
+  margin:8px 0 12px;border:1px solid #f2c900
 }
 .actionbar .chip{
   appearance:none;border:0;background:rgba(17,24,39,.07);
   color:var(--bar-ink);padding:8px 12px;border-radius:999px;font-weight:600;
   cursor:pointer
+}
+
+.cats{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 18px}
+.cats .chip{
+  background:var(--pill); color:var(--pill-ink);
+  border:1px solid var(--border);
+  border-radius:999px; padding:8px 12px; cursor:pointer; font-weight:600;
+}
+.cats .chip.active{
+  background:#111827; color:#fff; border-color:#0f1629;
 }
 
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -72,10 +82,8 @@ html,body{background:var(--bg);color:var(--ink)}
 .btn-primary{background:var(--btn);color:var(--btn-ink);border-color:#0f1629}
 .btn-outline{background:#fff}
 .btn-danger{background:#fff;border-color:#fca5a5;color:#b91c1c}
-.star{width:16px;height:16px;display:inline-block}
-
-/* When JS applies a brand accent it adds .btn-accent + inline colors */
 .btn-accent{border-color:transparent}
+.star{width:16px;height:16px;display:inline-block}
 
 .empty{
   padding:32px;border:1px dashed var(--border);border-radius:12px;
