@@ -37,9 +37,7 @@
     <section id="grid" class="grid" aria-live="polite"></section>
     <div id="empty" class="empty" style="display:none">No offers match your filters.</div>
 
-    <footer class="footer">
-      AllCityPages.com | info@AllCityPages.com
-    </footer>
+    <footer class="footer">AllCityPages.com | info@AllCityPages.com</footer>
   </div>
 
   <script src="/shared.js"></script>
@@ -48,20 +46,16 @@
       const data = await fetch('/api/offers').then(r=>r.json());
       const offers = data.offers || [];
 
-      // brand filter
+      // Show push-notify CTA if blocked
+      Shared.renderNotifyCTA(document.querySelector('.actionbar'));
+
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
 
-      // state from URL
       const state = Shared.readQuery();
 
-      // category chips
       const catsEl = document.getElementById('cats');
-      Shared.renderCategoryChips(catsEl, state, ()=>{
-        Shared.writeQuery(state);
-        render();
-      });
+      Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
 
-      // restore UI inputs
       if (state.q) document.getElementById('q').value = state.q;
       if (state.brand) document.getElementById('brand').value = state.brand;
 
@@ -82,44 +76,31 @@
         empty.style.display = rows.length ? 'none' : 'block';
       }
 
-      // controls
       document.getElementById('apply').onclick = ()=>{
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
-        Shared.writeQuery(state);
-        render();
+        Shared.writeQuery(state); render();
       };
       document.getElementById('clear').onclick = ()=>{
-        document.getElementById('q').value = '';
-        document.getElementById('brand').value = '';
+        document.getElementById('q').value=''; document.getElementById('brand').value='';
         state.q=''; state.brand=''; state.category='';
         Shared.writeQuery(state);
         Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
-        nearbyActive = false;
-        render();
+        nearbyActive = false; render();
       };
       document.getElementById('q').addEventListener('input', Shared.debounce(()=>{
-        state.q = document.getElementById('q').value.trim();
-        Shared.writeQuery(state);
-        render();
+        state.q = document.getElementById('q').value.trim(); Shared.writeQuery(state); render();
       }, 250));
       document.getElementById('brand').addEventListener('change', ()=>{
-        state.brand = document.getElementById('brand').value;
-        Shared.writeQuery(state);
-        render();
+        state.brand = document.getElementById('brand').value; Shared.writeQuery(state); render();
       });
 
-      // Nearby sort toggle
       document.getElementById('btn-near').onclick = async ()=>{
         if (!nearbyActive) {
-          const map = await Shared.computeNearbySort();
-          if (!map) return; // failed/denied
-          nearbyActive = true;
-          document.getElementById('btn-near').textContent = '📍 Nearby (On)';
-        } else {
-          nearbyActive = false;
-          document.getElementById('btn-near').textContent = '📍 Sort by Nearby';
-        }
+          const ok = await Shared.computeNearbySort();
+          if (!ok) return;
+          nearbyActive = true; this.textContent = '📍 Nearby (On)';
+        } else { nearbyActive = false; this.textContent = '📍 Sort by Nearby'; }
         render();
       };
 
