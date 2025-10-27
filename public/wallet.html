@@ -4,83 +4,98 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>My Wallet — All City Pages</title>
+<meta name="theme-color" content="#111827">
 <style>
   :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-  body{ margin:0; background:#0b1220; color:#e5e7eb; }
-  header { padding:14px 18px; background:#020617; position:sticky; top:0; display:flex; align-items:center; gap:12px; }
+  body { margin:0; background:#0b1220; color:#e5e7eb; }
+  header { position:sticky; top:0; backdrop-filter:saturate(180%) blur(8px); background:rgba(2,6,23,.8); padding:14px 18px; display:flex; gap:12px; align-items:center; z-index:10; }
   header a { color:#93c5fd; text-decoration:none; }
-  .wrap { max-width:900px; margin:0 auto; padding:18px; }
-  .card{ background:#111827; border:1px solid #1f2937; border-radius:16px; padding:14px; margin:8px 0; display:flex; gap:12px; align-items:center; }
-  img { width:96px; height:64px; object-fit:cover; border-radius:8px; background:#0f172a; }
-  .btn{ background:#2563eb; color:#fff; border:0; padding:10px 12px; border-radius:10px; cursor:pointer; }
-  .btn.secondary{ background:#f97316; }
-  .muted{ color:#94a3b8; }
+  .wrap { max-width:1100px; margin:0 auto; padding:18px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+  .card { background:#111827; border:1px solid #1f2937; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
+  .card img { width:100%; height:160px; object-fit:cover; }
+  .body { padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .title { font-weight:700; }
+  .brand { color:#94a3b8; font-size:13px; }
+  .btn { display:inline-block; text-align:center; border:0; border-radius:10px; padding:10px 12px; cursor:pointer; color:#fff; background:#f97316; }
+  .row { display:flex; gap:8px; }
+  .msg { color:#94a3b8; padding:12px 0; min-height:24px; }
 </style>
 </head>
 <body>
-<header><a href="/offers.html">&larr; Offers</a></header>
+<header>
+  <strong>📥 My Wallet</strong>
+  <a href="/offers.html">Back to Offers</a>
+</header>
 <div class="wrap">
-  <h1 style="margin:8px 0 10px">My Wallet</h1>
-  <p class="muted" id="msg"></p>
-  <div id="list"></div>
+  <div id="msg" class="msg"></div>
+  <div id="grid" class="grid"></div>
 </div>
 
 <script>
   const KEY = 'wallet_offers';
+  const $ = sel => document.querySelector(sel);
 
-  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
+  function getSaved(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+    catch { return []; }
+  }
 
-  async function loadCatalog(){
+  async function loadOffers(){
     const res = await fetch('/api/offers');
-    if(!res.ok) throw new Error('Failed to load /api/offers');
+    if (!res.ok) throw new Error('Failed to load /api/offers');
     const j = await res.json();
     return j.offers || [];
   }
 
-  function getSaved(){
-    try {
-      const raw = localStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  }
-
-  function removeOffer(id){
-    const cur = getSaved().filter(x => x !== id);
-    localStorage.setItem(KEY, JSON.stringify(cur));
-    init(); // re-render
-  }
-
-  function render(list, catalog){
-    const root = document.getElementById('list');
-    if (!list.length){
-      setMsg('No saved offers yet. Go to the Offers page and tap “Save”.');
-      root.innerHTML = '';
-      return;
-    }
-    setMsg('');
-    root.innerHTML = list.map(id => {
-      const o = catalog.find(x => x.id === id) || { id, title:id, restaurant:'', hero_image:'' };
-      return `
-        <div class="card">
-          ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="width:96px;height:64px;border-radius:8px;background:#0f172a"></div>`}
-          <div style="flex:1">
-            <div style="font-weight:700">${o.title}</div>
-            <div class="muted" style="font-size:13px">${o.restaurant||''}</div>
+  function cardFor(offer){
+    return `
+      <div class="card">
+        ${offer.hero_image ? `<img src="${offer.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
+        <div class="body">
+          <div class="title">${offer.title}</div>
+          <div class="brand">${offer.restaurant || ''}</div>
+          <div class="row">
+            <a class="btn" href="/coupon?offer=${encodeURIComponent(offer.id)}">Redeem</a>
           </div>
-          <a class="btn secondary" href="/coupon?offer=${encodeURIComponent(o.id)}">Redeem</a>
-          <button class="btn" onclick="removeOffer('${o.id}')">Remove</button>
-        </div>`;
-    }).join('');
+        </div>
+      </div>
+    `;
+  }
+
+  function fallbackCard(id){
+    return `
+      <div class="card">
+        <div style="height:160px;background:#0f172a"></div>
+        <div class="body">
+          <div class="title">${id}</div>
+          <div class="brand">Saved offer (details unavailable)</div>
+          <div class="row">
+            <a class="btn" href="/coupon?offer=${encodeURIComponent(id)}">Try to Redeem</a>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   async function init(){
+    const saved = getSaved();
+    if (!saved.length) {
+      $('#msg').textContent = 'You haven’t saved any offers yet.';
+      $('#grid').innerHTML = '';
+      return;
+    }
+
     try {
-      const saved = getSaved();
-      const catalog = await loadCatalog();
-      render(saved, catalog);
+      const offers = await loadOffers();
+      const byId = Object.fromEntries(offers.map(o => [o.id, o]));
+      const cards = saved.map(id => byId[id] ? cardFor(byId[id]) : fallbackCard(id));
+      $('#msg').textContent = '';
+      $('#grid').innerHTML = cards.join('');
     } catch (e) {
       console.error(e);
-      setMsg('Could not load wallet. Check /api/offers is reachable.');
+      $('#msg').textContent = 'Could not load offers. Showing saved IDs only.';
+      $('#grid').innerHTML = saved.map(fallbackCard).join('');
     }
   }
 
