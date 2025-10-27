@@ -1,11 +1,12 @@
 {
   "tacobell-freeitem": {
-    "title": "Free Taco!",
+    "title": "Buy 1 Get 1 Free — Any Entrée",
     "restaurant": "Taco Bell",
     "client_slug": "taco-bell-allen",
-    "description": "Buy One Crispy or Soft Taco, Get One of equal or lesser value FREE. One redemption per customer.",
+    "category": "Mexican",
+    "description": "Buy one entrée, get one of equal or lesser value free. One redemption per customer.",
     "expires_days": 30,
-    "hero_image": "/static/tacobell/hero.png",
+    "hero_image": "/static/tacobell/hero-bogo.png",
     "logo": "/static/tacobell/logo.png",
     "brand_color": "#702082",
     "accent_color": "#8A2BE2",
@@ -16,6 +17,7 @@
     "title": "Free 2pc Meal",
     "restaurant": "Popeyes",
     "client_slug": "popeyes-mckinney",
+    "category": "Chicken",
     "description": "Buy One 2pc Meal get One Free. One redemption per customer.",
     "expires_days": 45,
     "hero_image": "/static/popeyes/hero-2pc.png",
@@ -29,7 +31,8 @@
     "title": "Buy 1 Get 1 Free — Any Sandwich",
     "restaurant": "McDonald's",
     "client_slug": "mcdonalds-allen",
-    "description": "Buy one sandwich, get one of equal or lesser value free. Show coupon to cashier. One redemption per customer.",
+    "category": "Burgers",
+    "description": "Buy one sandwich, get one of equal or lesser value free. One redemption per customer.",
     "expires_days": 30,
     "hero_image": "/static/mcd/hero-bogo.png",
     "logo": "/static/mcd/logo.png",
@@ -38,49 +41,11 @@
     "fine_print": "Not valid with any other offers. Valid only at participating McDonald's."
   },
 
-  "wendys-free-side": {
-    "title": "Free Side with Any Entrée",
-    "restaurant": "Wendy's",
-    "client_slug": "wendys-frisco",
-    "description": "Get a free side with any entrée purchase.",
-    "expires_days": 40,
-    "hero_image": "/static/wendys/hero-side.png",
-    "logo": "/static/wendys/logo.png",
-    "brand_color": "#C8102E",
-    "accent_color": "#E2231A",
-    "fine_print": "One redemption per customer. Not redeemable for cash."
-  },
-
-  "chilis-free-app": {
-    "title": "Free Appetizer with Entrée",
-    "restaurant": "Chili's",
-    "client_slug": "chilis-frisco",
-    "description": "Enjoy a free appetizer with the purchase of any entrée.",
-    "expires_days": 60,
-    "hero_image": "/static/chilis/hero-app.png",
-    "logo": "/static/chilis/logo.png",
-    "brand_color": "#007A33",
-    "accent_color": "#00A651",
-    "fine_print": "Valid at select Chili’s restaurants only."
-  },
-
-  "kfc-bucket-10": {
-    "title": "$10 Off Family Bucket",
-    "restaurant": "KFC",
-    "client_slug": "kfc-mckinney",
-    "description": "Get $10 off any Family Bucket. One redemption per customer.",
-    "expires_days": 30,
-    "hero_image": "/static/kfc/hero-bucket.png",
-    "logo": "/static/kfc/logo.png",
-    "brand_color": "#EE0016",
-    "accent_color": "#E4002B",
-    "fine_print": "Offer available at participating locations."
-  },
-
   "bk-bogo-whopper": {
     "title": "BOGO Whopper®",
     "restaurant": "Burger King",
     "client_slug": "bk-frisco",
+    "category": "Burgers",
     "description": "Buy one Whopper®, get one of equal or lesser value free.",
     "expires_days": 35,
     "hero_image": "/static/bk/hero-whopper.png",
@@ -90,10 +55,39 @@
     "fine_print": "Limit one per customer."
   },
 
+  "wendys-free-side": {
+    "title": "Free Side with Any Entrée",
+    "restaurant": "Wendy's",
+    "client_slug": "wendys-frisco",
+    "category": "Burgers",
+    "description": "Get a free side with any entrée purchase.",
+    "expires_days": 40,
+    "hero_image": "/static/wendys/hero-side.png",
+    "logo": "/static/wendys/logo.png",
+    "brand_color": "#C8102E",
+    "accent_color": "#E2231A",
+    "fine_print": "One redemption per customer. Not redeemable for cash."
+  },
+
+  "kfc-bucket-10": {
+    "title": "$10 Off Family Bucket",
+    "restaurant": "KFC",
+    "client_slug": "kfc-mckinney",
+    "category": "Chicken",
+    "description": "Get $10 off any Family Bucket. One redemption per customer.",
+    "expires_days": 30,
+    "hero_image": "/static/kfc/hero-bucket.png",
+    "logo": "/static/kfc/logo.png",
+    "brand_color": "#E4002B",
+    "accent_color": "#E4002B",
+    "fine_print": "Offer available at participating locations."
+  },
+
   "pizzahut-large-5": {
     "title": "$5 Off Any Large Pizza",
     "restaurant": "Pizza Hut",
     "client_slug": "pizzahut-mckinney",
+    "category": "Pizza",
     "description": "Take $5 off any large pizza. One redemption per customer.",
     "expires_days": 50,
     "hero_image": "/static/pizzahut/hero-large.png",
@@ -101,5 +95,75 @@
     "brand_color": "#EE232C",
     "accent_color": "#EB0029",
     "fine_print": "Must present coupon at time of order."
+  },
+
+  "chipotle-bogo-bowl": {
+    "title": "BOGO Burrito or Bowl",
+    "restaurant": "Chipotle",
+    "client_slug": "chipotle-mckinney",
+    "category": "Mexican",
+    "description": "Buy one burrito or bowl, get one free of equal or lesser value.",
+    "expires_days": 30,
+    "hero_image": "/static/chipotle/hero-bowl.png",
+    "logo": "/static/chipotle/logo.png",
+    "brand_color": "#7F2D1F",
+    "accent_color": "#A83F2C",
+    "fine_print": "Valid at participating locations only."
+  },
+
+  "subway-free-cookie": {
+    "title": "Free Cookie with Any Footlong",
+    "restaurant": "Subway",
+    "client_slug": "subway-allen",
+    "category": "Sandwiches",
+    "description": "Enjoy a free cookie with any Footlong purchase.",
+    "expires_days": 20,
+    "hero_image": "/static/subway/hero-footlong.png",
+    "logo": "/static/subway/logo.png",
+    "brand_color": "#00543D",
+    "accent_color": "#009E5A",
+    "fine_print": "One per customer. While supplies last."
+  },
+
+  "whataburger-bogo": {
+    "title": "BOGO Whataburger®",
+    "restaurant": "Whataburger",
+    "client_slug": "whataburger-frisco",
+    "category": "Burgers",
+    "description": "Buy one Whataburger®, get one free of equal or lesser value.",
+    "expires_days": 30,
+    "hero_image": "/static/whataburger/hero-burger.png",
+    "logo": "/static/whataburger/logo.png",
+    "brand_color": "#FF5A00",
+    "accent_color": "#FF6A00",
+    "fine_print": "Valid only at participating Whataburger."
+  },
+
+  "sonic-bogo-coney": {
+    "title": "Buy 1 Coney Combo, Get 1 Free",
+    "restaurant": "Sonic Drive-In",
+    "client_slug": "sonic-mckinney",
+    "category": "Burgers",
+    "description": "Double up on Coney combos—pay for one, get one free.",
+    "expires_days": 25,
+    "hero_image": "/static/sonic/hero-coney.png",
+    "logo": "/static/sonic/logo.png",
+    "brand_color": "#005CB4",
+    "accent_color": "#FF0C00",
+    "fine_print": "Valid at participating Sonic Drive-In locations."
+  },
+
+  "dq-blizzard-1off": {
+    "title": "$1 Off Any Blizzard®",
+    "restaurant": "Dairy Queen",
+    "client_slug": "dq-allen",
+    "category": "Sandwiches",
+    "description": "Take $1 off any size Blizzard® treat.",
+    "expires_days": 30,
+    "hero_image": "/static/dq/hero-blizzard.png",
+    "logo": "/static/dq/logo.png",
+    "brand_color": "#156DBF",
+    "accent_color": "#EF3E42",
+    "fine_print": "At participating DQ® stores. Not valid with other offers."
   }
 }
