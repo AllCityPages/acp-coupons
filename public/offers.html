@@ -19,9 +19,11 @@
     </header>
 
     <div class="actionbar">
-      <button id="btn-near" class="chip" type="button">📍 Show deals near me</button>
+      <button id="btn-near" class="chip" type="button">📍 Sort by Nearby</button>
       <a class="chip" href="/wallet.html">⭐ My Favorites</a>
     </div>
+
+    <div id="cats" class="cats"></div>
 
     <div class="filters">
       <input id="q" class="input" placeholder="Search offers or brand" autocomplete="off">
@@ -46,21 +48,41 @@
       const data = await fetch('/api/offers').then(r=>r.json());
       const offers = data.offers || [];
 
+      // brand filter
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
 
+      // state from URL
       const state = Shared.readQuery();
+
+      // category chips
+      const catsEl = document.getElementById('cats');
+      Shared.renderCategoryChips(catsEl, state, ()=>{
+        Shared.writeQuery(state);
+        render();
+      });
+
+      // restore UI inputs
       if (state.q) document.getElementById('q').value = state.q;
       if (state.brand) document.getElementById('brand').value = state.brand;
+
+      let nearbyActive = false;
+
+      function getRows(){
+        let rows = Shared.applyFilter(offers, state);
+        if (nearbyActive) rows = Shared.sortByNearby(rows);
+        return rows;
+      }
 
       function render(){
         const grid = document.getElementById('grid');
         const empty = document.getElementById('empty');
         grid.innerHTML = '';
-        const rows = Shared.applyFilter(offers, state);
+        const rows = getRows();
         rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
         empty.style.display = rows.length ? 'none' : 'block';
       }
 
+      // controls
       document.getElementById('apply').onclick = ()=>{
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
@@ -70,8 +92,10 @@
       document.getElementById('clear').onclick = ()=>{
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
-        state.q=''; state.brand='';
+        state.q=''; state.brand=''; state.category='';
         Shared.writeQuery(state);
+        Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
+        nearbyActive = false;
         render();
       };
       document.getElementById('q').addEventListener('input', Shared.debounce(()=>{
@@ -85,7 +109,19 @@
         render();
       });
 
-      document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
+      // Nearby sort toggle
+      document.getElementById('btn-near').onclick = async ()=>{
+        if (!nearbyActive) {
+          const map = await Shared.computeNearbySort();
+          if (!map) return; // failed/denied
+          nearbyActive = true;
+          document.getElementById('btn-near').textContent = '📍 Nearby (On)';
+        } else {
+          nearbyActive = false;
+          document.getElementById('btn-near').textContent = '📍 Sort by Nearby';
+        }
+        render();
+      };
 
       render();
     })();
