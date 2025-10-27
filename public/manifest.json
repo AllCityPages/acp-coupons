@@ -1,6 +1,6 @@
 {
-  "name": "ACP Coupons",
-  "short_name": "Coupons",
+  "name": "All City Pages — Offers",
+  "short_name": "ACP Offers",
   "start_url": "/offers.html",
   "display": "standalone",
   "background_color": "#0b1220",
