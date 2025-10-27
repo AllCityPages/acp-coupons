@@ -8,106 +8,84 @@
 <style>
   :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
   body { margin:0; background:#0b1220; color:#e5e7eb; }
+  a { color:#93c5fd; text-decoration:none; }
   header { position:sticky; top:0; backdrop-filter:saturate(180%) blur(8px); background:rgba(2,6,23,.8); padding:14px 18px; display:flex; gap:12px; align-items:center; z-index:10; }
-  header a { color:#93c5fd; text-decoration:none; }
   .wrap { max-width:1100px; margin:0 auto; padding:18px; }
-  h1 { margin:8px 0 16px; }
   .grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
   .card { background:#111827; border:1px solid #1f2937; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
   .card img { width:100%; height:160px; object-fit:cover; }
   .body { padding:12px; display:flex; flex-direction:column; gap:8px; }
   .title { font-weight:700; }
   .brand { color:#94a3b8; font-size:13px; }
-  .row { display:flex; gap:8px; }
   .btn { display:inline-block; text-align:center; border:0; border-radius:10px; padding:10px 12px; cursor:pointer; color:#fff; background:#2563eb; }
   .btn.secondary { background:#f97316; }
   .btn.danger { background:#ef4444; }
-  .msg { color:#94a3b8; padding:12px 0; }
+  .row { display:flex; gap:8px; }
+  .muted { color:#94a3b8; font-size:13px; }
+  .badge { display:inline-block; background:#ef4444;color:#fff; padding:2px 6px; border-radius:6px; font-size:12px; }
 </style>
 </head>
 <body>
 <header>
   <a href="/offers.html">← Offers</a>
+  <strong>My Wallet</strong>
 </header>
-
 <div class="wrap">
-  <h1>My Wallet</h1>
-  <div id="msg" class="msg"></div>
+  <div class="muted" id="count"></div>
   <div id="grid" class="grid"></div>
 </div>
 
 <script>
-  const KEY = 'wallet_offers';
+const KEY = 'wallet_offers';
 
-  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
+function getSaved(){ try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } }
+function putSaved(a){ localStorage.setItem(KEY, JSON.stringify(a)); }
 
-  function getSaved(){
-    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
-    catch { return []; }
-  }
-  function putSaved(arr){
-    localStorage.setItem(KEY, JSON.stringify(arr));
-  }
+async function loadOffers(){
+  const r = await fetch('/api/offers'); const j = await r.json(); return j.offers || [];
+}
+function daysLeft(expiresDays){
+  return expiresDays|0; // simple demo (your server issues token expiry dates separately)
+}
 
-  async function loadOffers(){
-    const res = await fetch('/api/offers');
-    if (!res.ok) throw new Error('Failed to load /api/offers');
-    const j = await res.json();
-    // map by id for fast lookup
-    const map = new Map((j.offers||[]).map(o => [o.id, o]));
-    return map;
-  }
-
-  function renderGrid(savedIds, offerMap){
-    const grid = document.getElementById('grid');
-    if (!savedIds.length) {
-      setMsg('Your wallet is empty. Go to Offers and tap “Save” on any deal.');
-      grid.innerHTML = '';
-      return;
-    }
-    setMsg(`Saved offers: ${savedIds.length}`);
-    grid.innerHTML = savedIds.map(id => {
-      const o = offerMap.get(id) || { id, title: id, restaurant: '', hero_image: '' };
-      return `
-        <div class="card" data-id="${id}">
-          ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
-          <div class="body">
-            <div class="title">${o.title||id}</div>
-            <div class="brand">${o.restaurant||''}</div>
-            <div class="row">
-              <a class="btn secondary" href="/coupon?offer=${encodeURIComponent(id)}">Redeem</a>
-              <button class="btn danger remove-btn" data-id="${id}">Remove</button>
-            </div>
+function render(list, catalog){
+  const map = Object.fromEntries(catalog.map(o => [o.id, o]));
+  const grid = document.getElementById('grid');
+  grid.innerHTML = list.map(id => {
+    const o = map[id]; if (!o) return '';
+    const left = daysLeft(o.expires_days);
+    const badge = left <= 7 ? `<span class="badge">Expiring soon</span>` : '';
+    return `
+      <div class="card">
+        ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
+        <div class="body">
+          <div class="title">${o.title}</div>
+          <div class="brand">${o.restaurant} ${badge}</div>
+          <div class="row">
+            <a class="btn secondary" href="/coupon?offer=${encodeURIComponent(o.id)}">Redeem</a>
+            <button class="btn danger remove" data-id="${o.id}">Remove</button>
           </div>
-        </div>`;
-    }).join('');
-  }
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('count').textContent = `Saved offers: ${list.length}`;
+}
 
-  document.addEventListener('click', (e) => {
-    const rm = e.target.closest('.remove-btn');
-    if (!rm) return;
-    const id = rm.dataset.id;
-    const saved = getSaved().filter(x => x !== id);
-    putSaved(saved);
-    // re-render quickly
-    loadOffers().then(map => renderGrid(saved, map)).catch(err => setMsg(err.message));
-  });
-
-  async function init(){
-    try {
-      const saved = Array.from(new Set(getSaved()));
-      const map = await loadOffers();
-      // filter out any IDs that no longer exist
-      const cleaned = saved.filter(id => map.has(id));
-      if (cleaned.length !== saved.length) putSaved(cleaned);
-      renderGrid(cleaned, map);
-    } catch (e) {
-      console.error(e);
-      setMsg('Could not load wallet. Try a hard refresh.');
-    }
-  }
-
+document.addEventListener('click', (e) => {
+  const rm = e.target.closest('.remove');
+  if (!rm) return;
+  const id = rm.dataset.id;
+  const cur = getSaved().filter(x => x !== id);
+  putSaved(cur);
   init();
+});
+
+async function init(){
+  const saved = getSaved();
+  const offers = await loadOffers();
+  render(saved, offers);
+}
+init();
 </script>
 </body>
 </html>
