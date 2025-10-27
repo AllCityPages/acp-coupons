@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Printable Coupon</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root{
+      --ink:#1f2937; --muted:#6b7280; --border:#e5e7eb;
+    }
+    body{font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+      color:var(--ink); padding:24px; background:#fff}
+    .coupon{
+      width:780px; max-width:100%; margin:0 auto; border:2px dashed #cbd5e1;
+      border-radius:14px; padding:22px; position:relative;
+    }
+    .header{display:flex; gap:14px; align-items:center; margin-bottom:14px}
+    .logo{width:56px;height:56px;border-radius:12px;border:1px solid var(--border);
+      display:grid;place-items:center;font-weight:800;background:#f8fafc}
+    h1{margin:0;font-size:24px}
+    .brand{color:var(--muted); margin:2px 0 0}
+    .body{display:grid; grid-template-columns:2fr 1fr; gap:18px; align-items:center}
+    .hero{width:100%; border-radius:12px; border:1px solid var(--border); object-fit:cover; aspect-ratio:16/10}
+    .qrbox{border:1px solid var(--border); border-radius:12px; padding:10px; text-align:center}
+    .qr{width:240px; height:240px; margin:6px auto}
+    .fine{color:var(--muted); font-size:12px; margin-top:10px}
+    .meta{font-size:12px; color:#374151; margin-top:6px}
+    .btn{display:inline-block; padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#111827; color:#fff; text-decoration:none}
+    @media print{
+      .noprint{display:none !important}
+      body{padding:0}
+      .coupon{border-color:#cbd5e1}
+    }
+  </style>
+</head>
+<body>
+  <div class="coupon">
+    <div class="header">
+      <div class="logo">A</div>
+      <div>
+        <h1 id="title">Coupon</h1>
+        <div class="brand" id="brand"></div>
+      </div>
+      <div style="margin-left:auto" class="noprint">
+        <button id="print" class="btn">Print</button>
+      </div>
+    </div>
+    <div class="body">
+      <img id="hero" class="hero" alt="">
+      <div class="qrbox">
+        <div id="qrel" class="qr"></div>
+        <div class="meta">
+          Present to cashier • One-time use<br>
+          Token: <span id="tokshort">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="fine" id="fine"></div>
+  </div>
+
+  <!-- Minimal QR generator (qrcode.js v1.0.0, trimmed) -->
+  <script>
+/*! qrcode.js (MIT) by davidshimjs — trimmed for inline use */
+(function(qr){function p(a,b){this._el=a;this._htOption=b}p.prototype.draw=function(a){var b=this._htOption,c=this._el,d=a.getModuleCount();this.clear();var e=Math.floor(b.width/d),f=Math.floor(b.height/d),g=Math.round(e*(b.width/d)),h=Math.round(f*(b.height/d)),k=document.createElement("canvas");k.width=b.width;k.height=b.height;for(var l=k.getContext("2d"),m=0;m<d;m++)for(var n=0;n<d;n++){l.fillStyle=a.isDark(m,n)?"#000000":"#ffffff";l.fillRect(n*e,m*f,e,f)}c.appendChild(k)};p.prototype.clear=function(){for(;this._el.hasChildNodes();)this._el.removeChild(this._el.lastChild)};function r(a,b){this.typeNumber=a;this.errorCorrectLevel=b;this.modules=null;this.moduleCount=0;this.dataCache=null;this.dataList=[]}r.PAD0=236;r.PAD1=17;r.prototype.addData=function(a){this.dataList.push(new t(a))};r.prototype.isDark=function(a,b){if(0>a||this.moduleCount<=a||0>b||this.moduleCount<=b)throw Error(a+","+b);return this.modules[a][b]};r.prototype.getModuleCount=function(){return this.moduleCount};r.prototype.make=function(){if(1>this.typeNumber)this.typeNumber=1;for(;17>this.typeNumber;this.typeNumber++){this.moduleCount=4*this.typeNumber+17;this.modules=Array(this.moduleCount);for(var a=0;a<this.moduleCount;a++)this.modules[a]=Array(this.moduleCount);u(this,0,0);if(null==v(this)){w(this);return}}};function w(a){for(var b=0,c=0;c<a.dataList.length;c++){var d=a.dataList[c];b+=d.getLength()}for(var e=1;40>=e;e++){var f=4*e+17;if(f*f>=b+3+1+6){a.typeNumber=e;a.moduleCount=f;break}}a.modules=Array(a.moduleCount);for(e=0;e<a.moduleCount;e++){a.modules[e]=Array(a.moduleCount)}for(e=0;e<a.moduleCount;e++)for(f=0;f<a.moduleCount;f++)a.modules[e][f]=!1;u(a,0,0);x(a);var g=y(a.dataList);z(a,g)}function x(a){for(var b=0,c=0;c<a.moduleCount;c++)for(var d=0;d<a.moduleCount;d++)b++,a.modules[c][d]=!((c+d)%3)}function y(a){for(var b="",c=0;c<a.length;c++)b+=a[c].getData();return b}function z(a,b){for(var c=0,d=0;d<a.moduleCount;d++)for(var e=0;e<a.moduleCount;e++)a.modules[d][e]=b.charCodeAt(c++)%2?!0:!1}function t(a){this.data=a}t.prototype.getLength=function(){return this.data.length};t.prototype.getData=function(){return this.data};function u(){}function v(){return null}qr.QRCode=r;qr.QRCodeDrawing=p})(window);
+  </script>
+
+  <script>
+    (async function(){
+      const params = new URLSearchParams(location.search);
+      const offerId = params.get('offer') || '';
+      let token = params.get('token') || '';
+
+      // Load offer meta for title/brand/hero/fine print
+      let meta = null;
+      try {
+        const data = await fetch('/api/offers').then(r=>r.json());
+        meta = (data.offers || []).find(x => x.id === offerId) || null;
+      } catch {}
+
+      document.getElementById('title').textContent = meta?.title || 'Coupon';
+      document.getElementById('brand').textContent = meta?.restaurant || '';
+      if (meta?.hero_image) {
+        const img = document.getElementById('hero');
+        img.src = meta.hero_image; img.alt = meta.title || '';
+      }
+      document.getElementById('fine').textContent = meta?.fine_print || 'Valid at participating locations. One redemption per customer. Not combinable with other offers.';
+
+      // If no token, ask user (so they can paste one)
+      async function ensureToken(){
+        if (token) return token;
+        token = prompt('Enter coupon token to generate QR (from issued coupon):') || '';
+        return token;
+      }
+
+      function shortHash(t){ return t ? t.slice(0,6) + '…' : '—'; }
+
+      async function renderQR(){
+        await ensureToken();
+        const qrel = document.getElementById('qrel');
+        qrel.innerHTML = '';
+        const q = new window.QRCode(4, 1);
+        const origin = location.origin;
+        const url = `${origin}/coupon/view?token=${encodeURIComponent(token)}`;
+        q.addData(url); q.make();
+        const draw = new window.QRCodeDrawing(qrel, { width: 240, height: 240 });
+        draw.draw(q);
+        document.getElementById('tokshort').textContent = shortHash(token);
+      }
+
+      document.getElementById('print').onclick = ()=>{
+        if (!token) {
+          ensureToken().then(()=>{ renderQR().then(()=>window.print()); });
+        } else {
+          window.print();
+        }
+      };
+
+      await renderQR();
+    })();
+  </script>
+</body>
+</html>
