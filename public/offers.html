@@ -20,12 +20,14 @@
   .brand { color:#94a3b8; font-size:13px; }
   .btn { display:inline-block; text-align:center; border:0; border-radius:10px; padding:10px 12px; cursor:pointer; color:#fff; background:#2563eb; }
   .btn.secondary { background:#f97316; }
+  .btn[disabled] { opacity:.6; cursor:default; }
   .row { display:flex; gap:8px; }
   .filters { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; }
   input[type="search"]{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
   select{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
   .notice { font-size:12px; color:#94a3b8; }
-  .msg { color:#94a3b8; padding:12px 0; }
+  .msg { color:#94a3b8; padding:12px 0; min-height:24px; }
+  .saved-pill { font-size:12px; background:#16a34a; color:#fff; padding:2px 8px; border-radius:999px; margin-left:6px; }
 </style>
 </head>
 <body>
@@ -52,7 +54,18 @@
   const prefillBrand = params.get('rest') || '';
   const source = params.get('src') || 'gallery';
 
-  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
+  const $ = sel => document.querySelector(sel);
+
+  function setMsg(s){ $('#msg').textContent = s || ''; }
+
+  function getSaved(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+    catch { return []; }
+  }
+  function putSaved(arr){
+    localStorage.setItem(KEY, JSON.stringify(arr));
+  }
+  function isSaved(id){ return getSaved().includes(id); }
 
   async function loadOffers(){
     const res = await fetch('/api/offers');
@@ -61,19 +74,25 @@
     return j.offers || [];
   }
 
-  function renderGrid(list){
-    const grid = document.getElementById('grid');
-    grid.innerHTML = list.map(o => `
+  function cardHTML(o){
+    const saved = isSaved(o.id);
+    return `
       <div class="card" data-id="${o.id}">
         ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
         <div class="body">
-          <div class="title">${o.title}</div>
+          <div class="title">
+            ${o.title}
+            ${saved ? `<span class="saved-pill">Saved</span>` : ``}
+          </div>
           <div class="brand">${o.restaurant}</div>
           <div class="row">
             <button class="btn save-btn"
                     data-id="${o.id}"
                     data-restaurant="${encodeURIComponent(o.restaurant || '')}"
-                    data-client="${o.client_slug || ''}">Save</button>
+                    data-client="${o.client_slug || ''}"
+                    ${saved ? 'disabled' : ''}>
+              ${saved ? 'Saved' : 'Save'}
+            </button>
             <a class="btn secondary redeem-btn"
                href="/coupon?offer=${encodeURIComponent(o.id)}"
                data-id="${o.id}"
@@ -81,12 +100,17 @@
                data-client="${o.client_slug || ''}">Redeem</a>
           </div>
         </div>
-      </div>`).join('');
+      </div>`;
+  }
+
+  function renderGrid(list){
+    const grid = $('#grid');
+    grid.innerHTML = list.map(cardHTML).join('');
   }
 
   function applyFilters(){
-    const q = (document.getElementById('q').value || '').toLowerCase();
-    const b = (document.getElementById('brand').value || '').toLowerCase();
+    const q = ($('#q').value || '').toLowerCase();
+    const b = ($('#brand').value || '').toLowerCase();
     const all = window.__offers || [];
     const out = all.filter(o => {
       const matchQ = !q || o.title.toLowerCase().includes(q) || o.restaurant.toLowerCase().includes(q);
@@ -97,29 +121,42 @@
     renderGrid(out);
   }
 
-  function getSaved(){
-    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
-    catch { return []; }
-  }
-  function putSaved(arr){
-    localStorage.setItem(KEY, JSON.stringify(arr));
-  }
-
   async function saveOffer(id, brand, client_slug){
+    // update local wallet
     const cur = getSaved();
     if (!cur.includes(id)) { cur.push(id); putSaved(cur); }
 
-    // optional server/event logs
-    fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ offer_id:id }) }).catch(()=>{});
-    fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'save_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) }).catch(()=>{});
-    alert('Saved to your Wallet on this device.');
+    // update current card state (without reloading)
+    const card = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+    if (card) {
+      const btn = card.querySelector('.save-btn');
+      const title = card.querySelector('.title');
+      if (btn) { btn.textContent = 'Saved'; btn.setAttribute('disabled',''); }
+      if (title && !title.querySelector('.saved-pill')) {
+        const pill = document.createElement('span');
+        pill.className = 'saved-pill';
+        pill.textContent = 'Saved';
+        title.appendChild(pill);
+      }
+    }
+
+    // server logs (non-blocking)
+    fetch('/api/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ offer_id:id })
+    }).catch(()=>{});
+    fetch('/api/event', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'save_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } })
+    }).catch(()=>{});
   }
 
-  // ONE delegated listener for Save and Redeem (no inline JS, no quote bugs)
+  // ONE delegated listener for Save and Redeem
   document.addEventListener('click', (e) => {
     const saveBtn = e.target.closest('.save-btn');
     if (saveBtn) {
       const id = saveBtn.dataset.id;
+      if (!id) { alert('Missing offer id'); return; }
       const restaurant = decodeURIComponent(saveBtn.dataset.restaurant || '');
       const client = saveBtn.dataset.client || '';
       saveOffer(id, restaurant, client);
@@ -130,8 +167,10 @@
       const id = redeemBtn.dataset.id;
       const restaurant = decodeURIComponent(redeemBtn.dataset.restaurant || '');
       const client = redeemBtn.dataset.client || '';
-      // fire-and-forget event log
-      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant, client_slug:client, meta:{ source } }) }).catch(()=>{});
+      fetch('/api/event', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant, client_slug:client, meta:{ source } })
+      }).catch(()=>{});
     }
   });
 
@@ -153,11 +192,13 @@
       document.getElementById('apply').onclick = applyFilters;
       document.getElementById('clear').onclick = ()=>{ document.getElementById('q').value=''; sel.value=''; applyFilters(); };
 
-      // SW optional
-      if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js');
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
 
       // log gallery view
-      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'gallery_view', meta:{ source } }) }).catch(()=>{});
+      fetch('/api/event', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'gallery_view', meta:{ source } })
+      }).catch(()=>{});
     } catch (e) {
       console.error(e);
       setMsg('Could not load offers. Check /api/offers and offers.json.');
