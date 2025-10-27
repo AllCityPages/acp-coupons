@@ -41,10 +41,7 @@
         subset.forEach(o => grid.appendChild(Shared.makeCard(o, { wallet:true })));
         empty.style.display = subset.length ? 'none' : 'block';
       }
-
-      // Re-render when storage changes (e.g., another tab)
       window.addEventListener('storage', (e)=>{ if (e.key === 'acp_saved_offers') render(); });
-
       render();
     })();
   </script>
