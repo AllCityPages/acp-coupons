@@ -1,198 +1,72 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Offers — All City Pages</title>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#111827">
-<style>
-  :root { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-  body { margin:0; background:#0b1220; color:#e5e7eb; }
-  header { position:sticky; top:0; backdrop-filter:saturate(180%) blur(8px); background:rgba(2,6,23,.8); padding:14px 18px; display:flex; gap:12px; align-items:center; z-index:10; }
-  header a { color:#93c5fd; text-decoration:none; }
-  .wrap { max-width:1100px; margin:0 auto; padding:18px; }
-  .grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
-  .card { background:#111827; border:1px solid #1f2937; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; }
-  .card img { width:100%; height:160px; object-fit:cover; }
-  .body { padding:12px; display:flex; flex-direction:column; gap:8px; }
-  .title { font-weight:700; }
-  .brand { color:#94a3b8; font-size:13px; }
-  .btn { display:inline-block; text-align:center; border:0; border-radius:10px; padding:10px 12px; cursor:pointer; color:#fff; background:#2563eb; }
-  .btn.secondary { background:#f97316; }
-  .row { display:flex; gap:8px; }
-  .filters { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 16px; align-items:center; }
-  input[type="search"]{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
-  select{ padding:10px; border-radius:10px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; }
-  .notice { font-size:12px; color:#94a3b8; }
-  .msg { color:#94a3b8; padding:12px 0; }
-  .small { font-size:12px; color:#94a3b8; }
-</style>
+  <meta charset="utf-8">
+  <title>Local Deals Hub</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffd400">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="/theme.css">
 </head>
 <body>
-<header>
-  <strong>⭐ Offers</strong>
-  <a href="/wallet.html">My Wallet</a>
-  <span class="notice">Enable notifications to get “nearby” alerts.</span>
-</header>
-<div class="wrap">
-  <div class="filters">
-    <input id="q" type="search" placeholder="Search offers or brand">
-    <select id="brand"><option value="">All brands</option></select>
-    <button class="btn" id="apply">Apply</button>
-    <button class="btn secondary" id="clear">Clear</button>
-    <button class="btn" id="enableNotifs">Enable Nearby Alerts</button>
+  <div class="site">
+    <header class="header">
+      <div class="logo">A</div>
+      <div class="title">
+        <h1>Local Deals Hub</h1>
+        <p>Precision Beats Saturation — Every Scan Counts.™</p>
+      </div>
+    </header>
+
+    <div class="actionbar">
+      <button id="btn-near" class="chip">📍 Show deals near me</button>
+      <a class="chip" href="/wallet.html">⭐ My Favorites</a>
+    </div>
+
+    <div class="filters">
+      <input id="q" class="input" placeholder="Search offers or brand">
+      <select id="brand" class="select">
+        <option value="">All brands</option>
+      </select>
+      <button id="apply" class="btn btn-outline">Apply</button>
+      <button id="clear" class="btn btn-outline">Clear</button>
+    </div>
+
+    <section id="grid" class="grid"></section>
+
+    <footer class="footer">
+      AllCityPages.com | info@AllCityPages.com
+    </footer>
   </div>
 
-  <div id="msg" class="msg"></div>
-  <div id="grid" class="grid"></div>
-  <p class="small">Tip: add this page to your home screen for fast access.</p>
-</div>
+  <script src="/shared.js"></script>
+  <script>
+    (async function init(){
+      const data = await fetch('/api/offers').then(r=>r.json());
+      Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
+      const state = { q:'', brand:'' };
 
-<script>
-  const KEY = 'wallet_offers';
-  const params = new URLSearchParams(location.search);
-  const prefillBrand = params.get('rest') || '';
-  const source = params.get('src') || 'gallery';
-
-  function setMsg(s){ document.getElementById('msg').textContent = s || ''; }
-  function getSaved(){ try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } }
-  function putSaved(arr){ localStorage.setItem(KEY, JSON.stringify(arr)); }
-
-  async function loadOffers(){
-    const res = await fetch('/api/offers');
-    if (!res.ok) throw new Error('Failed to load /api/offers');
-    const j = await res.json();
-    return j.offers || [];
-  }
-
-  function daysToExpire(o){
-    const d = Number(o.expires_days||90);
-    return d;
-  }
-
-  function renderGrid(list){
-    const grid = document.getElementById('grid');
-    const saved = new Set(getSaved());
-    grid.innerHTML = list.map(o => {
-      const isSaved = saved.has(o.id);
-      const ex = daysToExpire(o);
-      const expBadge = ex <= 7 ? `<span style="background:#ef4444;color:#fff;border-radius:6px;padding:2px 6px;font-size:12px">Expiring Soon</span>` : '';
-      return `
-      <div class="card" data-id="${o.id}">
-        ${o.hero_image ? `<img src="${o.hero_image}" alt="">` : `<div style="height:160px;background:#0f172a"></div>`}
-        <div class="body">
-          <div class="title">${o.title}</div>
-          <div class="brand">${o.restaurant} ${expBadge}</div>
-          <div class="row">
-            <button class="btn save-btn" data-id="${o.id}" data-restaurant="${encodeURIComponent(o.restaurant||'')}" data-client="${o.client_slug||''}">
-              ${isSaved ? 'Saved' : 'Save'}
-            </button>
-            <a class="btn secondary redeem-btn"
-               href="/coupon?offer=${encodeURIComponent(o.id)}"
-               data-id="${o.id}" data-restaurant="${encodeURIComponent(o.restaurant||'')}" data-client="${o.client_slug||''}">Redeem</a>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  function applyFilters(){
-    const q = (document.getElementById('q').value || '').toLowerCase();
-    const b = (document.getElementById('brand').value || '').toLowerCase();
-    const all = window.__offers || [];
-    const out = all.filter(o => {
-      const matchQ = !q || o.title.toLowerCase().includes(q) || o.restaurant.toLowerCase().includes(q);
-      const matchB = !b || o.restaurant.toLowerCase() === b;
-      return matchQ && matchB;
-    });
-    setMsg(out.length ? '' : 'No offers match your filters.');
-    renderGrid(out);
-  }
-
-  async function saveOffer(id, brand, client_slug){
-    const cur = getSaved();
-    if (!cur.includes(id)) { cur.push(id); putSaved(cur); }
-    fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ offer_id:id }) }).catch(()=>{});
-    fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'save_click', offer_id:id, restaurant:brand, client_slug, meta:{ source } }) }).catch(()=>{});
-    applyFilters();
-  }
-
-  document.addEventListener('click', (e) => {
-    const saveBtn = e.target.closest('.save-btn');
-    if (saveBtn) {
-      const id = saveBtn.dataset.id;
-      const brand = decodeURIComponent(saveBtn.dataset.restaurant||'');
-      const client = saveBtn.dataset.client||'';
-      saveOffer(id, brand, client);
-      return;
-    }
-    const redeemBtn = e.target.closest('.redeem-btn');
-    if (redeemBtn) {
-      const id = redeemBtn.dataset.id;
-      const brand = decodeURIComponent(redeemBtn.dataset.restaurant||'');
-      const client = redeemBtn.dataset.client||'';
-      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'redeem_click', offer_id:id, restaurant:brand, client_slug:client, meta:{ source } }) }).catch(()=>{});
-    }
-  });
-
-  async function init(){
-    try {
-      setMsg('Loading offers…');
-      const offers = await loadOffers();
-      window.__offers = offers;
-      const brands = Array.from(new Set(offers.map(o => o.restaurant))).sort();
-      const sel = document.getElementById('brand');
-      brands.forEach(b => { const opt = document.createElement('option'); opt.value=b; opt.textContent=b; sel.appendChild(opt); });
-      if (prefillBrand) sel.value = prefillBrand;
-
-      setMsg('');
-      applyFilters();
-
-      document.getElementById('apply').onclick = applyFilters;
-      document.getElementById('clear').onclick = ()=>{ document.getElementById('q').value=''; sel.value=''; applyFilters(); };
-
-      // SW
-      if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js');
-
-      // log view
-      fetch('/api/event', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type:'gallery_view', meta:{ source } }) }).catch(()=>{});
-    } catch (e) {
-      console.error(e);
-      setMsg('Could not load offers. Check /api/offers and offers.json.');
-    }
-  }
-
-  // Nearby alerts
-  async function enableNearby(){
-    try {
-      // ask permission via user gesture
-      if (Notification && Notification.permission === 'default') {
-        await Notification.requestPermission();
+      function render(){
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        const rows = Shared.applyFilter(data.offers, state);
+        rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
       }
-      if (Notification.permission !== 'granted') {
-        alert('Notifications are blocked. Enable them in your browser settings to get nearby alerts.');
-        return;
-      }
-      if (!navigator.geolocation) return alert('Geolocation not supported.');
-      navigator.geolocation.getCurrentPosition(async pos => {
-        const { latitude, longitude } = pos.coords;
-        const r = await fetch(`/api/nearby?lat=${latitude}&lng=${longitude}&radiusKm=2`);
-        const j = await r.json();
-        if ((j.stores||[]).length) {
-          const s = j.stores[0];
-          new Notification('You have coupons nearby!', { body: `${s.brand} is ${s.distanceKm.toFixed(1)} km away.` });
-        } else {
-          alert('No participating stores near you (within 2km).');
-        }
-      }, () => alert('Location permission was denied.'));
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  document.getElementById('enableNotifs').addEventListener('click', enableNearby);
 
-  init();
-</script>
+      document.getElementById('apply').onclick = ()=>{
+        state.q = document.getElementById('q').value.trim();
+        state.brand = document.getElementById('brand').value;
+        render();
+      };
+      document.getElementById('clear').onclick = ()=>{
+        document.getElementById('q').value = '';
+        document.getElementById('brand').value = '';
+        state.q=''; state.brand=''; render();
+      };
+      document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
+
+      render();
+    })();
+  </script>
 </body>
 </html>
