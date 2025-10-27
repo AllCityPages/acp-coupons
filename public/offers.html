@@ -11,7 +11,7 @@
 <body>
   <div class="site">
     <header class="header">
-      <div class="logo">A</div>
+      <div class="logo" aria-hidden="true">A</div>
       <div class="title">
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
@@ -19,20 +19,22 @@
     </header>
 
     <div class="actionbar">
-      <button id="btn-near" class="chip">📍 Show deals near me</button>
+      <button id="btn-near" class="chip" type="button">📍 Show deals near me</button>
       <a class="chip" href="/wallet.html">⭐ My Favorites</a>
     </div>
 
     <div class="filters">
-      <input id="q" class="input" placeholder="Search offers or brand">
-      <select id="brand" class="select">
+      <input id="q" class="input" placeholder="Search offers or brand" autocomplete="off">
+      <select id="brand" class="select" aria-label="Filter by brand">
         <option value="">All brands</option>
       </select>
-      <button id="apply" class="btn btn-outline">Apply</button>
-      <button id="clear" class="btn btn-outline">Clear</button>
+      <button id="apply" class="btn btn-outline" type="button">Apply</button>
+      <button id="clear" class="btn btn-outline" type="button">Clear</button>
     </div>
 
-    <section id="grid" class="grid"></section>
+    <section id="grid" class="grid" aria-live="polite"></section>
+
+    <div id="empty" class="empty" style="display:none">No offers match your filters.</div>
 
     <footer class="footer">
       AllCityPages.com | info@AllCityPages.com
@@ -43,26 +45,53 @@
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json());
-      Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
-      const state = { q:'', brand:'' };
+      const offers = data.offers || [];
+
+      // Populate brand filter
+      Shared.populateBrandFilter(offers, document.getElementById('brand'));
+
+      // Restore state from URL (q, brand)
+      const state = Shared.readQuery();
+      if (state.q) document.getElementById('q').value = state.q;
+      if (state.brand) document.getElementById('brand').value = state.brand;
 
       function render(){
         const grid = document.getElementById('grid');
+        const empty = document.getElementById('empty');
         grid.innerHTML = '';
-        const rows = Shared.applyFilter(data.offers, state);
+        const rows = Shared.applyFilter(offers, state);
         rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
+        empty.style.display = rows.length ? 'none' : 'block';
       }
 
       document.getElementById('apply').onclick = ()=>{
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
+        Shared.writeQuery(state);
         render();
       };
+
       document.getElementById('clear').onclick = ()=>{
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
-        state.q=''; state.brand=''; render();
+        state.q=''; state.brand='';
+        Shared.writeQuery(state);
+        render();
       };
+
+      // Debounced search typing
+      document.getElementById('q').addEventListener('input', Shared.debounce(()=>{
+        state.q = document.getElementById('q').value.trim();
+        Shared.writeQuery(state);
+        render();
+      }, 250));
+
+      document.getElementById('brand').addEventListener('change', ()=>{
+        state.brand = document.getElementById('brand').value;
+        Shared.writeQuery(state);
+        render();
+      });
+
       document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
 
       render();
