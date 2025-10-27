@@ -25,14 +25,15 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-api-key');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
 // ---- ENV ----
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || '';
-const BASE_URL = (process.env.COUPON_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
+const RAW_BASE = (process.env.COUPON_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
+const BASE_URL = RAW_BASE || ''; // falls back to relative links in HTML if not set
 
 // ---- PATHS ----
 const ROOT = __dirname;
@@ -40,8 +41,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DB_FILE = path.join(DATA_DIR, 'db.json');          // { passes:[], redemptions:[] }
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');  // { events:[] }
-const OFFERS_FILE = path.join(ROOT, 'offers.json');
-const STORES_FILE = path.join(ROOT, 'stores.json');
+const OFFERS_FILE = path.join(ROOT, 'offers.json');      // catalog you maintain at repo root
+const STORES_FILE = path.join(ROOT, 'stores.json');      // optional store list
 
 // Ensure dirs/files
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -57,8 +58,15 @@ const jread    = async (f, fb) => { try { return JSON.parse(await fsp.readFile(f
 const jwrite   = (f, o) => fsp.writeFile(f, JSON.stringify(o, null, 2));
 const csvEsc   = v => {
   const s = (v ?? '').toString();
-  return /[",\n]/.test(s) ? `"${s.replaceAll('"','""')}"` : s;
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
 };
+
+// CSV sender (fixes the quote bug and adds BOM for Excel)
+function sendCsv(res, filename, csvString) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.status(200).send('\uFEFF' + csvString);
+}
 
 // Static + legacy /static
 app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
@@ -67,6 +75,32 @@ app.use('/static', express.static(PUBLIC_DIR));
 // Health
 app.get('/health', (_req, res) => res.json({ ok:true, time:nowISO() }));
 
+// --- Explicit MIME-correct routes for the files you asked about -----
+app.get('/offers.json', (_req, res) => {
+  // Serve the catalog you keep at repo root with proper JSON type
+  res.type('application/json; charset=utf-8');
+  res.sendFile(OFFERS_FILE);
+});
+
+app.get('/manifest.json', (_req, res) => {
+  // PWA manifest should be served as application/manifest+json
+  res.type('application/manifest+json; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'manifest.json'));
+});
+
+app.get('/service-worker.js', (_req, res) => {
+  // Ensure the SW can control root; avoid wrong MIME (must be JS)
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.type('application/javascript; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'service-worker.js'));
+});
+
+app.get('/redeem.html', (_req, res) => {
+  // Explicit content-type for the cashier page
+  res.type('text/html; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'redeem.html'));
+});
+
 // Load catalogs
 async function loadCatalog() {
   const offers = await jread(OFFERS_FILE, {});
@@ -74,7 +108,7 @@ async function loadCatalog() {
   return { offers, stores };
 }
 
-// ---------- Coupon Issuance / View / Redeem ----------
+// ---------- Coupon Issuance / View ----------
 app.get('/coupon', async (req, res) => {
   const { offers } = await loadCatalog();
   const id = (req.query.offer || '').toString();
@@ -99,11 +133,11 @@ app.get('/coupon', async (req, res) => {
   db.passes.push(pass);
   await jwrite(DB_FILE, db);
 
-  const url = `${BASE_URL || ''}/coupon/view?token=${encodeURIComponent(token)}`;
+  const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const url = `${origin}/coupon/view?token=${encodeURIComponent(token)}`;
   const qr = await QRCode.toDataURL(url);
 
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/>
+  res.send(`<!doctype html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Coupon Issued</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
@@ -119,7 +153,7 @@ ${offer.hero_image ? `<img src="${offer.hero_image}" style="max-width:100%;borde
     <a class="contrast" href="${url}">Open Coupon</a>
     <a href="/offers.html">Back to Offers</a>
   </div>
-  <div><img src="${qr}" style="width:100%;background:#fff;border-radius:8px;padding:8px"></div>
+  <div><img src="${qr}" style="width:100%;background:#fff;border-radius:8px;padding:8px" alt="QR"></div>
 </article>
 </body></html>`);
 });
@@ -132,8 +166,7 @@ app.get('/coupon/view', async (req, res) => {
 
   const { offers } = await loadCatalog();
   const offer = offers[pass.offer] || {};
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/>
+  res.send(`<!doctype html><html><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${offer.title || 'Coupon'}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
@@ -148,7 +181,7 @@ ${offer.hero_image ? `<img src="${offer.hero_image}" style="max-width:100%;borde
 </body></html>`);
 });
 
-// Cashier redeem API
+// ---------- Cashier redeem API ----------
 app.post('/api/redeem', async (req, res) => {
   if ((req.header('x-api-key') || '') !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
   const { token, store_id, staff } = req.body || {};
@@ -213,7 +246,7 @@ app.get('/api/stores', async (_req, res) => {
       return { code, brand: meta.brand || '', label: meta.brand || code, lat: meta.lat || null, lng: meta.lng || null };
     }).sort((a,b) => a.code.localeCompare(b.code));
     res.json({ stores: list });
-  } catch (e) {
+  } catch {
     res.status(500).json({ stores: [] });
   }
 });
@@ -254,8 +287,7 @@ app.get('/hub', requireKey, async (req, res) => {
   const rows = db.passes.slice().reverse().map(p => `
     <tr><td><code>${p.token_hash}</code></td><td>${p.offer}</td><td>${p.restaurant}</td>
     <td>${p.client_slug}</td><td>${p.status}</td><td>${p.issued_at}</td><td>${p.redeemed_at||''}</td></tr>`).join('');
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  res.send(`<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Admin Hub</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
 <style>body{padding:18px;max-width:1100px;margin:auto} table{font-size:13px}</style>
@@ -323,8 +355,7 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
     hm[d.getDay()][d.getHours()]++;
   });
 
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  res.send(`<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Analytics Dashboard</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -405,20 +436,20 @@ new Chart(document.getElementById('pie'), {
 </body></html>`);
 });
 
-// ---- FIXED CSV ROUTES (quotes closed) ----
+// ---- CSV routes (now using sendCsv) ----
 app.get('/hub/dashboard/report-analytics.csv', requireKey, async (_req, res) => {
   const db = await jread(DB_FILE, { passes:[] });
   const headers = ['id','offer','restaurant','client_slug','status','issued_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
-  const lines = [headers.join(',')].concat(db.passes.map(p => headers.map(h => csvEsc(p[h]||'')).join(',')));
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="redeem_report.csv"');
-  res.send(lines.join('\n'));
+  const csv = [headers.join(',')]
+    .concat(db.passes.map(p => headers.map(h => csvEsc(p[h]||'')).join(',')))
+    .join('\n') + '\n';
+  return sendCsv(res, 'redeem_report.csv', csv);
 });
 
 app.get('/events.csv', requireKey, async (_req, res) => {
   const ev = await jread(EVENTS_FILE, { events:[] });
   const headers = ['t','type','offer_id','restaurant','client_slug','meta','ua','ip'];
-  const lines = [headers.join(',')].concat(
+  const csv = [headers.join(',')].concat(
     ev.events.map(e => [
       e.t,
       e.type,
@@ -426,26 +457,26 @@ app.get('/events.csv', requireKey, async (_req, res) => {
       e.restaurant || '',
       e.client_slug || '',
       JSON.stringify(e.meta || {}),
-      '', // ua intentionally omitted or truncated if you stored it
-      ''  // ip intentionally omitted in this build
+      '', // ua omitted in this build
+      ''  // ip omitted in this build
     ].map(csvEsc).join(','))
-  );
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="events.csv"');
-  res.send(lines.join('\n'));
+  ).join('\n') + '\n';
+  return sendCsv(res, 'events.csv', csv);
 });
 
 // ---- PDF export (Puppeteer) ----
 app.get('/hub/dashboard.pdf', requireKey, async (req, res) => {
   const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
   const url = `${origin}/hub/dashboard?key=${encodeURIComponent(req.query.key||'')}`;
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox','--disable-setuid-sandbox']
-  });
+  const browser = await puppeteer.launch({ args: ['--no-sandbox','--disable-setuid-sandbox'] });
   try {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 120000 });
-    const pdf = await page.pdf({ format: 'Letter', printBackground: true, margin: { top:'0.5in', right:'0.5in', bottom:'0.5in', left:'0.5in' } });
+    const pdf = await page.pdf({
+      format: 'Letter',
+      printBackground: true,
+      margin: { top:'0.5in', right:'0.5in', bottom:'0.5in', left:'0.5in' }
+    });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="analytics.pdf"');
     res.send(pdf);
