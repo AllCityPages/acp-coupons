@@ -1,4 +1,4 @@
-// shared.js — rendering + wallet helpers (no framework)
+// shared.js — rendering + wallet helpers with brand-accent buttons
 const Shared = (function () {
   const LS_KEY = 'acp_saved_offers';
 
@@ -13,7 +13,13 @@ const Shared = (function () {
     if (!s.includes(id)) {
       s.push(id);
       localStorage.setItem(LS_KEY, JSON.stringify(s));
-      try { fetch('/api/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ offer_id:id }) }); } catch {}
+      try {
+        fetch('/api/save', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ offer_id:id })
+        });
+      } catch {}
     }
   }
   function remove(id) {
@@ -39,6 +45,48 @@ const Shared = (function () {
       const hitsB = !brand || r.restaurant === brand;
       return hitsQ && hitsB;
     });
+  }
+
+  /* ---------- Color helpers for brand accent ---------- */
+  function hexToRgb(hex) {
+    if (!hex) return null;
+    const s = hex.trim();
+    const m3 = /^#?([0-9a-f]{3})$/i.exec(s);
+    const m6 = /^#?([0-9a-f]{6})$/i.exec(s);
+    if (m3) {
+      const v = m3[1];
+      return {
+        r: parseInt(v[0] + v[0], 16),
+        g: parseInt(v[1] + v[1], 16),
+        b: parseInt(v[2] + v[2], 16)
+      };
+    }
+    if (m6) {
+      const v = m6[1];
+      return { r: parseInt(v.slice(0,2),16), g: parseInt(v.slice(2,4),16), b: parseInt(v.slice(4,6),16) };
+    }
+    return null;
+  }
+  function relLuminance({r,g,b}) {
+    // WCAG relative luminance
+    const toLin = c => {
+      const cs = c/255;
+      return cs <= 0.03928 ? cs/12.92 : Math.pow((cs+0.055)/1.055, 2.4);
+    };
+    return 0.2126*toLin(r) + 0.7152*toLin(g) + 0.0722*toLin(b);
+  }
+  function bestTextColor(hex) {
+    const rgb = hexToRgb(hex);
+    if (!rgb) return '#ffffff';
+    return relLuminance(rgb) > 0.55 ? '#111827' : '#ffffff'; // dark text on light colors
+  }
+  function applyAccent(btnEl, hex) {
+    if (!hex) return;
+    const text = bestTextColor(hex);
+    btnEl.classList.add('btn-accent');
+    btnEl.style.background = hex;
+    btnEl.style.color = text;
+    btnEl.style.borderColor = hex;
   }
 
   /* ---------- Rendering ---------- */
@@ -77,12 +125,16 @@ const Shared = (function () {
     row.className = 'btnrow';
     body.appendChild(row);
 
-    // Redeem
+    // Redeem (accented)
     const redeem = document.createElement('a');
     redeem.className = 'btn btn-primary';
     redeem.textContent = 'Tap to Redeem';
     redeem.href = `/coupon?offer=${encodeURIComponent(o.id)}`;
     row.appendChild(redeem);
+
+    // Apply brand accent
+    const accent = o.accent_color || o.brand_color || null;
+    if (accent) applyAccent(redeem, accent);
 
     // Favorite / Saved toggle
     const fav = document.createElement('button');
@@ -111,7 +163,7 @@ const Shared = (function () {
     return el;
   }
 
-  /* ---------- Nearby Alerts (stubbed safely) ---------- */
+  /* ---------- Nearby Alerts (safe stub) ---------- */
   async function enableNearbyAlerts() {
     try {
       const perm = await Notification.requestPermission();
@@ -136,8 +188,8 @@ const Shared = (function () {
   }
   function writeQuery(state) {
     const u = new URL(location.href);
-    if (state.q) u.searchParams.set('q', state.q); else u.searchParams.delete('q');
-    if (state.brand) u.searchParams.set('brand', state.brand); else u.searchParams.delete('brand');
+    state.q ? u.searchParams.set('q', state.q) : u.searchParams.delete('q');
+    state.brand ? u.searchParams.set('brand', state.brand) : u.searchParams.delete('brand');
     history.replaceState(null, '', u.toString());
   }
 
