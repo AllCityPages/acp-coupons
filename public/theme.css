@@ -61,4 +61,55 @@ html,body{background:var(--bg);color:var(--ink)}
 }
 
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
-@media (max-width:1100px){.grid{grid-template-columns:repeat
+@media (max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
+
+.card{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column
+}
+.card .img{width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa}
+.card .body{padding:12px 14px}
+.card h3{margin:0 0 4px;font-size:18px}
+.card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
+.card .desc{color:#374151;font-size:13px;margin:0 0 12px}
+.card .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+
+/* Badges */
+.card .badges{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 6px}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 10px;border:1px solid var(--border);border-radius:999px;
+  font-size:12px;color:#374151;background:#fff;line-height:1.1
+}
+.badge.exp       { background:#fff7ed;border-color:#fed7aa;color:#9a3412 }
+.badge.exp.soon  { background:#fee2e2;border-color:#fecaca;color:#991b1b }
+.badge.exp.dead  { background:#f3f4f6;border-color:#e5e7eb;color:#6b7280 }
+.badge.redeem    { background:#eef2ff;border-color:#c7d2fe;color:#3730a3 }
+.badge.dist      { background:#ecfeff;border-color:#a5f3fc;color:#155e75 }
+
+/* Compact buttons to match lighter look */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 12px;font-size:13px;line-height:1.15;
+  border-radius:999px;border:1px solid var(--border);
+  background:var(--pill);color:var(--pill-ink);
+  font-weight:600;text-decoration:none;cursor:pointer
+}
+.btn-primary{background:var(--btn);color:var(--btn-ink);border-color:#0f1629}
+.btn-outline{background:#fff}
+.btn-danger{background:#fff;border-color:#fca5a5;color:#b91c1c}
+.btn-accent{border-color:transparent}
+.btn[aria-disabled="true"], .btn.disabled{
+  opacity:.55; cursor:not-allowed
+}
+
+.empty{
+  padding:32px;border:1px dashed var(--border);border-radius:12px;
+  text-align:center;color:var(--muted)
+}
+
+.section-title{margin:22px 0 10px;font-size:18px;font-weight:700}
+
+.footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
