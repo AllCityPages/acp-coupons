@@ -56,7 +56,7 @@ const Shared = (function () {
   /* ---------- Nearby sort (brand distance) ---------- */
   let brandDistance = null; // { brandLower: km }
   async function computeNearbySort() {
-    if (!navigator.geolocation) { alert('Location not available.'); return null; }
+    if (!navigator.geolocation) return null;
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(async (pos)=>{
         try {
@@ -127,11 +127,25 @@ const Shared = (function () {
     btnEl.style.borderColor = hex;
   }
 
-  /* ---------- Badges helpers ---------- */
+  /* ---------- Expiration helpers ---------- */
   function daysLeft(expiresDays){
+    // Interprets expires_days as “days from today”
     const n = Number(expiresDays||0);
-    return n>0 ? n : null;
+    return Number.isFinite(n) ? Math.floor(n) : null;
   }
+  function expBadgeClass(days){
+    if (days === null) return 'exp';
+    if (days <= 0) return 'exp dead';
+    if (days <= 3) return 'exp soon';
+    return 'exp';
+  }
+  function expBadgeText(days){
+    if (days === null) return '';
+    if (days <= 0) return 'Expired';
+    return `Expires in ${days} day${days===1?'':'s'}`;
+  }
+
+  /* ---------- Badges helpers ---------- */
   function distanceForBrand(brand){
     if (!brandDistance) return null;
     const d = brandDistance[(brand||'').toLowerCase()];
@@ -162,12 +176,13 @@ const Shared = (function () {
     // expiration
     const dl = daysLeft(o.expires_days);
     if (dl !== null){
-      const b = document.createElement('span'); b.className='badge exp';
-      b.textContent = `Expires in ${dl} day${dl===1?'':'s'}`;
+      const b = document.createElement('span');
+      b.className = 'badge ' + expBadgeClass(dl);
+      b.textContent = expBadgeText(dl);
       badges.appendChild(b);
     }
 
-    // redemptions (will backfill after STATS load)
+    // redemptions (will backfill)
     const redBadge = document.createElement('span'); redBadge.className='badge redeem'; redBadge.textContent = '— redeemed';
     badges.appendChild(redBadge);
 
@@ -189,6 +204,14 @@ const Shared = (function () {
     // apply brand tint
     const accent = o.accent_color || o.brand_color || null;
     if (accent) applyAccent(redeem, accent);
+
+    // Hide primary CTA if expired
+    if (dl !== null && dl <= 0) {
+      redeem.setAttribute('aria-disabled','true');
+      redeem.classList.add('disabled');
+      redeem.removeAttribute('href');
+      redeem.style.display = 'none';
+    }
 
     // Favorite toggle
     const fav = document.createElement('button'); fav.className='btn'; fav.setAttribute('aria-pressed', isSaved(o.id));
@@ -217,7 +240,6 @@ const Shared = (function () {
 
   /* ---------- Notify CTA bar ---------- */
   function renderNotifyCTA(container){
-    // Show only if notifications aren't granted
     if (!('Notification' in window)) return;
     if (Notification.permission === 'granted') return;
     const bar = document.createElement('div');
@@ -230,7 +252,6 @@ const Shared = (function () {
         if (perm === 'granted') { bar.remove(); alert('Alerts enabled!'); }
       }catch{}
     };
-    bar.appendChild(btn);
     container.parentNode.insertBefore(bar, container.nextSibling);
   }
 
@@ -238,7 +259,6 @@ const Shared = (function () {
   function suggest(offers, state, limit=6){
     const saved = new Set(getSaved());
     let pool = offers.filter(o => !saved.has(o.id));
-    // match by category first, then brand, else popular (redeemed desc)
     if (state.category) pool = pool.filter(o => (o.category||'').toLowerCase() === state.category.toLowerCase());
     else if (state.brand) pool = pool.filter(o => o.restaurant === state.brand);
     return pool.slice(0, limit);
