@@ -12,10 +12,9 @@
     "accent_color": "#000000",
     "fine_print": "At participating locations. Not valid with other offers."
   },
-
   "popeyes-2pc": {
     "title": "Free 2pc Meal",
-    "restaurant": "Popeye's",
+    "restaurant": "Popeyes",
     "client_slug": "popeyes-mckinney",
     "description": "Buy One 2pc Meal get One Free. One redemption per customer.",
     "expires_days": 90,
