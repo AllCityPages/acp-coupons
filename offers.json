@@ -6,28 +6,24 @@
     "description": "Buy 1 Crispy Taco, Get 1 Free. One redemption per customer.",
     "expires_days": 90,
     "discount": { "type": "amount", "value": 3.00, "currency": "USD" },
-    
     "hero_image": "/static/tacobell/hero.png",
     "logo": "/static/tacobell/logo.png",
-    "brand_color": "#E2203D",
-    "accent_color": "#4F86C6",
+    "brand_color": "#5F259F",
+    "accent_color": "#000000",
     "fine_print": "At participating locations. Not valid with other offers."
   },
 
- "popeyes-2pc": {
-  "title": "Free 2pc Meal",
-  "restaurant": "Popeye's",
-  "client_slug": "popeyes-mckinney",
-  "description": "Buy One 2pc Meal get One Free. One redemption per customer.",
-  "expires_days": 90,
-  "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
-
-  "hero_image": "/static/popeyes/hero-2pc.png",
-  "logo": "/static/popeyes/logo.png",
-  "hero_image": "/static/popeyes/hero-2pc.png",
-  "brand_color": "#F37E21",
-  "accent_color": "#000000",
-  "fine_print": "Valid at participating locations. Not combinable."
+  "popeyes-2pc": {
+    "title": "Free 2pc Meal",
+    "restaurant": "Popeye's",
+    "client_slug": "popeyes-mckinney",
+    "description": "Buy One 2pc Meal get One Free. One redemption per customer.",
+    "expires_days": 90,
+    "discount": { "type": "amount", "value": 2.49, "currency": "USD" },
+    "hero_image": "/static/popeyes/hero-2pc.png",
+    "logo": "/static/popeyes/logo.png",
+    "brand_color": "#F37E21",
+    "accent_color": "#000000",
+    "fine_print": "Valid at participating locations. Not combinable."
   }
 }
-
