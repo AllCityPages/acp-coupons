@@ -1,4 +1,4 @@
-/* theme.css — Light marketplace theme */
+/* theme.css — Light marketplace theme (brand-accent ready) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -12,14 +12,10 @@
   --bar:#ffd400;            /* yellow action bar */
   --bar-ink:#111827;
 
-  --btn:#111827;            /* dark pill button */
+  --btn:#111827;            /* default dark button */
   --btn-ink:#ffffff;
   --pill:#f3f4f6;           /* soft gray pill */
   --pill-ink:#111827;
-
-  --redeem:#111827;         /* “Tap to Redeem” */
-  --favorite:#f97316;       /* star (optional accent) */
-  --wallet:#0ea5e9;         /* add to wallet (optional) */
 }
 
 html,body{background:var(--bg);color:var(--ink)}
@@ -77,6 +73,9 @@ html,body{background:var(--bg);color:var(--ink)}
 .btn-outline{background:#fff}
 .btn-danger{background:#fff;border-color:#fca5a5;color:#b91c1c}
 .star{width:16px;height:16px;display:inline-block}
+
+/* When JS applies a brand accent it adds .btn-accent + inline colors */
+.btn-accent{border-color:transparent}
 
 .empty{
   padding:32px;border:1px dashed var(--border);border-radius:12px;
