@@ -1,11 +1,12 @@
 // index.js — ACP Coupons (Node 20.x)
-// Gallery + Wallet + Geo alerts + Analytics (charts) + PDF export
+// One-time Coupon Issuance + Redeem + Admin/Client Dashboards + CSV
 // ------------------------------------------------------------------
 // ENV you should set in production (Render/Hostinger):
-// - API_KEY                 (admin key for /hub, /report, CSVs, PDF)
-// - COUPON_BASE_URL (or BASE_URL)  e.g. https://acp-coupons.onrender.com
-// Optional:
-// - CLIENT_*_TOKEN if you’ll gate client dashboards with shared tokens
+// - API_KEY                  (admin key for /hub, /report, CSVs, PDF)
+// - BASE_URL  (or COUPON_BASE_URL)  e.g. https://acp-coupons.onrender.com
+// Optional per-client tokens (any number, same pattern):
+// - CLIENT_POPEYES_TOKEN=abc123            CLIENT_POPEYES_SLUG=popeyes
+// - CLIENT_BRAUMS_TOKEN=xyz789             CLIENT_BRAUMS_SLUG=braums
 // ------------------------------------------------------------------
 
 const express = require('express');
@@ -14,450 +15,449 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-const puppeteer = require('puppeteer');
 
 const app = express();
+app.set('trust proxy', true);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Simple CORS
+// ----------------------- CORS (simple + safe) -----------------------
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-api-key');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, x-api-key'
+  );
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
-// ---- ENV ----
+// ----------------------- Config & Paths ------------------------------
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || '';
-const BASE_URL = (process.env.COUPON_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
+const BASE_URL =
+  process.env.BASE_URL ||
+  process.env.COUPON_BASE_URL ||
+  `http://localhost:${PORT}`;
 
-// ---- PATHS ----
-const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, 'data');
-const PUBLIC_DIR = path.join(ROOT, 'public');
-const DB_FILE = path.join(DATA_DIR, 'db.json');          // { passes:[], redemptions:[] }
-const EVENTS_FILE = path.join(DATA_DIR, 'events.json');  // { events:[] }
-const OFFERS_FILE = path.join(ROOT, 'offers.json');
-const STORES_FILE = path.join(ROOT, 'stores.json');
+const DATA_DIR = path.join(__dirname, 'data');
+const PASSES_PATH = path.join(DATA_DIR, 'passes.json');
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// Ensure dirs/files
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
-if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({ passes:[], redemptions:[] }, null, 2));
-if (!fs.existsSync(EVENTS_FILE)) fs.writeFileSync(EVENTS_FILE, JSON.stringify({ events:[] }, null, 2));
-
-// Helpers
-const nowISO   = () => new Date().toISOString();
-const randHex  = (n=16) => crypto.randomBytes(n).toString('hex');
-const sha12    = s => crypto.createHash('sha256').update(s).digest('hex').slice(0,12);
-const jread    = async (f, fb) => { try { return JSON.parse(await fsp.readFile(f, 'utf8')); } catch { return fb; } };
-const jwrite   = (f, o) => fsp.writeFile(f, JSON.stringify(o, null, 2));
-const csvEsc   = v => {
-  const s = (v ?? '').toString();
-  return /[",\n]/.test(s) ? `"${s.replaceAll('"','""')}"` : s;
-};
-
-// Static + legacy /static
-app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
-app.use('/static', express.static(PUBLIC_DIR));
-
-// Health
-app.get('/health', (_req, res) => res.json({ ok:true, time:nowISO() }));
-
-// Load catalogs
-async function loadCatalog() {
-  const offers = await jread(OFFERS_FILE, {});
-  const stores = await jread(STORES_FILE, {});
-  return { offers, stores };
+// ----------------------- Ensure storage exists -----------------------
+async function ensureDataFile() {
+  try {
+    await fsp.mkdir(DATA_DIR, { recursive: true });
+    await fsp.access(PASSES_PATH, fs.constants.F_OK);
+  } catch {
+    const seed = { tokens: [], redemptions: [], offers: [] };
+    await fsp.writeFile(PASSES_PATH, JSON.stringify(seed, null, 2), 'utf-8');
+  }
+}
+function nowIso() {
+  return new Date().toISOString();
+}
+async function readDb() {
+  await ensureDataFile();
+  const raw = await fsp.readFile(PASSES_PATH, 'utf-8');
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // recover from corruption
+    const fallback = { tokens: [], redemptions: [], offers: [] };
+    await fsp.writeFile(PASSES_PATH, JSON.stringify(fallback, null, 2), 'utf-8');
+    return fallback;
+  }
+}
+async function writeDb(obj) {
+  await ensureDataFile();
+  const tmp = PASSES_PATH + '.tmp';
+  await fsp.writeFile(tmp, JSON.stringify(obj, null, 2), 'utf-8');
+  await fsp.rename(tmp, PASSES_PATH);
 }
 
-// ---------- Coupon Issuance / View / Redeem ----------
-app.get('/coupon', async (req, res) => {
-  const { offers } = await loadCatalog();
-  const id = (req.query.offer || '').toString();
-  const offer = offers[id];
-  if (!offer) return res.status(400).send('Invalid offer id');
+// ----------------------- Client token registry -----------------------
+function loadClientTokensFromEnv() {
+  // Scans env for CLIENT_*_TOKEN and optional CLIENT_*_SLUG
+  const map = {};
+  for (const [key, val] of Object.entries(process.env)) {
+    const m = key.match(/^CLIENT_([A-Z0-9_]+)_TOKEN$/);
+    if (m && val) {
+      const id = m[1]; // e.g., POPEYES
+      const token = val;
+      const slug = process.env[`CLIENT_${id}_SLUG`] || id.toLowerCase();
+      map[token] = { clientId: id, slug };
+    }
+  }
+  return map;
+}
+const CLIENT_TOKENS = loadClientTokensFromEnv();
 
-  const db = await jread(DB_FILE, { passes:[], redemptions:[] });
-  const token = randHex(16);
-  const pass = {
-    id: crypto.randomUUID(),
-    token,
-    token_hash: sha12(token),
-    offer: id,
-    client_slug: offer.client_slug || 'general',
-    restaurant: offer.restaurant || '',
-    status: 'issued',
-    issued_at: nowISO(),
-    redeemed_at: null,
-    redeemed_by_store: '',
-    redeemed_by_staff: ''
+// ----------------------- Auth middleware -----------------------------
+function authAdmin(req, res, next) {
+  const key = req.get('x-api-key') || req.query.api_key || '';
+  if (!API_KEY || key !== API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized (admin)' });
+  }
+  next();
+}
+function authClient(req, res, next) {
+  const token = req.query.token || '';
+  const info = CLIENT_TOKENS[token];
+  if (!info) return res.status(401).json({ error: 'Unauthorized (client)' });
+  req.client = info; // { clientId, slug }
+  next();
+}
+
+// ----------------------- Helpers ------------------------------------
+function randToken() {
+  return crypto.randomBytes(16).toString('hex');
+}
+function couponUrl(token) {
+  return `${BASE_URL}/coupon?token=${encodeURIComponent(token)}`;
+}
+function sendCsv(res, filename, csvString) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${filename}"`
+  );
+  // Add BOM so Excel recognizes UTF-8
+  res.status(200).send('\uFEFF' + csvString);
+}
+function toCsv(rows, headers) {
+  // rows: array of objects; headers: string[] explicit order
+  const esc = (v) => {
+    if (v === undefined || v === null) return '';
+    const s = String(v);
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
   };
-  db.passes.push(pass);
-  await jwrite(DB_FILE, db);
+  const head = headers.join(',');
+  const body = rows.map((r) => headers.map((h) => esc(r[h])).join(',')).join('\n');
+  return head + '\n' + body + '\n';
+}
 
-  const url = `${BASE_URL || ''}/coupon/view?token=${encodeURIComponent(token)}`;
-  const qr = await QRCode.toDataURL(url);
+// ----------------------- Static files --------------------------------
+app.use(express.static(PUBLIC_DIR));
 
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Coupon Issued</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-<style>body{padding:18px;max-width:900px;margin:auto}</style>
-</head><body>
-<h2>${offer.title || 'Your Coupon'}</h2>
-<p>${offer.restaurant || ''}</p>
-${offer.hero_image ? `<img src="${offer.hero_image}" style="max-width:100%;border-radius:12px">` : ''}
-<article style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:center">
-  <div>
-    <p><b>Status:</b> ${pass.status}</p>
-    <p><b>Token (short):</b> <code>${pass.token_hash}</code></p>
-    <a class="contrast" href="${url}">Open Coupon</a>
-    <a href="/offers.html">Back to Offers</a>
-  </div>
-  <div><img src="${qr}" style="width:100%;background:#fff;border-radius:8px;padding:8px"></div>
-</article>
-</body></html>`);
+// Explicit content-type routes for PWA + data
+app.get('/offers.json', (req, res) => {
+  res.type('application/json; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'offers.json'));
+});
+app.get('/manifest.json', (req, res) => {
+  res.type('application/manifest+json; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'manifest.json'));
+});
+app.get('/service-worker.js', (req, res) => {
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.type('application/javascript; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'service-worker.js'));
+});
+app.get('/redeem.html', (req, res) => {
+  res.type('text/html; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'redeem.html'));
 });
 
-app.get('/coupon/view', async (req, res) => {
-  const token = (req.query.token || '').toString();
-  const db = await jread(DB_FILE, { passes:[] });
-  const pass = db.passes.find(p => p.token === token);
-  if (!pass) return res.status(404).send('Not found');
-
-  const { offers } = await loadCatalog();
-  const offer = offers[pass.offer] || {};
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${offer.title || 'Coupon'}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-<style>body{padding:18px;max-width:900px;margin:auto}</style>
-</head><body>
-<h2>${offer.title || 'Coupon'}</h2>
-<p>${offer.restaurant || ''}</p>
-${offer.hero_image ? `<img src="${offer.hero_image}" style="max-width:100%;border-radius:12px">` : ''}
-<p>Status: <b>${pass.status.toUpperCase()}</b>${pass.status==='redeemed'?' ✅':''}</p>
-<p>Token (short): <code>${pass.token_hash}</code></p>
-<a class="contrast" href="/redeem.html?token=${encodeURIComponent(token)}">Show Cashier</a>
-</body></html>`);
-});
-
-// Cashier redeem API
-app.post('/api/redeem', async (req, res) => {
-  if ((req.header('x-api-key') || '') !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
-  const { token, store_id, staff } = req.body || {};
-  if (!token || !store_id) return res.status(400).json({ error:'Missing token/store_id' });
-
-  const db = await jread(DB_FILE, { passes:[], redemptions:[] });
-  const pass = db.passes.find(p => p.token === token);
-  if (!pass) return res.status(404).json({ error:'Token not found' });
-  if (pass.status === 'redeemed') return res.status(409).json({ error:'Already redeemed', redeemed_at: pass.redeemed_at });
-
-  pass.status = 'redeemed';
-  pass.redeemed_at = nowISO();
-  pass.redeemed_by_store = store_id;
-  pass.redeemed_by_staff = staff || '';
-  db.redemptions.push({
-    token, offer: pass.offer, client_slug: pass.client_slug, store_id,
-    staff: pass.redeemed_by_staff, redeemed_at: pass.redeemed_at
-  });
-  await jwrite(DB_FILE, db);
-
-  res.json({ ok:true, token_hash: pass.token_hash, redeemed_at: pass.redeemed_at });
-});
-
-// ---------- Offers & Wallet APIs ----------
-app.get('/api/offers', async (_req, res) => {
-  const { offers } = await loadCatalog();
-  const rows = Object.entries(offers).map(([id, o]) => ({
-    id,
-    title: o.title || id,
-    restaurant: o.restaurant || '',
-    hero_image: o.hero_image || o.logo || '',
-    brand_color: o.brand_color || '#111827',
-    accent_color: o.accent_color || '#2563eb',
-    expires_days: o.expires_days || 90,
-    client_slug: o.client_slug || 'general'
-  }));
-  res.json({ offers: rows });
-});
-
-app.post('/api/save', async (req, res) => {
-  const { offer_id } = req.body || {};
-  const ev = await jread(EVENTS_FILE, { events:[] });
-  ev.events.push({ t: nowISO(), type:'save', offer_id, meta:{} });
-  await jwrite(EVENTS_FILE, ev);
-  res.json({ ok:true });
-});
-
-app.post('/api/event', async (req, res) => {
-  const { type, offer_id, restaurant, client_slug, meta } = req.body || {};
-  const ev = await jread(EVENTS_FILE, { events:[] });
-  ev.events.push({ t: nowISO(), type:type||'unknown', offer_id:offer_id||'', restaurant:restaurant||'', client_slug:client_slug||'', meta:meta||{} });
-  await jwrite(EVENTS_FILE, ev);
-  res.json({ ok:true });
-});
-
-// List stores (for redeem.html)
-app.get('/api/stores', async (_req, res) => {
+// ----------------------- Coupon issuance page ------------------------
+app.get('/coupon', async (req, res) => {
   try {
-    const obj = await jread(STORES_FILE, {});
-    const list = Object.entries(obj).map(([code, meta]) => {
-      if (typeof meta === 'string') return { code, brand: meta, label: meta };
-      return { code, brand: meta.brand || '', label: meta.brand || code, lat: meta.lat || null, lng: meta.lng || null };
-    }).sort((a,b) => a.code.localeCompare(b.code));
-    res.json({ stores: list });
+    const offer = String(req.query.offer || '').trim();
+    const explicitToken = String(req.query.token || '').trim();
+
+    const db = await readDb();
+    let token;
+
+    if (explicitToken) {
+      // Viewing an already-issued coupon by token
+      token = explicitToken;
+    } else {
+      if (!offer) {
+        return res
+          .status(400)
+          .send('Missing ?offer=... or ?token=... in query string.');
+      }
+      token = randToken();
+      db.tokens.push({
+        token,
+        offer,
+        issued_at: nowIso(),
+        ip: req.ip,
+        ua: req.get('user-agent') || ''
+      });
+      await writeDb(db);
+    }
+
+    const redeemPage = `${BASE_URL}/redeem.html`;
+    const qrPayload = `${BASE_URL}/coupon?token=${encodeURIComponent(token)}`;
+    const qrDataUrl = await QRCode.toDataURL(qrPayload);
+
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Coupon</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#111">
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#0f1115;color:#fff}
+  .wrap{max-width:760px;margin:0 auto;padding:24px}
+  .card{background:#151822;border:1px solid #22283a;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:24px}
+  h1{font-size:22px;margin:0 0 12px}
+  .muted{color:#98a2b3;font-size:14px}
+  .qr{display:flex;gap:20px;align-items:center;margin-top:16px;flex-wrap:wrap}
+  img{background:#fff;border-radius:12px;padding:8px}
+  .cta{margin-top:20px;display:flex;gap:12px;flex-wrap:wrap}
+  .btn{padding:10px 14px;border-radius:10px;border:1px solid #2a3148;background:#1b2134;color:#fff;text-decoration:none;font-weight:600}
+  .btn:active{transform:translateY(1px)}
+  .tip{margin-top:12px;color:#cbd5e1;font-size:13px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#cbd5e1}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Coupon ${offer ? `for <span class="mono">${offer}</span>` : ''}</h1>
+      <p class="muted">This is your one-time coupon. Show the cashier and let them redeem it once.</p>
+      <div class="qr">
+        <img src="${qrDataUrl}" alt="QR code" width="180" height="180" />
+        <div>
+          <div class="muted">Token</div>
+          <div class="mono" style="font-size:16px">${token}</div>
+          <div class="tip">Tip: On iPhone, tap <span class="mono">Share &gt; Add to Home Screen</span> for quick access.</div>
+        </div>
+      </div>
+      <div class="cta">
+        <a class="btn" href="${redeemPage}">Cashier Redeem Page</a>
+        <a class="btn" href="${qrPayload}">Open This Coupon Link</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+    res.status(200).type('text/html; charset=utf-8').send(html);
   } catch (e) {
-    res.status(500).json({ stores: [] });
+    console.error('GET /coupon error', e);
+    res.status(500).send('Server error.');
   }
 });
 
-// Nearby helper endpoint (client passes lat/lng, returns nearest within radiusKm)
-app.get('/api/nearby', async (req, res) => {
-  const { lat, lng, radiusKm = '2' } = req.query;
-  const R = Number(radiusKm) || 2;
-  const me = { lat: Number(lat), lng: Number(lng) };
-  if (!isFinite(me.lat) || !isFinite(me.lng)) return res.json({ stores: [] });
-
-  const { stores } = await loadCatalog();
-  const list = Object.entries(stores).map(([code, meta]) => {
-    const s = (typeof meta === 'string') ? { brand: meta } : meta;
-    const d = (isFinite(s.lat) && isFinite(s.lng)) ? haversine(me.lat, me.lng, s.lat, s.lng) : Infinity;
-    return { code, brand: s.brand || '', distanceKm: d };
-  }).filter(s => s.distanceKm <= R).sort((a,b)=>a.distanceKm-b.distanceKm);
-
-  res.json({ stores: list });
-});
-function haversine(lat1, lon1, lat2, lon2){
-  const toRad = v => v * Math.PI / 180, R = 6371;
-  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
-}
-
-// ---------- Admin: Hub + CSV + Dashboard + PDF ----------
-function requireKey(req, res, next){
-  const k = req.header('x-api-key') || req.query.key || '';
-  if (!API_KEY) return res.status(500).send('Server missing API_KEY');
-  if (k !== API_KEY) return res.status(401).send('Invalid API key');
-  next();
-}
-
-app.get('/hub', requireKey, async (req, res) => {
-  const db = await jread(DB_FILE, { passes:[] });
-  const rows = db.passes.slice().reverse().map(p => `
-    <tr><td><code>${p.token_hash}</code></td><td>${p.offer}</td><td>${p.restaurant}</td>
-    <td>${p.client_slug}</td><td>${p.status}</td><td>${p.issued_at}</td><td>${p.redeemed_at||''}</td></tr>`).join('');
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Admin Hub</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-<style>body{padding:18px;max-width:1100px;margin:auto} table{font-size:13px}</style>
-</head><body>
-<h2>Admin Hub</h2>
-<p>
-  <a href="/hub/dashboard?key=${encodeURIComponent(req.query.key||'')}">Analytics</a> ·
-  <a href="/hub/dashboard/report-analytics.csv?key=${encodeURIComponent(req.query.key||'')}">Download CSV</a> ·
-  <a href="/hub/dashboard.pdf?key=${encodeURIComponent(req.query.key||'')}">Download PDF</a>
-</p>
-<div style="overflow:auto">
-<table>
-  <thead><tr><th>Token</th><th>Offer</th><th>Restaurant</th><th>Client</th><th>Status</th><th>Issued</th><th>Redeemed</th></tr></thead>
-  <tbody>${rows || '<tr><td colspan="7">No passes</td></tr>'}</tbody>
-</table>
-</div>
-</body></html>`);
+// ----------------------- Redeem API (cashier) ------------------------
+app.post('/api/redeem', authAdmin, async (req, res) => {
+  try {
+    const { token, store_id } = req.body || {};
+    if (!token) return res.status(400).json({ error: 'Missing token' });
+    const db = await readDb();
+    const found = db.tokens.find((t) => t.token === token);
+    if (!found) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+    const already = db.redemptions.find((r) => r.token === token);
+    if (already) {
+      return res.status(200).json({
+        status: 'already_redeemed',
+        redeemed_at: already.redeemed_at,
+        store_id: already.store_id || null
+      });
+    }
+    db.redemptions.push({
+      token,
+      redeemed_at: nowIso(),
+      store_id: store_id || null,
+      ip: req.ip,
+      ua: req.get('user-agent') || ''
+    });
+    await writeDb(db);
+    return res.status(200).json({ status: 'ok' });
+  } catch (e) {
+    console.error('POST /api/redeem error', e);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
-app.get('/hub/dashboard', requireKey, async (req, res) => {
-  const db = await jread(DB_FILE, { passes:[] });
-  const all = db.passes;
+// ----------------------- Admin Hub & Dashboard -----------------------
+app.get('/hub', authAdmin, async (req, res) => {
+  const db = await readDb();
+  res.status(200).json(db);
+});
 
-  // Filters
-  const from = req.query.from ? new Date(req.query.from) : null;
-  const to   = req.query.to   ? new Date(req.query.to)   : null;
-  const brand = (req.query.brand || '').toLowerCase();
-  const status = (req.query.status || '').toLowerCase();
+app.get('/hub/dashboard', authAdmin, async (req, res) => {
+  const db = await readDb();
+  const totalIssued = db.tokens.length;
+  const totalRedeemed = db.redemptions.length;
+  const uniqueOffers = new Set(db.tokens.map((t) => t.offer || ''));
+  const rate = totalIssued ? ((totalRedeemed / totalIssued) * 100).toFixed(1) : '0.0';
 
-  const filtered = all.filter(p => {
-    const t = new Date(p.issued_at);
-    if (from && t < from) return false;
-    if (to && t > to) return false;
-    if (brand && (p.restaurant||'').toLowerCase() !== brand) return false;
-    if (status && (p.status||'').toLowerCase() !== status) return false;
+  // Simple per-offer tally
+  const perOffer = {};
+  for (const t of db.tokens) {
+    const k = t.offer || 'unknown';
+    perOffer[k] = perOffer[k] || { issued: 0, redeemed: 0 };
+    perOffer[k].issued++;
+  }
+  for (const r of db.redemptions) {
+    const tok = db.tokens.find((t) => t.token === r.token);
+    const k = tok?.offer || 'unknown';
+    perOffer[k] = perOffer[k] || { issued: 0, redeemed: 0 };
+    perOffer[k].redeemed++;
+  }
+
+  const rows = Object.entries(perOffer)
+    .sort((a, b) => (b[1].issued - a[1].issued))
+    .map(([offer, stats]) => {
+      const cr = stats.issued ? ((stats.redeemed / stats.issued) * 100).toFixed(1) : '0.0';
+      return `<tr><td>${offer}</td><td>${stats.issued}</td><td>${stats.redeemed}</td><td>${cr}%</td></tr>`;
+    })
+    .join('');
+
+  const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Analytics Admin</title>
+<style>
+body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f1115;color:#e5e7eb;margin:0}
+.wrap{max-width:1000px;margin:0 auto;padding:24px}
+.card{background:#151822;border:1px solid #22283a;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:24px}
+h1{margin:0 0 16px;font-size:24px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.k{background:#10131c;border:1px solid #20273a;border-radius:12px;padding:14px}
+.k .t{font-size:12px;color:#94a3b8}
+.k .v{font-size:22px;font-weight:700}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th,td{padding:10px;border-bottom:1px solid #242b40;text-align:left}
+a.btn{display:inline-block;margin-top:14px;padding:10px 12px;border-radius:10px;background:#1b2134;color:#fff;text-decoration:none;border:1px solid #2a3148;font-weight:600}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.small{font-size:12px;color:#94a3b8}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Analytics Admin</h1>
+      <div class="grid">
+        <div class="k"><div class="t">Total Issued</div><div class="v">${totalIssued}</div></div>
+        <div class="k"><div class="t">Total Redeemed</div><div class="v">${totalRedeemed}</div></div>
+        <div class="k"><div class="t">Conversion Rate</div><div class="v">${rate}%</div></div>
+        <div class="k"><div class="t">Unique Offers</div><div class="v">${uniqueOffers.size}</div></div>
+      </div>
+      <a class="btn" href="/hub/dashboard/report-analytics.csv">Download Redemption CSV</a>
+      <div class="small">Auth: send header <span class="mono">x-api-key: ****</span> when using curl/fetch to hit protected endpoints.</div>
+      <table>
+        <thead>
+          <tr><th>Offer</th><th>Issued</th><th>Redeemed</th><th>CR</th></tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="4">No data yet</td></tr>'}</tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>`;
+  res.type('text/html; charset=utf-8').send(html);
+});
+
+// ----------------------- Admin CSV -----------------------------------
+app.get('/hub/dashboard/report-analytics.csv', authAdmin, async (req, res) => {
+  const db = await readDb();
+  const joined = db.redemptions.map((r) => {
+    const tok = db.tokens.find((t) => t.token === r.token) || {};
+    return {
+      token: r.token,
+      offer: tok.offer || '',
+      issued_at: tok.issued_at || '',
+      redeemed_at: r.redeemed_at || '',
+      store_id: r.store_id || '',
+      issued_ip: tok.ip || '',
+      redeemed_ip: r.ip || '',
+    };
+  });
+  const headers = [
+    'token',
+    'offer',
+    'issued_at',
+    'redeemed_at',
+    'store_id',
+    'issued_ip',
+    'redeemed_ip',
+  ];
+  const csv = toCsv(joined, headers);
+  return sendCsv(res, 'report-analytics.csv', csv);
+});
+
+// ----------------------- Client report (JSON) ------------------------
+app.get('/api/client-report', authClient, async (req, res) => {
+  const { offer, from, to } = req.query;
+  const db = await readDb();
+
+  // Basic filters (offer + ISO date range)
+  const tokens = db.tokens.filter((t) => {
+    if (offer && (t.offer || '') !== offer) return false;
+    if (from && t.issued_at && t.issued_at < from) return false;
+    if (to && t.issued_at && t.issued_at > to) return false;
     return true;
   });
 
-  // Quick stats
-  const issued = filtered.length;
-  const redeemed = filtered.filter(p => p.status === 'redeemed').length;
-  const rate = issued ? Math.round(redeemed/issued*1000)/10 : 0;
+  const mapRedeemed = new Map(db.redemptions.map((r) => [r.token, r]));
 
-  // Pie (by restaurant)
-  const byBrand = {};
-  filtered.forEach(p => { byBrand[p.restaurant] = (byBrand[p.restaurant]||0) + 1; });
-  const pieLabels = Object.keys(byBrand);
-  const pieData = pieLabels.map(k => byBrand[k]);
-
-  // Line: daily redemptions
-  const byDay = {};
-  filtered.forEach(p => {
-    const day = (p.redeemed_at || p.issued_at || '').slice(0,10);
-    if (!day) return;
-    byDay[day] = (byDay[day]||0) + (p.status==='redeemed'?1:0);
-  });
-  const lineLabels = Object.keys(byDay).sort();
-  const lineData = lineLabels.map(k => byDay[k]);
-
-  // Heatmap: weekday (0-6) x hour (0-23) of redemptions
-  const hm = Array.from({length:7}, ()=>Array(24).fill(0));
-  filtered.forEach(p => {
-    if (p.status !== 'redeemed' || !p.redeemed_at) return;
-    const d = new Date(p.redeemed_at);
-    hm[d.getDay()][d.getHours()]++;
+  const rows = tokens.map((t) => {
+    const r = mapRedeemed.get(t.token);
+    return {
+      token: t.token,
+      offer: t.offer || '',
+      issued_at: t.issued_at || '',
+      redeemed_at: r?.redeemed_at || '',
+      redeemed: Boolean(r),
+      store_id: r?.store_id || '',
+    };
   });
 
-  res.send(`
-<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Analytics Dashboard</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<style>
-  body{padding:18px;max-width:1200px;margin:auto}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .badge{display:inline-block;padding:.25rem .5rem;border-radius:.5rem;background:#0ea5e9;color:#fff;font-size:.8rem}
-  .heat{border-collapse:collapse}
-  .heat td{width:22px;height:20px;text-align:center;font-size:10px;color:#fff}
-  .legend{font-size:12px;color:#64748b}
-</style>
-</head><body>
-<h2>Analytics</h2>
-<p>
-  <span class="badge">Issued: ${issued}</span>
-  <span class="badge">Redeemed: ${redeemed}</span>
-  <span class="badge">Rate: ${rate}%</span>
-  &nbsp; <a href="/hub/dashboard/report-analytics.csv?key=${encodeURIComponent(req.query.key||'')}">CSV</a> ·
-  <a href="/hub/dashboard.pdf?key=${encodeURIComponent(req.query.key||'')}">PDF</a>
-</p>
-
-<article class="grid">
-  <div>
-    <h4>Daily redemptions</h4>
-    <canvas id="line"></canvas>
-  </div>
-  <div>
-    <h4>Offer distribution (pie)</h4>
-    <canvas id="pie"></canvas>
-  </div>
-</article>
-
-<article style="margin-top:16px">
-  <h4>Heatmap — best day/time windows</h4>
-  <div class="legend">Rows = Sunday→Saturday, Cols = 0→23h. Darker = more redemptions.</div>
-  <div id="heat"></div>
-</article>
-
-<script>
-const lineLabels = ${JSON.stringify(lineLabels)};
-const lineData   = ${JSON.stringify(lineData)};
-const pieLabels  = ${JSON.stringify(pieLabels)};
-const pieData    = ${JSON.stringify(pieData)};
-const heat       = ${JSON.stringify(hm)}; // [7][24]
-
-new Chart(document.getElementById('line'), {
-  type:'line',
-  data:{ labels: lineLabels, datasets:[{ data: lineData, label:'Redemptions', tension:.3 }] },
-  options:{ responsive:true, scales:{ y:{ beginAtZero:true } } }
-});
-
-new Chart(document.getElementById('pie'), {
-  type:'pie',
-  data:{ labels: pieLabels, datasets:[{ data: pieData }] },
-  options:{ responsive:true }
-});
-
-// Heatmap without libs — color cells by value
-(function renderHeat() {
-  const host = document.getElementById('heat');
-  const max = Math.max(1, ...heat.flat());
-  const tbl = document.createElement('table'); tbl.className='heat';
-  for(let r=0;r<7;r++){
-    const tr = document.createElement('tr');
-    for(let c=0;c<24;c++){
-      const v = heat[r][c];
-      const cell = document.createElement('td');
-      const k = v/max; // 0..1
-      cell.style.background = \`hsl(24, 95%, \${Math.round(48 - 28*k)}%)\`; // orange scale
-      cell.title = \`\${v} at \${c}:00\`;
-      tr.appendChild(cell);
-    }
-    tbl.appendChild(tr);
-  }
-  host.appendChild(tbl);
-})();
-</script>
-</body></html>`);
-});
-
-// ---- FIXED CSV ROUTES (quotes closed) ----
-app.get('/hub/dashboard/report-analytics.csv', requireKey, async (_req, res) => {
-  const db = await jread(DB_FILE, { passes:[] });
-  const headers = ['id','offer','restaurant','client_slug','status','issued_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
-  const lines = [headers.join(',')].concat(db.passes.map(p => headers.map(h => csvEsc(p[h]||'')).join(',')));
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="redeem_report.csv"');
-  res.send(lines.join('\n'));
-});
-
-app.get('/events.csv', requireKey, async (_req, res) => {
-  const ev = await jread(EVENTS_FILE, { events:[] });
-  const headers = ['t','type','offer_id','restaurant','client_slug','meta','ua','ip'];
-  const lines = [headers.join(',')].concat(
-    ev.events.map(e => [
-      e.t,
-      e.type,
-      e.offer_id || '',
-      e.restaurant || '',
-      e.client_slug || '',
-      JSON.stringify(e.meta || {}),
-      '', // ua intentionally omitted or truncated if you stored it
-      ''  // ip intentionally omitted in this build
-    ].map(csvEsc).join(','))
-  );
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="events.csv"');
-  res.send(lines.join('\n'));
-});
-
-// ---- PDF export (Puppeteer) ----
-app.get('/hub/dashboard.pdf', requireKey, async (req, res) => {
-  const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
-  const url = `${origin}/hub/dashboard?key=${encodeURIComponent(req.query.key||'')}`;
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox','--disable-setuid-sandbox']
+  res.status(200).json({
+    client: req.client, // { clientId, slug }
+    count: rows.length,
+    results: rows,
   });
-  try {
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 120000 });
-    const pdf = await page.pdf({ format: 'Letter', printBackground: true, margin: { top:'0.5in', right:'0.5in', bottom:'0.5in', left:'0.5in' } });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="analytics.pdf"');
-    res.send(pdf);
-  } finally {
-    await browser.close();
-  }
 });
 
-// ---- Home → Offer Gallery ----
-app.get('/', (_req,res)=> res.redirect('/offers.html'));
+// ----------------------- Client report (CSV) -------------------------
+app.get('/api/client-report.csv', authClient, async (req, res) => {
+  const { offer, from, to } = req.query;
+  const db = await readDb();
 
-// ---- Start ----
+  const tokens = db.tokens.filter((t) => {
+    if (offer && (t.offer || '') !== offer) return false;
+    if (from && t.issued_at && t.issued_at < from) return false;
+    if (to && t.issued_at && t.issued_at > to) return false;
+    return true;
+  });
+
+  const mapRedeemed = new Map(db.redemptions.map((r) => [r.token, r]));
+
+  const rows = tokens.map((t) => {
+    const r = mapRedeemed.get(t.token);
+    return {
+      token: t.token,
+      offer: t.offer || '',
+      issued_at: t.issued_at || '',
+      redeemed_at: r?.redeemed_at || '',
+      redeemed: r ? 'yes' : 'no',
+      store_id: r?.store_id || '',
+    };
+  });
+
+  const headers = ['token', 'offer', 'issued_at', 'redeemed_at', 'redeemed', 'store_id'];
+  const csv = toCsv(rows, headers);
+  return sendCsv(res, `client-${req.client.slug}-report.csv`, csv);
+});
+
+// ----------------------- Health -------------------------------------
+app.get('/healthz', (req, res) => res.status(200).json({ ok: true }));
+
+// ----------------------- Boot ---------------------------------------
 app.listen(PORT, () => {
-  console.log(`ACP Coupons listening on :${PORT}`);
+  console.log(`ACP Coupons server running on port ${PORT}`);
+  console.log(`BASE_URL: ${BASE_URL}`);
 });
