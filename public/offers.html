@@ -33,7 +33,6 @@
     </div>
 
     <section id="grid" class="grid" aria-live="polite"></section>
-
     <div id="empty" class="empty" style="display:none">No offers match your filters.</div>
 
     <footer class="footer">
@@ -47,10 +46,8 @@
       const data = await fetch('/api/offers').then(r=>r.json());
       const offers = data.offers || [];
 
-      // Populate brand filter
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
 
-      // Restore state from URL (q, brand)
       const state = Shared.readQuery();
       if (state.q) document.getElementById('q').value = state.q;
       if (state.brand) document.getElementById('brand').value = state.brand;
@@ -70,7 +67,6 @@
         Shared.writeQuery(state);
         render();
       };
-
       document.getElementById('clear').onclick = ()=>{
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
@@ -78,14 +74,11 @@
         Shared.writeQuery(state);
         render();
       };
-
-      // Debounced search typing
       document.getElementById('q').addEventListener('input', Shared.debounce(()=>{
         state.q = document.getElementById('q').value.trim();
         Shared.writeQuery(state);
         render();
       }, 250));
-
       document.getElementById('brand').addEventListener('change', ()=>{
         state.brand = document.getElementById('brand').value;
         Shared.writeQuery(state);
