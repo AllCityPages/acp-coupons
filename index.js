@@ -405,8 +405,59 @@ new Chart(document.getElementById('pie'), {
 </body></html>`);
 });
 
+// ---- FIXED CSV ROUTES (quotes closed) ----
 app.get('/hub/dashboard/report-analytics.csv', requireKey, async (_req, res) => {
   const db = await jread(DB_FILE, { passes:[] });
   const headers = ['id','offer','restaurant','client_slug','status','issued_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
   const lines = [headers.join(',')].concat(db.passes.map(p => headers.map(h => csvEsc(p[h]||'')).join(',')));
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="redeem_report.csv"');
+  res.send(lines.join('\n'));
+});
+
+app.get('/events.csv', requireKey, async (_req, res) => {
+  const ev = await jread(EVENTS_FILE, { events:[] });
+  const headers = ['t','type','offer_id','restaurant','client_slug','meta','ua','ip'];
+  const lines = [headers.join(',')].concat(
+    ev.events.map(e => [
+      e.t,
+      e.type,
+      e.offer_id || '',
+      e.restaurant || '',
+      e.client_slug || '',
+      JSON.stringify(e.meta || {}),
+      '', // ua intentionally omitted or truncated if you stored it
+      ''  // ip intentionally omitted in this build
+    ].map(csvEsc).join(','))
+  );
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="events.csv"');
+  res.send(lines.join('\n'));
+});
+
+// ---- PDF export (Puppeteer) ----
+app.get('/hub/dashboard.pdf', requireKey, async (req, res) => {
+  const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const url = `${origin}/hub/dashboard?key=${encodeURIComponent(req.query.key||'')}`;
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox','--disable-setuid-sandbox']
+  });
+  try {
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'networkidle0', timeout: 120000 });
+    const pdf = await page.pdf({ format: 'Letter', printBackground: true, margin: { top:'0.5in', right:'0.5in', bottom:'0.5in', left:'0.5in' } });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="analytics.pdf"');
+    res.send(pdf);
+  } finally {
+    await browser.close();
+  }
+});
+
+// ---- Home → Offer Gallery ----
+app.get('/', (_req,res)=> res.redirect('/offers.html'));
+
+// ---- Start ----
+app.listen(PORT, () => {
+  console.log(`ACP Coupons listening on :${PORT}`);
+});
