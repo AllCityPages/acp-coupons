@@ -1,4 +1,4 @@
-/* theme.css — compact card UI + badges (v=10) */
+/* theme.css — compact rectangle UI (v=11) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -11,12 +11,12 @@
   --bar:#ffd400;
   --bar-ink:#111827;
 
-  --btn:#111827;           /* primary (CTA) */
+  --btn:#111827;        /* primary (CTA) */
   --btn-ink:#ffffff;
-  --btn-bg:#ffffff;        /* outline/secondary */
+  --btn-bg:#ffffff;     /* outline/secondary */
   --btn-ink-2:#111827;
 
-  --cta:#111827;           /* fallback accent if brand missing */
+  --cta:#111827;        /* fallback accent if brand missing */
 }
 
 html,body{background:var(--bg);color:var(--ink)}
@@ -65,7 +65,7 @@ html,body{background:var(--bg);color:var(--ink)}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
 
-/* --- Compact rectangle badges (not pills) --- */
+/* --- Compact rectangle badges --- */
 .meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
@@ -77,26 +77,24 @@ html,body{background:var(--bg);color:var(--ink)}
 .badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 
-/* --- Buttons --- */
+/* --- Buttons = same size/shape as badges --- */
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 
-/* base button */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;
-  gap:8px;border:1px solid var(--border);background:var(--btn-bg);
-  color:var(--btn-ink-2); text-decoration:none; cursor:pointer;
-  border-radius:10px; font-weight:600;
+  gap:6px;border:1px solid var(--border);background:var(--btn-bg);
+  color:var(--btn-ink-2); text-decoration:none !important; cursor:pointer;
+  border-radius:8px; font-weight:600;
 }
 
-/* compact sizing to match badges */
-.btn-compact{height:28px; padding:0 10px; font-size:12.5px}
+/* exact badge sizing */
+.btn-compact{height:24px; padding:0 8px; font-size:12px; line-height:1}
 
-/* primary CTA */
+/* primary CTA (still compact) */
 .btn-cta{background:var(--btn); color:var(--btn-ink); border-color:#0f1629}
-/* outline look for secondary */
-.btn-outline{background:#fff}
 
-/* subtle "Saved" look */
+/* secondary variations */
+.btn-outline{background:#fff}
 .btn-soft{background:#f3f4f6;border-color:#e5e7eb;color:#111827}
 
 /* Footer */
