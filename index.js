@@ -503,15 +503,31 @@ app.get('/api/offer/:id', async (req, res) => {
 });
 
 // High-res QR that issues a fresh one-time pass
+// === Print-friendly coupons + attribution ===============================
+
+// Full offer for print pages (already added earlier, keep if present)
+app.get('/api/offer/:id', async (req, res) => {
+  const { offers } = await loadCatalog();
+  const id = req.params.id;
+  const o = offers[id];
+  if (!o) return res.status(404).json({ error: 'Offer not found' });
+  res.json({ id, ...o });
+});
+
+// High-res QR that issues a fresh token; supports source attribution
+// Usage: /qr?offer=ID&src=print4|print1|flyer|<custom>
 app.get('/qr', async (req, res) => {
   const id = (req.query.offer || '').toString();
+  const src = (req.query.src || '').toString(); // attribution
   if (!id) return res.status(400).send('Missing offer');
 
   const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
-  const issueURL = `${origin}/coupon?offer=${encodeURIComponent(id)}`;
+  const issueURL = new URL(`${origin}/coupon`);
+  issueURL.searchParams.set('offer', id);
+  if (src) issueURL.searchParams.set('src', src);
 
   try {
-    const png = await QRCode.toBuffer(issueURL, { width: 560, margin: 1 });
+    const png = await QRCode.toBuffer(issueURL.toString(), { width: 560, margin: 1 });
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'no-store');
     res.send(png);
@@ -519,6 +535,121 @@ app.get('/qr', async (req, res) => {
     res.status(500).send('QR error');
   }
 });
+
+// Server-side PDF for single or 4-up (client-branded via your offer theme)
+// /coupon-print.pdf?offer=ID          => single
+// /coupon-print.pdf?offer=ID&per=4    => 4-up sheet
+// Optional: &src=print1|print4 (default auto-set by page)
+app.get('/coupon-print.pdf', async (req, res) => {
+  const offer = (req.query.offer || '').toString();
+  const per = (req.query.per || '').toString();
+  const src = (req.query.src || '').toString();
+
+  if (!offer) return res.status(400).send('Missing offer');
+
+  const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const pagePath = per === '4' ? '/coupon-print-multi.html' : '/coupon-print.html';
+  const url = new URL(`${origin}${pagePath}`);
+  url.searchParams.set('offer', offer);
+  if (per === '4') url.searchParams.set('per', '4');
+  if (src) url.searchParams.set('src', src);
+
+  const browser = await puppeteer.launch({ args: ['--no-sandbox','--disable-setuid-sandbox'] });
+  try {
+    const page = await browser.newPage();
+    await page.goto(url.toString(), { waitUntil: 'networkidle0', timeout: 120000 });
+    const pdf = await page.pdf({
+      format: 'Letter',
+      printBackground: true,
+      margin: { top:'0.5in', right:'0.5in', bottom:'0.5in', left:'0.5in' }
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    const name = per === '4' ? `${offer}-4up.pdf` : `${offer}.pdf`;
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.send(pdf);
+  } finally {
+    await browser.close();
+  }
+});
+
+// === Track attribution on issuance & expose per-source stats ============
+
+// NOTE: this replaces your existing /coupon handler (logic identical + source)
+app.get('/coupon', async (req, res) => {
+  const { offers } = await loadCatalog();
+  const id = (req.query.offer || '').toString();
+  const offer = offers[id];
+  if (!offer) return res.status(400).send('Invalid offer id');
+
+  const src = (req.query.src || 'direct').toString(); // attribution
+
+  const db = await jread(DB_FILE, { passes:[], redemptions:[] });
+  const token = randHex(16);
+  const pass = {
+    id: crypto.randomUUID(),
+    token,
+    token_hash: sha12(token),
+    offer: id,
+    client_slug: offer.client_slug || 'general',
+    restaurant: offer.restaurant || '',
+    status: 'issued',
+    issued_at: nowISO(),
+    redeemed_at: null,
+    redeemed_by_store: '',
+    redeemed_by_staff: '',
+    source: src
+  };
+  db.passes.push(pass);
+  await jwrite(DB_FILE, db);
+
+  const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const url = `${origin}/coupon/view?token=${encodeURIComponent(token)}`;
+  const qr = await QRCode.toDataURL(url);
+
+  res.send(`<!doctype html><html><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Coupon Issued</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+<style>body{padding:18px;max-width:900px;margin:auto}</style>
+</head><body>
+<h2>${offer.title || 'Your Coupon'}</h2>
+<p>${offer.restaurant || ''}</p>
+${offer.hero_image ? `<img src="${offer.hero_image}" style="max-width:100%;border-radius:12px">` : ''}
+<article style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:center">
+  <div>
+    <p><b>Status:</b> ${pass.status}</p>
+    <p><b>Token (short):</b> <code>${pass.token_hash}</code></p>
+    <p><b>Source:</b> <code>${pass.source}</code></p>
+    <a class="contrast" href="${url}">Open Coupon</a>
+    <a href="/offers.html">Back to Offers</a>
+  </div>
+  <div><img src="${qr}" style="width:100%;background:#fff;border-radius:8px;padding:8px" alt="QR"></div>
+</article>
+</body></html>`);
+});
+
+// Extend public stats to include per-source breakdown (keeps old shape)
+app.get('/api/offer-stats', async (_req, res) => {
+  const db = await jread(DB_FILE, { passes:[], redemptions:[] });
+  const stats = {};           // existing: { [offer]: {issued, redeemed} }
+  const sources = {};         // new:     { [offer]: { bySource: {src: {issued, redeemed}} } }
+
+  for (const p of db.passes) {
+    const id = p.offer || 'unknown';
+    const src = p.source || 'direct';
+    if (!stats[id]) stats[id] = { issued: 0, redeemed: 0 };
+    stats[id].issued++;
+    if (p.status === 'redeemed') stats[id].redeemed++;
+
+    if (!sources[id]) sources[id] = { bySource: {} };
+    if (!sources[id].bySource[src]) sources[id].bySource[src] = { issued: 0, redeemed: 0 };
+    sources[id].bySource[src].issued++;
+    if (p.status === 'redeemed') sources[id].bySource[src].redeemed++;
+  }
+
+  res.json({ stats, sources });
+});
+
 
 // ---------- Start ----------
 app.listen(PORT, () => {
