@@ -192,6 +192,7 @@ const Shared = (function(){
 
     const row = document.createElement('div'); row.className='btnrow'; body.appendChild(row);
 
+    // CTA (brand-tinted)
     const cta = document.createElement('a');
     cta.className = 'btn btn-cta';
     cta.textContent = opts.wallet ? 'Use Now' : 'Tap to Redeem';
@@ -201,23 +202,55 @@ const Shared = (function(){
     if (exp.expired){ cta.setAttribute('disabled',''); cta.href = 'javascript:void(0)'; }
     row.appendChild(cta);
 
+    // Favorite toggle
     const fav = document.createElement('button'); fav.className='btn';
     const setFav = ()=>{
       const saved = isSaved(o.id);
       fav.innerHTML = `${saved ? '★' : '☆'} Favorite`;
     };
-    fav.onclick = ()=>{
-      if (isSaved(o.id)) { remove(o.id); if (opts.wallet) el.remove(); }
-      else { save(o.id); }
-      setFav();
-    };
-    setFav(); row.appendChild(fav);
 
-    const add = document.createElement('button'); add.className='btn'; add.textContent='Add to Wallet';
-    add.onclick = ()=>{ save(o.id); setFav(); };
+    fav.onclick = ()=>{
+      if (isSaved(o.id)) {
+        remove(o.id);
+        // If this card is on Wallet view, remove the card on unfavorite
+        if (opts.wallet) el.remove();
+      } else {
+        save(o.id);
+      }
+      setFav();
+      // Also reflect on the add button if present
+      if (add) updateAddBtn();
+    };
+    setFav();
+    row.appendChild(fav);
+
+    // Add to wallet (explicit label) — reflects saved state immediately
+    const add = document.createElement('button');
+    add.className='btn';
+
+    function updateAddBtn(){
+      const saved = isSaved(o.id);
+      if (saved) {
+        add.textContent = 'Saved ✓';
+        add.setAttribute('disabled','');
+      } else {
+        add.textContent = 'Add to Wallet';
+        add.removeAttribute('disabled');
+      }
+    }
+
+    add.onclick = ()=>{
+      if (!isSaved(o.id)) {
+        save(o.id);
+        updateAddBtn();
+        setFav(); // reflect on star immediately
+      }
+    };
+
+    updateAddBtn();
     row.appendChild(add);
 
-    // ✅ PRINT BUTTON added!
+    // Optional Print
     const printBtn = document.createElement('a');
     printBtn.className = 'btn';
     printBtn.textContent = 'Print';
