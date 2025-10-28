@@ -11,15 +11,15 @@
 <body>
   <div class="site">
     <header class="header">
-      <div class="logo" aria-hidden="true">A</div>
+      <div class="logo">A</div>
       <div class="title">
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
       </div>
     </header>
 
-    <div class="actionbar">
-      <button id="btn-near" class="chip" type="button">📍 Sort by Nearby</button>
+    <div id="bar" class="actionbar">
+      <button id="btn-near" class="chip">📍 Sort by Nearby</button>
       <a class="chip" href="/wallet.html">⭐ My Favorites</a>
     </div>
 
@@ -27,84 +27,87 @@
 
     <div class="filters">
       <input id="q" class="input" placeholder="Search offers or brand" autocomplete="off">
-      <select id="brand" class="select" aria-label="Filter by brand">
+      <select id="brand" class="select">
         <option value="">All brands</option>
       </select>
-      <button id="apply" class="btn btn-outline" type="button">Apply</button>
-      <button id="clear" class="btn btn-outline" type="button">Clear</button>
+      <button id="apply" class="btn btn-outline">Apply</button>
+      <button id="clear" class="btn btn-outline">Clear</button>
     </div>
 
-    <section id="grid" class="grid" aria-live="polite"></section>
-    <div id="empty" class="empty" style="display:none">No offers match your filters.</div>
+    <section id="grid" class="grid"></section>
 
-    <footer class="footer">AllCityPages.com | info@AllCityPages.com</footer>
+    <footer class="footer">
+      AllCityPages.com | info@AllCityPages.com
+    </footer>
   </div>
 
   <script src="/shared.js"></script>
   <script>
     (async function init(){
+      const state = Object.assign({ q:'', brand:'', category:'', sortNearby:false }, Shared.readQuery());
       const data = await fetch('/api/offers').then(r=>r.json());
-      const offers = data.offers || [];
+      Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
+      Shared.renderCategoryChips(document.getElementById('cats'), state, onFilterChange);
 
-      // Show push-notify CTA if blocked
-      Shared.renderNotifyCTA(document.querySelector('.actionbar'));
+      // Notify CTA (only shows if blocked)
+      Shared.renderNotifyCTA(document.getElementById('bar'));
 
-      Shared.populateBrandFilter(offers, document.getElementById('brand'));
-
-      const state = Shared.readQuery();
-
-      const catsEl = document.getElementById('cats');
-      Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
-
-      if (state.q) document.getElementById('q').value = state.q;
-      if (state.brand) document.getElementById('brand').value = state.brand;
-
-      let nearbyActive = false;
-
-      function getRows(){
-        let rows = Shared.applyFilter(offers, state);
-        if (nearbyActive) rows = Shared.sortByNearby(rows);
-        return rows;
+      async function maybeNearby(){
+        if (!state.sortNearby) return;
+        if (!Shared.__nearbyReady){
+          await Shared.computeNearbySort();
+          Shared.__nearbyReady = true;
+        }
       }
 
       function render(){
         const grid = document.getElementById('grid');
-        const empty = document.getElementById('empty');
         grid.innerHTML = '';
-        const rows = getRows();
+        let rows = Shared.applyFilter(data.offers, state);
+        rows = state.sortNearby ? Shared.sortByNearby(rows) : rows;
         rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
-        empty.style.display = rows.length ? 'none' : 'block';
+        Shared.writeQuery(state);
       }
 
-      document.getElementById('apply').onclick = ()=>{
+      function onFilterChange(){
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
-        Shared.writeQuery(state); render();
-      };
+        maybeNearby().then(render);
+      }
+
+      document.getElementById('apply').onclick = onFilterChange;
       document.getElementById('clear').onclick = ()=>{
-        document.getElementById('q').value=''; document.getElementById('brand').value='';
-        state.q=''; state.brand=''; state.category='';
-        Shared.writeQuery(state);
-        Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
-        nearbyActive = false; render();
+        document.getElementById('q').value = '';
+        document.getElementById('brand').value = '';
+        state.q=''; state.brand=''; render();
       };
-      document.getElementById('q').addEventListener('input', Shared.debounce(()=>{
-        state.q = document.getElementById('q').value.trim(); Shared.writeQuery(state); render();
-      }, 250));
-      document.getElementById('brand').addEventListener('change', ()=>{
-        state.brand = document.getElementById('brand').value; Shared.writeQuery(state); render();
-      });
+      document.getElementById('q').addEventListener('input', Shared.debounce(onFilterChange, 250));
 
       document.getElementById('btn-near').onclick = async ()=>{
-        if (!nearbyActive) {
-          const ok = await Shared.computeNearbySort();
-          if (!ok) return;
-          nearbyActive = true; this.textContent = '📍 Nearby (On)';
-        } else { nearbyActive = false; this.textContent = '📍 Sort by Nearby'; }
-        render();
+        state.sortNearby = !state.sortNearby;
+        document.getElementById('btn-near').textContent = state.sortNearby ? '📍 Sorted by Nearby' : '📍 Sort by Nearby';
+        await maybeNearby(); render();
       };
 
-      render();
+      // Prime UI from URL query
+      if (state.q) document.getElementById('q').value = state.q;
+      if (state.brand) document.getElementById('brand').value = state.brand;
+
+      await maybeNearby(); render();
+    })();
+
+    // Register SW with version so /offers.html updates without ?v=…
+    (function(){
+      if (!('serviceWorker' in navigator)) return;
+      const SW_VERSION = '6';
+      navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache: 'none' })
+        .then(reg => {
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!window.__swReloaded) { window.__swReloaded = true; location.reload(); }
+          });
+          reg.update();
+        }).catch(()=>{});
     })();
   </script>
 </body>
