@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/theme.css?v=8">
 </head>
 <body>
   <div class="site">
@@ -16,17 +16,19 @@
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
       </div>
+      <!-- New: Always-present My Wallet button -->
+      <nav style="margin-left:auto">
+        <a class="btn" href="/wallet.html">⭐ My Wallet</a>
+      </nav>
     </header>
 
-    <div id="bar" class="actionbar">
-      <button id="btn-near" class="chip">📍 Sort by Nearby</button>
-      <a class="chip" href="/wallet.html">⭐ My Favorites</a>
+    <div class="actionbar">
+      <button id="btn-near" class="chip">📍 Show deals near me</button>
+      <a class="chip" href="/wallet.html">⭐ My Wallet</a>
     </div>
 
-    <div id="cats" class="cats"></div>
-
     <div class="filters">
-      <input id="q" class="input" placeholder="Search offers or brand" autocomplete="off">
+      <input id="q" class="input" placeholder="Search offers or brand">
       <select id="brand" class="select">
         <option value="">All brands</option>
       </select>
@@ -41,73 +43,36 @@
     </footer>
   </div>
 
-  <script src="/shared.js"></script>
+  <script src="/shared.js?v=8"></script>
   <script>
     (async function init(){
-      const state = Object.assign({ q:'', brand:'', category:'', sortNearby:false }, Shared.readQuery());
       const data = await fetch('/api/offers').then(r=>r.json());
       Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
-      Shared.renderCategoryChips(document.getElementById('cats'), state, onFilterChange);
-
-      // Notify CTA (only shows if blocked)
-      Shared.renderNotifyCTA(document.getElementById('bar'));
-
-      async function maybeNearby(){
-        if (!state.sortNearby) return;
-        if (!Shared.__nearbyReady){
-          await Shared.computeNearbySort();
-          Shared.__nearbyReady = true;
-        }
-      }
+      const state = { q:'', brand:'', category:'', sortNearby:false };
 
       function render(){
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
         let rows = Shared.applyFilter(data.offers, state);
-        rows = state.sortNearby ? Shared.sortByNearby(rows) : rows;
+        if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
         rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
-        Shared.writeQuery(state);
       }
 
-      function onFilterChange(){
+      document.getElementById('apply').onclick = ()=>{
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
-        maybeNearby().then(render);
-      }
-
-      document.getElementById('apply').onclick = onFilterChange;
+        render();
+      };
       document.getElementById('clear').onclick = ()=>{
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
         state.q=''; state.brand=''; render();
       };
-      document.getElementById('q').addEventListener('input', Shared.debounce(onFilterChange, 250));
+      document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
 
-      document.getElementById('btn-near').onclick = async ()=>{
-        state.sortNearby = !state.sortNearby;
-        document.getElementById('btn-near').textContent = state.sortNearby ? '📍 Sorted by Nearby' : '📍 Sort by Nearby';
-        await maybeNearby(); render();
-      };
-
-      // Prime UI from URL query
-      if (state.q) document.getElementById('q').value = state.q;
-      if (state.brand) document.getElementById('brand').value = state.brand;
-
-      await maybeNearby(); render();
-    })();
-
-    // Register SW with version so /offers.html updates without ?v=…
-    (function(){
-      if (!('serviceWorker' in navigator)) return;
-      const SW_VERSION = '6';
-      navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache: 'none' })
-        .then(reg => {
-          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (!window.__swReloaded) { window.__swReloaded = true; location.reload(); }
-          });
-          reg.update();
-        }).catch(()=>{});
+      // Precompute nearby distances (if allowed) then render
+      try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
+      render();
     })();
   </script>
 </body>
