@@ -1,4 +1,4 @@
-// shared.js — Light marketplace helpers (no framework)
+// shared.js — Compact buttons + aligned rows
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -7,10 +7,7 @@ const Shared = (function(){
   let _nearby = { lat:null, lng:null, brandDist: new Map() };
   let _categories = ['All','Burgers','Chicken','Pizza','Mexican','Sandwiches'];
 
-  /* -------------------- Utils -------------------- */
-  const debounce = (fn, ms=300) => {
-    let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
-  };
+  /* ---------------- Utils ---------------- */
   function readQuery(){
     const u = new URL(location.href);
     const st = {};
@@ -27,10 +24,8 @@ const Shared = (function(){
     history.replaceState(null, '', u.toString());
   }
 
-  /* -------------------- Storage (Wallet) -------------------- */
-  function getSaved(){
-    try { return JSON.parse(localStorage.getItem(LS_SAVED) || '[]'); } catch { return []; }
-  }
+  /* -------------- Wallet storage -------------- */
+  function getSaved(){ try { return JSON.parse(localStorage.getItem(LS_SAVED) || '[]'); } catch { return []; } }
   function isSaved(id){ return getSaved().includes(id); }
   function save(id){
     const s = getSaved();
@@ -42,7 +37,7 @@ const Shared = (function(){
     localStorage.setItem(LS_SAVED, JSON.stringify(s));
   }
 
-  /* -------------------- Filters -------------------- */
+  /* -------------- Filters -------------- */
   function populateBrandFilter(rows, selectEl){
     const brands = Array.from(new Set(rows.map(r => r.restaurant).filter(Boolean))).sort();
     brands.forEach(b => {
@@ -63,23 +58,7 @@ const Shared = (function(){
     });
   }
 
-  /* -------------------- Category chips -------------------- */
-  function renderCategoryChips(host, state, onChange){
-    host.innerHTML = '';
-    _categories.forEach(name=>{
-      const pill = document.createElement('button');
-      pill.className = 'pill' + ((state.category||'All').toLowerCase() === name.toLowerCase() ? ' active':'');
-      pill.textContent = name;
-      pill.onclick = ()=>{
-        state.category = name === 'All' ? '' : name;
-        renderCategoryChips(host, state, onChange);
-        onChange();
-      };
-      host.appendChild(pill);
-    });
-  }
-
-  /* -------------------- Expiration + counters -------------------- */
+  /* -------------- Counters & expiry -------------- */
   function expiryInfo(o){
     const days = Number(o.expires_days || 0);
     const remaining = Math.max(0, Math.floor(days));
@@ -90,13 +69,12 @@ const Shared = (function(){
   }
   async function getStats(){
     if (_statsCache) return _statsCache;
-    try {
-      _statsCache = await fetch('/api/offer-stats').then(r=>r.json()).then(x=>x.stats||{});
-    } catch { _statsCache = {}; }
+    try { _statsCache = await fetch('/api/offer-stats').then(r=>r.json()).then(x=>x.stats||{}); }
+    catch { _statsCache = {}; }
     return _statsCache;
   }
 
-  /* -------------------- Nearby (distance & sort) -------------------- */
+  /* -------------- Nearby -------------- */
   async function computeNearbySort(){
     if (!navigator.geolocation) return;
     const pos = await new Promise((resolve,reject)=>{
@@ -107,7 +85,6 @@ const Shared = (function(){
 
     const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`)
       .then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
-
     _nearby.brandDist = new Map();
     list.forEach(s => { if (isFinite(s.distanceKm)) _nearby.brandDist.set((s.brand||'').toLowerCase(), s.distanceKm); });
   }
@@ -125,24 +102,7 @@ const Shared = (function(){
     return (mi < 10 ? mi.toFixed(1) : Math.round(mi)) + ' mi';
   }
 
-  /* -------------------- Notify CTA -------------------- */
-  function renderNotifyCTA(actionbarEl){
-    try{
-      if (!('Notification' in window)) return;
-      if (Notification.permission === 'denied'){
-        const b = document.createElement('button');
-        b.className='chip';
-        b.textContent='🔔 Enable push notifications';
-        b.onclick = async ()=>{
-          const p = await Notification.requestPermission();
-          if (p === 'granted') { b.remove(); }
-        };
-        actionbarEl.appendChild(b);
-      }
-    }catch{}
-  }
-
-  /* -------------------- Card renderer -------------------- */
+  /* -------------- Card renderer (compact buttons) -------------- */
   function makeCard(o, opts={}){
     const stats = (_statsCache && _statsCache[o.id]) ? _statsCache[o.id] : { issued:0, redeemed:0 };
     const exp = expiryInfo(o);
@@ -176,11 +136,10 @@ const Shared = (function(){
       body.appendChild(p);
     }
 
-    // badges row
+    // badges (expiry + redemptions + optional distance)
     const meta = document.createElement('div'); meta.className='meta';
     const expb = document.createElement('span'); expb.className = `badge ${exp.cls}`; expb.textContent = exp.label; meta.appendChild(expb);
     const redb = document.createElement('span'); redb.className = 'badge ok'; redb.textContent = `${(stats.redeemed||0)} redeemed`; meta.appendChild(redb);
-
     if (_nearby.brandDist && _nearby.brandDist.size){
       const dist = _nearby.brandDist.get((o.restaurant||'').toLowerCase());
       if (isFinite(dist)){
@@ -190,9 +149,10 @@ const Shared = (function(){
     }
     body.appendChild(meta);
 
+    // Button grid: CTA + Favorite (row 1), Add to Wallet (row 2 full width)
     const row = document.createElement('div'); row.className='btnrow'; body.appendChild(row);
 
-    // CTA (brand-tinted)
+    // CTA (brand tinted)
     const cta = document.createElement('a');
     cta.className = 'btn btn-cta';
     cta.textContent = opts.wallet ? 'Use Now' : 'Tap to Redeem';
@@ -202,104 +162,48 @@ const Shared = (function(){
     if (exp.expired){ cta.setAttribute('disabled',''); cta.href = 'javascript:void(0)'; }
     row.appendChild(cta);
 
-    // Favorite toggle
+    // Favorite (star toggler)
     const fav = document.createElement('button'); fav.className='btn';
     const setFav = ()=>{
       const saved = isSaved(o.id);
       fav.innerHTML = `${saved ? '★' : '☆'} Favorite`;
     };
-
     fav.onclick = ()=>{
-      if (isSaved(o.id)) {
-        remove(o.id);
-        // If this card is on Wallet view, remove the card on unfavorite
-        if (opts.wallet) el.remove();
-      } else {
-        save(o.id);
-      }
-      setFav();
-      // Also reflect on the add button if present
-      if (add) updateAddBtn();
+      if (isSaved(o.id)) { remove(o.id); if (opts.wallet) el.remove(); }
+      else { save(o.id); }
+      setFav(); updateAddBtn();
     };
-    setFav();
-    row.appendChild(fav);
+    setFav(); row.appendChild(fav);
 
-    // Add to wallet (explicit label) — reflects saved state immediately
-    const add = document.createElement('button');
-    add.className='btn';
-
+    // Add to Wallet (full-width second row)
+    const add = document.createElement('button'); add.className='btn btn-outline btn-span-2';
     function updateAddBtn(){
       const saved = isSaved(o.id);
-      if (saved) {
-        add.textContent = 'Saved ✓';
-        add.setAttribute('disabled','');
-      } else {
-        add.textContent = 'Add to Wallet';
-        add.removeAttribute('disabled');
-      }
+      if (saved){ add.textContent = 'Saved ✓'; add.setAttribute('disabled',''); }
+      else { add.textContent = 'Add to Wallet'; add.removeAttribute('disabled'); }
     }
-
-    add.onclick = ()=>{
-      if (!isSaved(o.id)) {
-        save(o.id);
-        updateAddBtn();
-        setFav(); // reflect on star immediately
-      }
-    };
-
+    add.onclick = ()=>{ if (!isSaved(o.id)) { save(o.id); updateAddBtn(); setFav(); } };
     updateAddBtn();
     row.appendChild(add);
 
-    // Optional Print
-    const printBtn = document.createElement('a');
-    printBtn.className = 'btn';
-    printBtn.textContent = 'Print';
-    printBtn.href = `/coupon-print.html?offer=${encodeURIComponent(o.id)}`;
-    row.appendChild(printBtn);
+    // Optional small print link below
+    const print = document.createElement('a');
+    print.className = 'link';
+    print.textContent = 'Print';
+    print.href = `/coupon-print.html?offer=${encodeURIComponent(o.id)}`;
+    body.appendChild(print);
 
     return el;
   }
 
-  /* -------------------- Suggestions for wallet -------------------- */
-  function suggest(all, state, n=8){
-    const saved = new Set(getSaved());
-    const pool = all.filter(o => !saved.has(o.id));
-    const cat = (state.category||'').toLowerCase();
-    const brand = (state.brand||'').toLowerCase();
-    const byCat = pool.filter(o => (o.category||'').toLowerCase() === cat && cat);
-    const byBrand = pool.filter(o => (o.restaurant||'').toLowerCase() === brand && brand);
-    const rest = pool.filter(o => !byCat.includes(o) && !byBrand.includes(o));
-    return [...byCat, ...byBrand, ...rest].slice(0, n);
-  }
-
-  /* -------------------- Nearby alerts (manual toggle) -------------------- */
-  async function enableNearbyAlerts(){
-    try{
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') return alert('Notifications are blocked.');
-      if (!navigator.geolocation) return alert('Location not available.');
-      navigator.geolocation.getCurrentPosition(async (pos)=>{
-        const { latitude, longitude } = pos.coords;
-        fetch(`/api/event`, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ type:'enable_nearby', meta:{ latitude, longitude } })
-        });
-        alert('Nearby alerts enabled for this device.');
-      }, ()=>alert('Could not get your location.'));
-    }catch(e){ alert('Unable to enable alerts.'); }
-  }
-
   return {
-    readQuery, writeQuery, debounce,
+    readQuery, writeQuery,
     getSaved, isSaved, save, remove,
-    populateBrandFilter, applyFilter, renderCategoryChips,
-    makeCard, suggest,
-    renderNotifyCTA, enableNearbyAlerts,
-    computeNearbySort, sortByNearby,
+    populateBrandFilter, applyFilter,
+    makeCard,
+    getStats, computeNearbySort, sortByNearby,
     get __nearbyReady(){ return Boolean(_nearby.brandDist && _nearby.brandDist.size); },
-    set __nearbyReady(v){ },
-    getStats,
+    set __nearbyReady(v){ /* marker only */ },
   };
 })();
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
