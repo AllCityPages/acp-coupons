@@ -11,124 +11,84 @@
 <body>
   <div class="site">
     <header class="header">
-      <a href="/offers.html" class="logo" title="Back" aria-label="Back to Offers">←</a>
+      <a href="/offers.html" class="logo" title="Back">←</a>
       <div class="title">
         <h1>My Wallet</h1>
         <p>Saved offers: <span id="count">0</span></p>
       </div>
     </header>
 
-    <div class="actionbar">
-      <a class="chip" href="/offers.html">Browse All Deals</a>
+    <div id="bar" class="actionbar">
+      <button id="btn-near" class="chip">📍 Sort by Nearby</button>
+      <a class="chip" href="/offers.html">↩ Back to Offers</a>
     </div>
-
-    <!-- Push notify CTA will insert right below via JS -->
 
     <div id="cats" class="cats"></div>
 
-    <div class="filters">
-      <input id="q" class="input" placeholder="Search saved offers or brand" autocomplete="off">
-      <select id="brand" class="select" aria-label="Filter by brand">
-        <option value="">All brands</option>
-      </select>
-      <button id="apply" class="btn btn-outline" type="button">Apply</button>
-      <button id="clear" class="btn btn-outline" type="button">Clear</button>
-    </div>
+    <section id="grid" class="grid"></section>
 
-    <section id="grid" class="grid" aria-live="polite"></section>
-    <div id="empty" class="empty" style="display:none">You haven’t saved any offers yet.</div>
+    <h3 class="section-title" id="moreTitle" style="display:none">More you might like</h3>
+    <section id="suggest" class="grid"></section>
 
-    <h3 id="moreTitle" class="section-title" style="display:none">More you might like</h3>
-    <section id="more" class="grid"></section>
-
-    <footer class="footer">AllCityPages.com | info@AllCityPages.com</footer>
+    <footer class="footer">
+      AllCityPages.com | info@AllCityPages.com
+    </footer>
   </div>
 
   <script src="/shared.js"></script>
   <script>
     (async function init(){
-      const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
+      const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
+      const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers);
 
-      // Push notifications CTA if blocked
-      Shared.renderNotifyCTA(document.querySelector('.actionbar'));
+      Shared.renderCategoryChips(document.getElementById('cats'), state, render);
+      Shared.renderNotifyCTA(document.getElementById('bar'));
 
-      const grid = document.getElementById('grid');
-      const empty = document.getElementById('empty');
-
-      // Load state from URL
-      const state = Shared.readQuery();
-
-      // Category chips
-      const catsEl = document.getElementById('cats');
-      Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
-
-      function getSavedSubset(){
-        const ids = new Set(Shared.getSaved());
-        let subset = all.filter(o => ids.has(o.id));
-        subset = Shared.applyFilter(subset, state);
-        return subset;
-      }
-
-      function populateBrand(subset){
-        const brandSel = document.getElementById('brand');
-        brandSel.innerHTML = '<option value="">All brands</option>';
-        Shared.populateBrandFilter(subset, brandSel);
-        if (state.brand) brandSel.value = state.brand;
-      }
-
-      function render(){
-        const subset = getSavedSubset();
-        document.getElementById('count').textContent = subset.filter(o=>Shared.isSaved(o.id)).length;
-
-        grid.innerHTML = '';
-        subset.forEach(o => grid.appendChild(Shared.makeCard(o, { wallet:true })));
-        empty.style.display = subset.length ? 'none' : 'block';
-
-        populateBrand(subset);
-
-        // Suggestions: unsaved offers matching filters
-        const more = document.getElementById('more');
-        const moreTitle = document.getElementById('moreTitle');
-        more.innerHTML = '';
-        const suggestions = Shared.suggest(all, state, 8);
-        if (suggestions.length) {
-          moreTitle.style.display = 'block';
-          suggestions.forEach(o => more.appendChild(Shared.makeCard(o, { wallet:false })));
-        } else {
-          moreTitle.style.display = 'none';
-        }
-      }
-
-      // Restore UI inputs
-      if (state.q) document.getElementById('q').value = state.q;
-
-      // Event handlers
-      document.getElementById('apply').onclick = ()=>{
-        state.q = document.getElementById('q').value.trim();
-        state.brand = document.getElementById('brand').value;
-        Shared.writeQuery(state); render();
-      };
-      document.getElementById('clear').onclick = ()=>{
-        state.q=''; state.brand=''; state.category='';
-        Shared.writeQuery(state);
-        document.getElementById('q').value=''; document.getElementById('brand').value='';
-        Shared.renderCategoryChips(catsEl, state, ()=>{ Shared.writeQuery(state); render(); });
+      document.getElementById('btn-near').onclick = async ()=>{
+        state.sortNearby = !state.sortNearby;
+        document.getElementById('btn-near').textContent = state.sortNearby ? '📍 Sorted by Nearby' : '📍 Sort by Nearby';
+        if (state.sortNearby) await Shared.computeNearbySort();
         render();
       };
-      document.getElementById('q').addEventListener('input', Shared.debounce(()=>{
-        state.q = document.getElementById('q').value.trim(); Shared.writeQuery(state); render();
-      }, 250));
-      document.getElementById('brand').addEventListener('change', ()=>{
-        state.brand = document.getElementById('brand').value; Shared.writeQuery(state); render();
-      });
 
-      // Re-render when favorites change in another tab
-      window.addEventListener('storage', (e)=>{ if (e.key === 'acp_saved_offers') render(); });
+      async function render(){
+        const savedIds = new Set(Shared.getSaved());
+        const subset = all.filter(o => savedIds.has(o.id));
+        document.getElementById('count').textContent = subset.length;
 
-      // Try to compute brand distances for distance badges
-      await Shared.computeNearbySort();
+        let rows = Shared.applyFilter(subset, state);
+        if (state.sortNearby) {
+          if (!Shared.__nearbyReady) { await Shared.computeNearbySort(); Shared.__nearbyReady = true; }
+          rows = Shared.sortByNearby(rows);
+        }
 
-      render();
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        rows.forEach(o => grid.appendChild(Shared.makeCard(o, {wallet:true})));
+
+        // Suggestions (unsaved but similar)
+        const sug = Shared.suggest(all, state, 8);
+        const wrap = document.getElementById('suggest');
+        document.getElementById('moreTitle').style.display = sug.length ? 'block' : 'none';
+        wrap.innerHTML = '';
+        sug.forEach(o => wrap.appendChild(Shared.makeCard(o)));
+      }
+
+      await render();
+    })();
+
+    // SW register
+    (function(){
+      if (!('serviceWorker' in navigator)) return;
+      const SW_VERSION = '6';
+      navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache: 'none' })
+        .then(reg => {
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!window.__swReloaded) { window.__swReloaded = true; location.reload(); }
+          });
+          reg.update();
+        }).catch(()=>{});
     })();
   </script>
 </body>
