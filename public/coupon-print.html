@@ -61,6 +61,7 @@
       background:var(--accent);
       text-decoration:none;
     }
+    #cta[disabled]{ opacity:.55; pointer-events:none }
 
     .panel{border:1px solid var(--border);border-radius:12px;
       padding:12px;margin-top:10px;}
@@ -123,14 +124,18 @@
 
 <script>
 (async function(){
-  const id = new URL(location.href).searchParams.get('offer');
-  if(!id) return document.getElementById('title').textContent='Missing offer id';
+  const url = new URL(location.href);
+  const id = url.searchParams.get('offer');
+  if(!id) { document.getElementById('title').textContent='Missing offer id'; return; }
+
+  // ✅ Attribution source: default to print1 (can override via ?src=)
+  const src = url.searchParams.get('src') || 'print1';
 
   const o = await fetch('/api/offer/' + encodeURIComponent(id)).then(r=>r.json());
 
   document.documentElement.style.setProperty('--accent', o.brand_color || '#111827');
 
-  document.getElementById('title').textContent = o.title;
+  document.getElementById('title').textContent = o.title || id;
   document.getElementById('brand').textContent = o.restaurant || '';
   document.getElementById('desc').textContent = o.description || '';
   document.getElementById('fine').textContent = o.fine_print || '';
@@ -143,15 +148,19 @@
   }
 
   document.getElementById('hero').src = o.hero_image || o.logo || '';
-  document.getElementById('qr').src   = '/qr?offer=' + encodeURIComponent(id);
-  document.getElementById('cta').href = '/coupon?offer=' + encodeURIComponent(id);
+
+  // ✅ Updated QR + CTA with source attribution
+  document.getElementById('qr').src   = '/qr?offer=' + encodeURIComponent(id) + '&src=' + encodeURIComponent(src);
+  const cta = document.getElementById('cta');
+  cta.href = '/coupon?offer=' + encodeURIComponent(id) + '&src=' + encodeURIComponent(src);
 
   const exp = Number(o.expires_days || 0);
   const badge = document.getElementById('expires');
   if (exp <= 0){
     badge.textContent = 'Expired';
     badge.classList.add('neutral');
-    document.getElementById('cta').remove();
+    cta.setAttribute('disabled','');
+    cta.href = 'javascript:void(0)';
   } else if (exp <= 3){
     badge.textContent = `Expires in ${exp} day${exp===1?'':'s'}`;
     badge.classList.add('danger');
@@ -159,7 +168,7 @@
     badge.textContent = `Expires in ${exp} days`;
   }
 
-  if (new URL(location.href).searchParams.get('autoprint') === '1'){
+  if (url.searchParams.get('autoprint') === '1'){
     setTimeout(()=>window.print(), 300);
   }
 })();
