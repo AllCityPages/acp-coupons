@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css?v=8">
+  <!-- Cache-busted CSS -->
+  <link rel="stylesheet" href="/theme.css?v=9">
 </head>
 <body>
   <div class="site">
@@ -16,7 +17,7 @@
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
       </div>
-      <!-- New: Always-present My Wallet button -->
+      <!-- Always-present My Wallet button -->
       <nav style="margin-left:auto">
         <a class="btn" href="/wallet.html">⭐ My Wallet</a>
       </nav>
@@ -43,7 +44,8 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=8"></script>
+  <!-- Cache-busted JS (defer so it runs after HTML parse) -->
+  <script src="/shared.js?v=9" defer></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json());
@@ -70,7 +72,6 @@
       };
       document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
 
-      // Precompute nearby distances (if allowed) then render
       try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
       render();
     })();
