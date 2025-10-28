@@ -81,7 +81,6 @@ const Shared = (function(){
 
   /* -------------------- Expiration + counters -------------------- */
   function expiryInfo(o){
-    // Listing view uses relative expires_days as remaining time
     const days = Number(o.expires_days || 0);
     const remaining = Math.max(0, Math.floor(days));
     let cls='warn', label=`Expires in ${remaining} days`;
@@ -106,8 +105,9 @@ const Shared = (function(){
     if (!pos) return;
     _nearby.lat = pos.coords.latitude; _nearby.lng = pos.coords.longitude;
 
-    // Query backend for stores near large radius; map by brand name
-    const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`).then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
+    const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`)
+      .then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
+
     _nearby.brandDist = new Map();
     list.forEach(s => { if (isFinite(s.distanceKm)) _nearby.brandDist.set((s.brand||'').toLowerCase(), s.distanceKm); });
   }
@@ -181,7 +181,6 @@ const Shared = (function(){
     const expb = document.createElement('span'); expb.className = `badge ${exp.cls}`; expb.textContent = exp.label; meta.appendChild(expb);
     const redb = document.createElement('span'); redb.className = 'badge ok'; redb.textContent = `${(stats.redeemed||0)} redeemed`; meta.appendChild(redb);
 
-    // distance (if available)
     if (_nearby.brandDist && _nearby.brandDist.size){
       const dist = _nearby.brandDist.get((o.restaurant||'').toLowerCase());
       if (isFinite(dist)){
@@ -191,10 +190,8 @@ const Shared = (function(){
     }
     body.appendChild(meta);
 
-    // Buttons row
     const row = document.createElement('div'); row.className='btnrow'; body.appendChild(row);
 
-    // CTA (brand-tinted)
     const cta = document.createElement('a');
     cta.className = 'btn btn-cta';
     cta.textContent = opts.wallet ? 'Use Now' : 'Tap to Redeem';
@@ -204,7 +201,6 @@ const Shared = (function(){
     if (exp.expired){ cta.setAttribute('disabled',''); cta.href = 'javascript:void(0)'; }
     row.appendChild(cta);
 
-    // Favorite toggle
     const fav = document.createElement('button'); fav.className='btn';
     const setFav = ()=>{
       const saved = isSaved(o.id);
@@ -217,10 +213,16 @@ const Shared = (function(){
     };
     setFav(); row.appendChild(fav);
 
-    // Add to wallet (explicit label)
     const add = document.createElement('button'); add.className='btn'; add.textContent='Add to Wallet';
     add.onclick = ()=>{ save(o.id); setFav(); };
     row.appendChild(add);
+
+    // ✅ PRINT BUTTON added!
+    const printBtn = document.createElement('a');
+    printBtn.className = 'btn';
+    printBtn.textContent = 'Print';
+    printBtn.href = `/coupon-print.html?offer=${encodeURIComponent(o.id)}`;
+    row.appendChild(printBtn);
 
     return el;
   }
@@ -229,17 +231,15 @@ const Shared = (function(){
   function suggest(all, state, n=8){
     const saved = new Set(getSaved());
     const pool = all.filter(o => !saved.has(o.id));
-    // Prefer same category, then same brand, else any
     const cat = (state.category||'').toLowerCase();
     const brand = (state.brand||'').toLowerCase();
     const byCat = pool.filter(o => (o.category||'').toLowerCase() === cat && cat);
     const byBrand = pool.filter(o => (o.restaurant||'').toLowerCase() === brand && brand);
     const rest = pool.filter(o => !byCat.includes(o) && !byBrand.includes(o));
-    const out = [...byCat, ...byBrand, ...rest].slice(0, n);
-    return out;
+    return [...byCat, ...byBrand, ...rest].slice(0, n);
   }
 
-  /* -------------------- Nearby alerts (one-off) -------------------- */
+  /* -------------------- Nearby alerts (manual toggle) -------------------- */
   async function enableNearbyAlerts(){
     try{
       const perm = await Notification.requestPermission();
@@ -257,25 +257,16 @@ const Shared = (function(){
     }catch(e){ alert('Unable to enable alerts.'); }
   }
 
-  /* Expose */
   return {
-    // state
     readQuery, writeQuery, debounce,
-    // wallet
     getSaved, isSaved, save, remove,
-    // filters + chips
     populateBrandFilter, applyFilter, renderCategoryChips,
-    // cards + suggestions
     makeCard, suggest,
-    // notify / nearby
     renderNotifyCTA, enableNearbyAlerts,
     computeNearbySort, sortByNearby,
-    // internal caches
     get __nearbyReady(){ return Boolean(_nearby.brandDist && _nearby.brandDist.size); },
-    set __nearbyReady(v){ /* marker only */ },
-
-    // preload counters once for current page render
-    getStats, 
+    set __nearbyReady(v){ },
+    getStats,
   };
 })();
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
