@@ -491,6 +491,35 @@ app.get('/api/offer-stats', async (_req, res) => {
   res.json({ stats });
 });
 
+// === Printable coupon support ===============================
+
+// Full metadata for printing
+app.get('/api/offer/:id', async (req, res) => {
+  const { offers } = await loadCatalog();
+  const id = req.params.id;
+  const o = offers[id];
+  if (!o) return res.status(404).json({ error: 'Offer not found' });
+  res.json({ id, ...o });
+});
+
+// High-res QR that issues a fresh one-time pass
+app.get('/qr', async (req, res) => {
+  const id = (req.query.offer || '').toString();
+  if (!id) return res.status(400).send('Missing offer');
+
+  const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const issueURL = `${origin}/coupon?offer=${encodeURIComponent(id)}`;
+
+  try {
+    const png = await QRCode.toBuffer(issueURL, { width: 560, margin: 1 });
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(png);
+  } catch (e) {
+    res.status(500).send('QR error');
+  }
+});
+
 // ---------- Start ----------
 app.listen(PORT, () => {
   console.log(`ACP Coupons listening on :${PORT}`);
