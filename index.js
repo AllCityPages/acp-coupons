@@ -1,12 +1,5 @@
 // index.js — ACP Coupons (Node 20.x)
-// Gallery + Wallet + Geo alerts + Analytics (charts) + PDF export
-// ------------------------------------------------------------------
-// ENV you should set in production (Render/Hostinger):
-// - API_KEY                 (admin key for /hub, /report, CSVs, PDF)
-// - COUPON_BASE_URL (or BASE_URL)  e.g. https://acp-coupons.onrender.com
-// Optional:
-// - CLIENT_*_TOKEN if you’ll gate client dashboards with shared tokens
-// ------------------------------------------------------------------
+// Light marketplace UI + Wallet + Geo alerts + Analytics + CSV/PDF + SW cache control
 
 const express = require('express');
 const path = require('path');
@@ -20,7 +13,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Simple CORS
+// ---------- CORS ----------
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-api-key');
@@ -29,19 +22,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// ---- ENV ----
+// ---------- ENV ----------
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || '';
 const RAW_BASE = (process.env.COUPON_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
-const BASE_URL = RAW_BASE || ''; // falls back to relative links in HTML if not set
+const BASE_URL = RAW_BASE || ''; // falls back to relative links
 
-// ---- PATHS ----
+// ---------- PATHS ----------
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, 'data');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DB_FILE = path.join(DATA_DIR, 'db.json');          // { passes:[], redemptions:[] }
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');  // { events:[] }
-const OFFERS_FILE = path.join(ROOT, 'offers.json');      // catalog you maintain at repo root
+const OFFERS_FILE = path.join(ROOT, 'offers.json');      // offer catalog (root)
 const STORES_FILE = path.join(ROOT, 'stores.json');      // optional store list
 
 // Ensure dirs/files
@@ -50,7 +43,7 @@ if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({ passes:[], redemptions:[] }, null, 2));
 if (!fs.existsSync(EVENTS_FILE)) fs.writeFileSync(EVENTS_FILE, JSON.stringify({ events:[] }, null, 2));
 
-// Helpers
+// ---------- Helpers ----------
 const nowISO   = () => new Date().toISOString();
 const randHex  = (n=16) => crypto.randomBytes(n).toString('hex');
 const sha12    = s => crypto.createHash('sha256').update(s).digest('hex').slice(0,12);
@@ -60,43 +53,47 @@ const csvEsc   = v => {
   const s = (v ?? '').toString();
   return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
 };
-
-// CSV sender (fixes the quote bug and adds BOM for Excel)
 function sendCsv(res, filename, csvString) {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.status(200).send('\uFEFF' + csvString);
 }
 
-// Static + legacy /static
-app.use(express.static(PUBLIC_DIR, { extensions: ['html'] }));
+// ---------- Static with proper cache headers ----------
+app.use(express.static(PUBLIC_DIR, {
+  extensions: ['html'],
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache'); res.setHeader('Expires', '0');
+    } else if (/\.(css|js|mjs|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf)$/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  }
+}));
 app.use('/static', express.static(PUBLIC_DIR));
 
-// Health
-app.get('/health', (_req, res) => res.json({ ok:true, time:nowISO() }));
-
-// --- Explicit MIME-correct routes for the files you asked about -----
-app.get('/offers.json', (_req, res) => {
-  // Serve the catalog you keep at repo root with proper JSON type
-  res.type('application/json; charset=utf-8');
-  res.sendFile(OFFERS_FILE);
-});
-
-app.get('/manifest.json', (_req, res) => {
-  // PWA manifest should be served as application/manifest+json
-  res.type('application/manifest+json; charset=utf-8');
-  res.sendFile(path.join(PUBLIC_DIR, 'manifest.json'));
-});
-
-app.get('/service-worker.js', (_req, res) => {
-  // Ensure the SW can control root; avoid wrong MIME (must be JS)
+// Serve SW with no-cache and correct MIME so it updates immediately
+app.get('/service-worker.js', (req, res) => {
   res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.type('application/javascript; charset=utf-8');
   res.sendFile(path.join(PUBLIC_DIR, 'service-worker.js'));
 });
 
+// Health
+app.get('/health', (_req, res) => res.json({ ok:true, time:nowISO() }));
+
+// Explicit MIME-correct catalog/PWA routes
+app.get('/offers.json', (_req, res) => {
+  res.type('application/json; charset=utf-8');
+  res.sendFile(OFFERS_FILE);
+});
+app.get('/manifest.json', (_req, res) => {
+  res.type('application/manifest+json; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'manifest.json'));
+});
 app.get('/redeem.html', (_req, res) => {
-  // Explicit content-type for the cashier page
   res.type('text/html; charset=utf-8');
   res.sendFile(path.join(PUBLIC_DIR, 'redeem.html'));
 });
@@ -205,13 +202,15 @@ app.post('/api/redeem', async (req, res) => {
   res.json({ ok:true, token_hash: pass.token_hash, redeemed_at: pass.redeemed_at });
 });
 
-// ---------- Offers & Wallet APIs ----------
+// ---------- Public Offers API ----------
 app.get('/api/offers', async (_req, res) => {
   const { offers } = await loadCatalog();
   const rows = Object.entries(offers).map(([id, o]) => ({
     id,
     title: o.title || id,
     restaurant: o.restaurant || '',
+    description: o.description || '',
+    category: o.category || '',
     hero_image: o.hero_image || o.logo || '',
     brand_color: o.brand_color || '#111827',
     accent_color: o.accent_color || '#2563eb',
@@ -221,6 +220,7 @@ app.get('/api/offers', async (_req, res) => {
   res.json({ offers: rows });
 });
 
+// ---------- Events ----------
 app.post('/api/save', async (req, res) => {
   const { offer_id } = req.body || {};
   const ev = await jread(EVENTS_FILE, { events:[] });
@@ -237,7 +237,7 @@ app.post('/api/event', async (req, res) => {
   res.json({ ok:true });
 });
 
-// List stores (for redeem.html)
+// ---------- Stores / Nearby ----------
 app.get('/api/stores', async (_req, res) => {
   try {
     const obj = await jread(STORES_FILE, {});
@@ -251,7 +251,6 @@ app.get('/api/stores', async (_req, res) => {
   }
 });
 
-// Nearby helper endpoint (client passes lat/lng, returns nearest within radiusKm)
 app.get('/api/nearby', async (req, res) => {
   const { lat, lng, radiusKm = '2' } = req.query;
   const R = Number(radiusKm) || 2;
@@ -274,7 +273,7 @@ function haversine(lat1, lon1, lat2, lon2){
   return 2*R*Math.asin(Math.sqrt(a));
 }
 
-// ---------- Admin: Hub + CSV + Dashboard + PDF ----------
+// ---------- Admin (Hub, CSV, PDF) ----------
 function requireKey(req, res, next){
   const k = req.header('x-api-key') || req.query.key || '';
   if (!API_KEY) return res.status(500).send('Server missing API_KEY');
@@ -311,7 +310,6 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
   const db = await jread(DB_FILE, { passes:[] });
   const all = db.passes;
 
-  // Filters
   const from = req.query.from ? new Date(req.query.from) : null;
   const to   = req.query.to   ? new Date(req.query.to)   : null;
   const brand = (req.query.brand || '').toLowerCase();
@@ -326,18 +324,15 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
     return true;
   });
 
-  // Quick stats
   const issued = filtered.length;
   const redeemed = filtered.filter(p => p.status === 'redeemed').length;
   const rate = issued ? Math.round(redeemed/issued*1000)/10 : 0;
 
-  // Pie (by restaurant)
   const byBrand = {};
   filtered.forEach(p => { byBrand[p.restaurant] = (byBrand[p.restaurant]||0) + 1; });
   const pieLabels = Object.keys(byBrand);
   const pieData = pieLabels.map(k => byBrand[k]);
 
-  // Line: daily redemptions
   const byDay = {};
   filtered.forEach(p => {
     const day = (p.redeemed_at || p.issued_at || '').slice(0,10);
@@ -347,7 +342,6 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
   const lineLabels = Object.keys(byDay).sort();
   const lineData = lineLabels.map(k => byDay[k]);
 
-  // Heatmap: weekday (0-6) x hour (0-23) of redemptions
   const hm = Array.from({length:7}, ()=>Array(24).fill(0));
   filtered.forEach(p => {
     if (p.status !== 'redeemed' || !p.redeemed_at) return;
@@ -413,7 +407,6 @@ new Chart(document.getElementById('pie'), {
   options:{ responsive:true }
 });
 
-// Heatmap without libs — color cells by value
 (function renderHeat() {
   const host = document.getElementById('heat');
   const max = Math.max(1, ...heat.flat());
@@ -423,8 +416,8 @@ new Chart(document.getElementById('pie'), {
     for(let c=0;c<24;c++){
       const v = heat[r][c];
       const cell = document.createElement('td');
-      const k = v/max; // 0..1
-      cell.style.background = \`hsl(24, 95%, \${Math.round(48 - 28*k)}%)\`; // orange scale
+      const k = v/max;
+      cell.style.background = \`hsl(24, 95%, \${Math.round(48 - 28*k)}%)\`;
       cell.title = \`\${v} at \${c}:00\`;
       tr.appendChild(cell);
     }
@@ -436,7 +429,7 @@ new Chart(document.getElementById('pie'), {
 </body></html>`);
 });
 
-// ---- CSV routes (now using sendCsv) ----
+// ---------- CSV ----------
 app.get('/hub/dashboard/report-analytics.csv', requireKey, async (_req, res) => {
   const db = await jread(DB_FILE, { passes:[] });
   const headers = ['id','offer','restaurant','client_slug','status','issued_at','redeemed_at','redeemed_by_store','redeemed_by_staff','token_hash'];
@@ -457,14 +450,13 @@ app.get('/events.csv', requireKey, async (_req, res) => {
       e.restaurant || '',
       e.client_slug || '',
       JSON.stringify(e.meta || {}),
-      '', // ua omitted in this build
-      ''  // ip omitted in this build
+      '', '', // ua / ip omitted
     ].map(csvEsc).join(','))
   ).join('\n') + '\n';
   return sendCsv(res, 'events.csv', csv);
 });
 
-// ---- PDF export (Puppeteer) ----
+// ---------- PDF ----------
 app.get('/hub/dashboard.pdf', requireKey, async (req, res) => {
   const origin = BASE_URL || `${req.protocol}://${req.get('host')}`;
   const url = `${origin}/hub/dashboard?key=${encodeURIComponent(req.query.key||'')}`;
@@ -480,15 +472,13 @@ app.get('/hub/dashboard.pdf', requireKey, async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="analytics.pdf"');
     res.send(pdf);
-  } finally {
-    await browser.close();
-  }
+  } finally { await browser.close(); }
 });
 
-// ---- Home → Offer Gallery ----
+// ---------- Home ----------
 app.get('/', (_req,res)=> res.redirect('/offers.html'));
 
-// ------- Public aggregate stats per offer (issued & redeemed) -------
+// ---------- Public aggregate stats (issued & redeemed) ----------
 app.get('/api/offer-stats', async (_req, res) => {
   const db = await jread(DB_FILE, { passes:[], redemptions:[] });
   const stats = {};
@@ -501,7 +491,7 @@ app.get('/api/offer-stats', async (_req, res) => {
   res.json({ stats });
 });
 
-// ---- Start ----
+// ---------- Start ----------
 app.listen(PORT, () => {
   console.log(`ACP Coupons listening on :${PORT}`);
 });
