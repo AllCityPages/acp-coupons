@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css">
+  <!-- Cache-busted CSS -->
+  <link rel="stylesheet" href="/theme.css?v=9">
 </head>
 <body>
   <div class="site">
@@ -35,7 +36,8 @@
     </footer>
   </div>
 
-  <script src="/shared.js"></script>
+  <!-- Cache-busted JS (defer so it runs after HTML parse) -->
+  <script src="/shared.js?v=9" defer></script>
   <script>
     (async function init(){
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
@@ -77,7 +79,7 @@
       await render();
     })();
 
-    // SW register
+    // Service Worker (versioned separately from CSS/JS)
     (function(){
       if (!('serviceWorker' in navigator)) return;
       const SW_VERSION = '6';
