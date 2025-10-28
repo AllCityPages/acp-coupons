@@ -1,4 +1,4 @@
-// shared.js — Compact buttons + aligned rows
+// shared.js — compact buttons + print button (v=10)
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -7,10 +7,10 @@ const Shared = (function(){
   let _nearby = { lat:null, lng:null, brandDist: new Map() };
   let _categories = ['All','Burgers','Chicken','Pizza','Mexican','Sandwiches'];
 
-  /* ---------------- Utils ---------------- */
+  /* Utils */
+  const debounce = (fn, ms=300) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
   function readQuery(){
-    const u = new URL(location.href);
-    const st = {};
+    const u = new URL(location.href); const st = {};
     for (const k of QKEYS){ if (u.searchParams.has(k)) st[k]=u.searchParams.get(k); }
     if (st.sortNearby != null) st.sortNearby = st.sortNearby === 'true';
     return st;
@@ -24,7 +24,7 @@ const Shared = (function(){
     history.replaceState(null, '', u.toString());
   }
 
-  /* -------------- Wallet storage -------------- */
+  /* Storage */
   function getSaved(){ try { return JSON.parse(localStorage.getItem(LS_SAVED) || '[]'); } catch { return []; } }
   function isSaved(id){ return getSaved().includes(id); }
   function save(id){
@@ -32,19 +32,12 @@ const Shared = (function(){
     if (!s.includes(id)) { s.push(id); localStorage.setItem(LS_SAVED, JSON.stringify(s)); }
     try{ fetch('/api/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({offer_id:id})}); }catch{}
   }
-  function remove(id){
-    const s = getSaved().filter(x=>x!==id);
-    localStorage.setItem(LS_SAVED, JSON.stringify(s));
-  }
+  function remove(id){ const s = getSaved().filter(x=>x!==id); localStorage.setItem(LS_SAVED, JSON.stringify(s)); }
 
-  /* -------------- Filters -------------- */
+  /* Filters */
   function populateBrandFilter(rows, selectEl){
     const brands = Array.from(new Set(rows.map(r => r.restaurant).filter(Boolean))).sort();
-    brands.forEach(b => {
-      const o = document.createElement('option');
-      o.value = b; o.textContent = b;
-      selectEl.appendChild(o);
-    });
+    brands.forEach(b => { const o = document.createElement('option'); o.value=b; o.textContent=b; selectEl.appendChild(o); });
   }
   function applyFilter(rows, state){
     const q = (state.q||'').toLowerCase();
@@ -58,7 +51,19 @@ const Shared = (function(){
     });
   }
 
-  /* -------------- Counters & expiry -------------- */
+  /* Category chips */
+  function renderCategoryChips(host, state, onChange){
+    host.innerHTML = '';
+    _categories.forEach(name=>{
+      const pill = document.createElement('button');
+      pill.className = 'pill' + ((state.category||'All').toLowerCase() === name.toLowerCase() ? ' active':'');
+      pill.textContent = name;
+      pill.onclick = ()=>{ state.category = name === 'All' ? '' : name; renderCategoryChips(host, state, onChange); onChange(); };
+      host.appendChild(pill);
+    });
+  }
+
+  /* Expiration + stats */
   function expiryInfo(o){
     const days = Number(o.expires_days || 0);
     const remaining = Math.max(0, Math.floor(days));
@@ -74,7 +79,7 @@ const Shared = (function(){
     return _statsCache;
   }
 
-  /* -------------- Nearby -------------- */
+  /* Nearby (distance & sort) */
   async function computeNearbySort(){
     if (!navigator.geolocation) return;
     const pos = await new Promise((resolve,reject)=>{
@@ -82,9 +87,7 @@ const Shared = (function(){
     }).catch(()=>null);
     if (!pos) return;
     _nearby.lat = pos.coords.latitude; _nearby.lng = pos.coords.longitude;
-
-    const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`)
-      .then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
+    const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`).then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
     _nearby.brandDist = new Map();
     list.forEach(s => { if (isFinite(s.distanceKm)) _nearby.brandDist.set((s.brand||'').toLowerCase(), s.distanceKm); });
   }
@@ -96,65 +99,53 @@ const Shared = (function(){
       return da - db;
     });
   }
-  function formatMiles(km){
-    if (!isFinite(km)) return '';
-    const mi = km * 0.621371;
-    return (mi < 10 ? mi.toFixed(1) : Math.round(mi)) + ' mi';
+  function formatMiles(km){ if (!isFinite(km)) return ''; const mi = km * 0.621371; return (mi < 10 ? mi.toFixed(1) : Math.round(mi)) + ' mi'; }
+
+  /* Notify CTA */
+  function renderNotifyCTA(actionbarEl){
+    try{
+      if (!('Notification' in window)) return;
+      if (Notification.permission === 'denied'){
+        const b = document.createElement('button');
+        b.className='chip';
+        b.textContent='🔔 Enable push notifications';
+        b.onclick = async ()=>{ const p = await Notification.requestPermission(); if (p === 'granted') { b.remove(); } };
+        actionbarEl.appendChild(b);
+      }
+    }catch{}
   }
 
-  /* -------------- Card renderer (compact buttons) -------------- */
+  /* Card renderer (compact buttons + print as button) */
   function makeCard(o, opts={}){
     const stats = (_statsCache && _statsCache[o.id]) ? _statsCache[o.id] : { issued:0, redeemed:0 };
     const exp = expiryInfo(o);
 
-    const el = document.createElement('article');
-    el.className = 'card';
+    const el = document.createElement('article'); el.className = 'card';
 
-    const img = document.createElement('img');
-    img.className = 'img';
-    img.src = o.hero_image || '';
-    img.alt = o.title || '';
-    el.appendChild(img);
+    const img = document.createElement('img'); img.className = 'img'; img.src = o.hero_image || ''; img.alt = o.title || ''; el.appendChild(img);
 
-    const body = document.createElement('div');
-    body.className = 'body';
-    el.appendChild(body);
+    const body = document.createElement('div'); body.className = 'body'; el.appendChild(body);
 
-    const h3 = document.createElement('h3');
-    h3.textContent = o.title || o.id;
-    body.appendChild(h3);
+    const h3 = document.createElement('h3'); h3.textContent = o.title || o.id; body.appendChild(h3);
 
-    const brand = document.createElement('div');
-    brand.className = 'brand';
-    brand.textContent = o.restaurant || '';
-    body.appendChild(brand);
+    const brand = document.createElement('div'); brand.className = 'brand'; brand.textContent = o.restaurant || ''; body.appendChild(brand);
 
-    if (o.description){
-      const p = document.createElement('p');
-      p.className='desc';
-      p.textContent = o.description;
-      body.appendChild(p);
-    }
+    if (o.description){ const p = document.createElement('p'); p.className='desc'; p.textContent = o.description; body.appendChild(p); }
 
-    // badges (expiry + redemptions + optional distance)
     const meta = document.createElement('div'); meta.className='meta';
     const expb = document.createElement('span'); expb.className = `badge ${exp.cls}`; expb.textContent = exp.label; meta.appendChild(expb);
     const redb = document.createElement('span'); redb.className = 'badge ok'; redb.textContent = `${(stats.redeemed||0)} redeemed`; meta.appendChild(redb);
     if (_nearby.brandDist && _nearby.brandDist.size){
       const dist = _nearby.brandDist.get((o.restaurant||'').toLowerCase());
-      if (isFinite(dist)){
-        const xb = document.createElement('span'); xb.className='badge ok'; xb.textContent = formatMiles(dist);
-        meta.appendChild(xb);
-      }
+      if (isFinite(dist)){ const xb = document.createElement('span'); xb.className='badge ok'; xb.textContent = formatMiles(dist); meta.appendChild(xb); }
     }
     body.appendChild(meta);
 
-    // Button grid: CTA + Favorite (row 1), Add to Wallet (row 2 full width)
     const row = document.createElement('div'); row.className='btnrow'; body.appendChild(row);
 
-    // CTA (brand tinted)
+    // CTA (brand-tinted)
     const cta = document.createElement('a');
-    cta.className = 'btn btn-cta';
+    cta.className = 'btn btn-cta btn-compact';
     cta.textContent = opts.wallet ? 'Use Now' : 'Tap to Redeem';
     cta.href = `/coupon?offer=${encodeURIComponent(o.id)}`;
     cta.style.background = o.brand_color || 'var(--cta)';
@@ -162,48 +153,64 @@ const Shared = (function(){
     if (exp.expired){ cta.setAttribute('disabled',''); cta.href = 'javascript:void(0)'; }
     row.appendChild(cta);
 
-    // Favorite (star toggler)
-    const fav = document.createElement('button'); fav.className='btn';
-    const setFav = ()=>{
-      const saved = isSaved(o.id);
-      fav.innerHTML = `${saved ? '★' : '☆'} Favorite`;
-    };
-    fav.onclick = ()=>{
-      if (isSaved(o.id)) { remove(o.id); if (opts.wallet) el.remove(); }
-      else { save(o.id); }
-      setFav(); updateAddBtn();
-    };
+    // Favorite / Saved — compact
+    const fav = document.createElement('button'); fav.className='btn btn-compact';
+    const setFav = ()=>{ fav.innerHTML = `${isSaved(o.id) ? '★ Saved ✓' : '☆ Favorite'}`; fav.className = 'btn btn-compact ' + (isSaved(o.id) ? 'btn-soft' : 'btn-outline'); };
+    fav.onclick = ()=>{ if (isSaved(o.id)) { remove(o.id); if (opts.wallet) el.remove(); } else { save(o.id); } setFav(); };
     setFav(); row.appendChild(fav);
 
-    // Add to Wallet (full-width second row)
-    const add = document.createElement('button'); add.className='btn btn-outline btn-span-2';
-    function updateAddBtn(){
-      const saved = isSaved(o.id);
-      if (saved){ add.textContent = 'Saved ✓'; add.setAttribute('disabled',''); }
-      else { add.textContent = 'Add to Wallet'; add.removeAttribute('disabled'); }
-    }
-    add.onclick = ()=>{ if (!isSaved(o.id)) { save(o.id); updateAddBtn(); setFav(); } };
-    updateAddBtn();
+    // Add to Wallet — compact, outline
+    const add = document.createElement('button'); add.className='btn btn-compact btn-outline'; add.textContent='Add to Wallet';
+    add.onclick = ()=>{ save(o.id); setFav(); };
     row.appendChild(add);
 
-    // Optional small print link below
+    // Print — NEW: actual button (compact)
     const print = document.createElement('a');
-    print.className = 'link';
+    print.className = 'btn btn-compact btn-outline';
     print.textContent = 'Print';
     print.href = `/coupon-print.html?offer=${encodeURIComponent(o.id)}`;
-    body.appendChild(print);
+    row.appendChild(print);
 
     return el;
   }
 
+  /* Suggestions for wallet */
+  function suggest(all, state, n=8){
+    const saved = new Set(getSaved());
+    const pool = all.filter(o => !saved.has(o.id));
+    const cat = (state.category||'').toLowerCase();
+    const brand = (state.brand||'').toLowerCase();
+    const byCat = pool.filter(o => (o.category||'').toLowerCase() === cat && cat);
+    const byBrand = pool.filter(o => (o.restaurant||'').toLowerCase() === brand && brand);
+    const rest = pool.filter(o => !byCat.includes(o) && !byBrand.includes(o));
+    return [...byCat, ...byBrand, ...rest].slice(0, n);
+  }
+
+  /* Nearby alerts */
+  async function enableNearbyAlerts(){
+    try{
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return alert('Notifications are blocked.');
+      if (!navigator.geolocation) return alert('Location not available.');
+      navigator.geolocation.getCurrentPosition(async (pos)=>{
+        const { latitude, longitude } = pos.coords;
+        fetch(`/api/event`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type:'enable_nearby', meta:{ latitude, longitude } }) });
+        alert('Nearby alerts enabled for this device.');
+      }, ()=>alert('Could not get your location.'));
+    }catch(e){ alert('Unable to enable alerts.'); }
+  }
+
+  /* Expose */
   return {
-    readQuery, writeQuery,
+    readQuery, writeQuery, debounce,
     getSaved, isSaved, save, remove,
-    populateBrandFilter, applyFilter,
-    makeCard,
-    getStats, computeNearbySort, sortByNearby,
+    populateBrandFilter, applyFilter, renderCategoryChips,
+    makeCard, suggest,
+    renderNotifyCTA, enableNearbyAlerts,
+    computeNearbySort, sortByNearby,
     get __nearbyReady(){ return Boolean(_nearby.brandDist && _nearby.brandDist.size); },
     set __nearbyReady(v){ /* marker only */ },
+    getStats,
   };
 })();
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
