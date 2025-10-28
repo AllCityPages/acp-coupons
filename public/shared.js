@@ -1,4 +1,4 @@
-// shared.js — compact buttons + print button (v=10)
+// shared.js — compact buttons & print button (v=11)
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -86,8 +86,9 @@ const Shared = (function(){
       navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy:true, timeout:10000 });
     }).catch(()=>null);
     if (!pos) return;
-    _nearby.lat = pos.coords.latitude; _nearby.lng = pos.coords.longitude;
-    const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`).then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    _nearby.lat = lat; _nearby.lng = lng;
+    const list = await fetch(`/api/nearby?lat=${lat}&lng=${lng}&radiusKm=50`).then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
     _nearby.brandDist = new Map();
     list.forEach(s => { if (isFinite(s.distanceKm)) _nearby.brandDist.set((s.brand||'').toLowerCase(), s.distanceKm); });
   }
@@ -115,7 +116,7 @@ const Shared = (function(){
     }catch{}
   }
 
-  /* Card renderer (compact buttons + print as button) */
+  /* Card renderer — ALL buttons = compact rectangle (24px / 12px) */
   function makeCard(o, opts={}){
     const stats = (_statsCache && _statsCache[o.id]) ? _statsCache[o.id] : { issued:0, redeemed:0 };
     const exp = expiryInfo(o);
@@ -143,7 +144,7 @@ const Shared = (function(){
 
     const row = document.createElement('div'); row.className='btnrow'; body.appendChild(row);
 
-    // CTA (brand-tinted)
+    // CTA
     const cta = document.createElement('a');
     cta.className = 'btn btn-cta btn-compact';
     cta.textContent = opts.wallet ? 'Use Now' : 'Tap to Redeem';
@@ -153,18 +154,18 @@ const Shared = (function(){
     if (exp.expired){ cta.setAttribute('disabled',''); cta.href = 'javascript:void(0)'; }
     row.appendChild(cta);
 
-    // Favorite / Saved — compact
+    // Favorite / Saved
     const fav = document.createElement('button'); fav.className='btn btn-compact';
-    const setFav = ()=>{ fav.innerHTML = `${isSaved(o.id) ? '★ Saved ✓' : '☆ Favorite'}`; fav.className = 'btn btn-compact ' + (isSaved(o.id) ? 'btn-soft' : 'btn-outline'); };
+    const setFav = ()=>{ const saved = isSaved(o.id); fav.textContent = saved ? 'Saved ✓' : '☆ Favorite'; fav.className = 'btn btn-compact ' + (saved ? 'btn-soft' : 'btn-outline'); };
     fav.onclick = ()=>{ if (isSaved(o.id)) { remove(o.id); if (opts.wallet) el.remove(); } else { save(o.id); } setFav(); };
     setFav(); row.appendChild(fav);
 
-    // Add to Wallet — compact, outline
+    // Add to Wallet
     const add = document.createElement('button'); add.className='btn btn-compact btn-outline'; add.textContent='Add to Wallet';
     add.onclick = ()=>{ save(o.id); setFav(); };
     row.appendChild(add);
 
-    // Print — NEW: actual button (compact)
+    // Print — styled like the others
     const print = document.createElement('a');
     print.className = 'btn btn-compact btn-outline';
     print.textContent = 'Print';
