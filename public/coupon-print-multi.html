@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Printable Coupon — 4-Up</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    @page { size: Letter; margin: 0.5in; }
+    :root{ --ink:#111827; --muted:#4b5563; --border:#e5e7eb; --accent:#111827; }
+    html,body{ background:#fff; color:var(--ink); font-family:ui-sans-serif,system-ui,Arial; }
+
+    .sheet{ max-width: 8.5in; margin: 0 auto; }
+    .toolbar{ margin: 8px 0 10px; display:flex; gap:10px }
+    .btn{ padding:8px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; font-weight:700; cursor:pointer }
+    @media print { .toolbar{ display:none } }
+
+    /* 2x2 grid with cut lines */
+    .grid{ display:grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 18px; position:relative; }
+
+    /* Cut lines */
+    .grid:before, .grid:after{
+      content:''; position:absolute; left:50%; top:0; bottom:0; border-left:1px dashed #9ca3af;
+    }
+    .grid:after{
+      left:0; right:0; top:50%; bottom:auto; border-left:none; border-top:1px dashed #9ca3af;
+    }
+
+    .card{
+      border:1px solid #e5e7eb; border-radius:14px; padding:12px; display:grid; grid-template-columns: 2fr 1fr; gap:10px;
+      box-shadow: 0 6px 16px rgba(16,24,40,.05);
+    }
+    .title{ font-size:18px; font-weight:800; line-height:1.2; margin:0 0 4px }
+    .brand{ font-size:12px; color:#6b7280; margin-bottom:6px }
+    .hero{ border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; background:#f9fafb; display:flex; align-items:center; justify-content:center }
+    .hero img{ width:100%; height:auto; object-fit:cover }
+    .qrbox{ text-align:center }
+    .qr{ width:100%; max-width:200px; margin:0 auto 8px }
+    .cta{ display:inline-block; padding:8px 12px; border-radius:999px; color:#fff; text-decoration:none; font-weight:800; background: var(--accent) }
+    .fine{ font-size:10px; color:#6b7280; margin-top:8px }
+    .badge{ display:inline-block; font-size:11px; border:1px solid #e5e7eb; border-radius:999px; padding:4px 8px; margin-top:6px }
+    .danger{ background:#fee2e2; border-color:#fecaca; color:#b91c1c }
+    .neutral{ background:#f3f4f6; color:#6b7280 }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <div class="toolbar">
+      <button class="btn" onclick="window.print()">🖨️ Print</button>
+      <a href="/offers.html" class="btn">← Back</a>
+      <a id="dl" class="btn" href="#">⬇️ Download PDF</a>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </div>
+
+<script>
+(async function(){
+  const u = new URL(location.href);
+  const id = u.searchParams.get('offer');
+  if (!id) { document.body.innerHTML = '<p style="padding:20px">Missing offer id</p>'; return; }
+
+  const src = u.searchParams.get('src') || 'print4';
+
+  const o = await fetch('/api/offer/' + encodeURIComponent(id)).then(r=>r.json());
+  document.documentElement.style.setProperty('--accent', o.brand_color || '#111827');
+
+  const grid = document.getElementById('grid');
+
+  const exp = Number(o.expires_days || 0);
+  const expLabel = exp <= 0 ? 'Expired' : (exp <= 3 ? `Expires in ${exp} day${exp===1?'':'s'}` : `Expires in ${exp} days`);
+  const expClass = exp <= 0 ? 'neutral' : (exp <= 3 ? 'danger' : '');
+
+  function one(){
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `
+      <div>
+        <div class="title">${o.title || id}</div>
+        <div class="brand">${o.restaurant || ''}</div>
+        <div class="hero"><img src="${o.hero_image || o.logo || ''}" alt=""></div>
+        <div class="badge ${expClass}">${expLabel}</div>
+        <div class="fine">${o.fine_print || 'Valid at participating locations. One redemption per customer.'}</div>
+      </div>
+      <div class="qrbox">
+        <img class="qr" src="/qr?offer=${encodeURIComponent(id)}&src=${encodeURIComponent(src)}" alt="QR">
+        <a class="cta" href="/coupon?offer=${encodeURIComponent(id)}&src=${encodeURIComponent(src)}">Use Now</a>
+      </div>
+    `;
+    return el;
+  }
+
+  // Render 4 identical coupons
+  grid.appendChild(one());
+  grid.appendChild(one());
+  grid.appendChild(one());
+  grid.appendChild(one());
+
+  // Download PDF link
+  const dl = document.getElementById('dl');
+  dl.href = `/coupon-print.pdf?offer=${encodeURIComponent(id)}&per=4&src=${encodeURIComponent(src)}`;
+
+  if (u.searchParams.get('autoprint') === '1') setTimeout(()=>window.print(), 300);
+})();
+</script>
+</body>
+</html>
