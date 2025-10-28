@@ -1,33 +1,25 @@
-/* theme.css — Light marketplace theme (Option A) */
-
+/* theme.css — Compact marketplace theme */
 :root{
   --bg:#ffffff;
   --ink:#111827;
   --muted:#5b6577;
   --panel:#ffffff;
   --border:#e5e7eb;
-  --shadow:0 10px 24px rgba(16,24,40,.06);
-  --radius:16px;
+  --shadow:0 8px 24px rgba(16,24,40,.06);
+  --radius:14px;
 
-  --brand:#111827;         /* header text color */
-  --bar:#ffd400;           /* yellow action bar */
+  --brand:#111827;           /* header text color */
+  --bar:#ffd400;             /* yellow action bar */
   --bar-ink:#111827;
 
-  --pill:#f3f4f6;
-  --pill-ink:#111827;
-
-  --cta:#111827;           /* fallback CTA if no brand_color */
-  --cta-ink:#ffffff;
-
-  --ok:#0ea5e9;
-  --warn:#f59e0b;
-  --danger:#ef4444;
-  --neutral:#9ca3af;
+  --cta:#111827;             /* default CTA if no brand_color */
+  --btn-bg:#f8fafc;          /* neutral button bg */
+  --btn-ink:#111827;         /* neutral button text */
+  --btn-brd:#dbe1ea;         /* neutral button border */
 }
 
 html,body{background:var(--bg);color:var(--ink)}
 *{box-sizing:border-box}
-img{max-width:100%;height:auto;display:block}
 
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
 
@@ -35,12 +27,10 @@ img{max-width:100%;height:auto;display:block}
 .logo{
   width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
   background:#e9eef7;border:1px solid #cdd7ea;font-weight:800;color:#1763d1;
-  text-decoration:none;
 }
 .title h1{font-size:18px;line-height:1;margin:0}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* Yellow action bar */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
@@ -48,64 +38,69 @@ img{max-width:100%;height:auto;display:block}
 }
 .actionbar .chip{
   appearance:none;border:0;background:rgba(17,24,39,.07);
-  color:var(--bar-ink);padding:9px 12px;border-radius:999px;font-weight:600;cursor:pointer;
+  color:var(--bar-ink);padding:8px 12px;border-radius:999px;font-weight:600;
 }
 
-/* Category pills row */
-.cats{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}
-.cats .pill{
-  padding:8px 12px;border:1px solid var(--border);border-radius:999px;
-  background:#fff;color:var(--ink);font-weight:600;cursor:pointer;
-}
-.cats .pill.active{background:#111827;color:#fff;border-color:#0f1629}
-
-/* Filters row */
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .input,.select{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
   background:#fff;color:var(--ink);min-width:220px;
 }
 
-/* Grid & cards */
+/* --- Grid --- */
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
-@media (max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:520px){.grid{grid-template-columns:1fr}}
+@media (max-width:1100px){ .grid{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:800px){ .grid{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:520px){ .grid{grid-template-columns:1fr} }
 
+/* --- Card --- */
 .card{
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
-  box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--shadow);
+  overflow:hidden;display:flex;flex-direction:column;
 }
 .card .img{width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa}
-.card .body{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.card h3{margin:0;font-size:18px}
-.card .brand{color:var(--muted);font-size:13px;margin-top:-2px}
-.card .desc{color:#374151;font-size:13px;margin:2px 0 4px}
-.meta{display:flex;gap:8px;flex-wrap:wrap}
+.card .body{padding:12px 14px}
+.card h3{margin:0 0 4px;font-size:18px}
+.card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
+.card .desc{color:#374151;font-size:13px;margin:0 0 12px}
+
+/* badges */
+.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .badge{
-  display:inline-flex;align-items:center;gap:6px;font-size:12px;
-  padding:6px 10px;border-radius:999px;background:#f3f4f6;color:#374151;border:1px solid var(--border)
+  display:inline-block;font-size:12px;padding:6px 10px;border-radius:999px;
+  border:1px solid #e5e7eb;background:#f8fafc;color:#334155;
 }
-.badge.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}      /* orange */
-.badge.danger{background:#fef2f2;border-color:#fecaca;color:#991b1b}    /* red */
-.badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}   /* gray */
-.badge.ok{background:#ecfeff;border-color:#bae6fd;color:#0369a1}        /* blue */
+.badge.warn{background:#fff7ed;border-color:#fed7aa;color:#b45309}
+.badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
+.badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
+.badge.ok{background:#eef2ff;border-color:#dbeafe;color:#1e3a8a}
 
-.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+/* --- Compact buttons --- */
 .btn{
-  display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;
-  border:1px solid var(--border);background:var(--pill);color:var(--pill-ink);
-  font-weight:700;text-decoration:none;cursor:pointer;font-size:14px
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:0 12px;height:36px;line-height:36px;font-weight:700;
+  border-radius:10px;border:1px solid var(--btn-brd);
+  background:var(--btn-bg);color:var(--btn-ink);
+  text-decoration:none;cursor:pointer;user-select:none;
 }
-.btn-cta{
-  background:var(--cta);color:var(--cta-ink);border-color:#0f1629;
-  padding:9px 14px;font-weight:800
-}
-.btn-cta[disabled]{opacity:.5;cursor:not-allowed}
+.btn:disabled{opacity:.55;cursor:not-allowed}
 .btn-outline{background:#fff}
-.btn-danger{background:#fff;border-color:#fca5a5;color:#b91c1c}
+.btn-cta{
+  background:var(--cta);border-color:var(--cta);color:#fff;
+}
 
-.section-title{margin:18px 0 6px;font-size:18px}
+/* Button grid: row1 = 2 columns, row2 = full width */
+.btnrow{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch;
+}
+.btn-span-2{grid-column:1 / -1}
 
-/* Footer */
+/* Subtle link below buttons (optional Print, etc.) */
+.link{
+  display:inline-block;margin-top:10px;color:#475569;
+  text-decoration:none;font-size:13px;
+}
+.link:hover{text-decoration:underline}
+
 .footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
