@@ -26,6 +26,7 @@
       padding:8px 12px;border-radius:10px;
       border:1px solid var(--border);
       background:#fff;cursor:pointer;font-weight:700;
+      text-decoration:none;color:var(--ink);
     }
     @media print { .printbar { display:none } .sheet{ box-shadow:none } }
 
@@ -85,7 +86,8 @@
 <div class="sheet">
   <div class="printbar">
     <button class="btn" onclick="window.print()">🖨️ Print</button>
-    <a href="/offers.html" class="btn">← Back</a>
+    <!-- cache-busted return target -->
+    <a href="/offers.html?v=9" class="btn">← Back</a>
   </div>
 
   <div class="head">
@@ -97,12 +99,10 @@
   </div>
 
   <div class="grid">
-    <div class="hero"><img id="hero" alt=""></div>
+    <div class="hero"><img id="hero" alt="" loading="lazy"></div>
     <div class="qrbox">
-      <img id="qr" alt="QR">
-      <div style="font-size:12px;color:#6b7280">
-        Scan to redeem — one time only
-      </div>
+      <img id="qr" alt="QR" loading="lazy">
+      <div style="font-size:12px;color:#6b7280">Scan to redeem — one time only</div>
       <a id="cta" href="#">Use Now</a>
     </div>
   </div>
@@ -128,7 +128,7 @@
   const id = url.searchParams.get('offer');
   if(!id) { document.getElementById('title').textContent='Missing offer id'; return; }
 
-  // ✅ Attribution source: default to print1 (can override via ?src=)
+  // ✅ Attribution source: default to print1 (override via ?src=)
   const src = url.searchParams.get('src') || 'print1';
 
   const o = await fetch('/api/offer/' + encodeURIComponent(id)).then(r=>r.json());
@@ -150,10 +150,13 @@
   document.getElementById('hero').src = o.hero_image || o.logo || '';
 
   // ✅ Updated QR + CTA with source attribution
-  document.getElementById('qr').src   = '/qr?offer=' + encodeURIComponent(id) + '&src=' + encodeURIComponent(src);
+  const qrUrl  = '/qr?offer=' + encodeURIComponent(id) + '&src=' + encodeURIComponent(src);
+  const ctaUrl = '/coupon?offer=' + encodeURIComponent(id) + '&src=' + encodeURIComponent(src);
+  document.getElementById('qr').src = qrUrl;
   const cta = document.getElementById('cta');
-  cta.href = '/coupon?offer=' + encodeURIComponent(id) + '&src=' + encodeURIComponent(src);
+  cta.href = ctaUrl;
 
+  // Expiration logic (hide CTA when expired)
   const exp = Number(o.expires_days || 0);
   const badge = document.getElementById('expires');
   if (exp <= 0){
