@@ -21,8 +21,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip">📍 Show deals near me</button>
-      <a class="chip" href="/wallet.html">⭐ My Wallet</a>
-      <a class="chip" href="/wallet.html">☆ My Favorites</a>
+      <a class="chip" href="/wallet.html?v=11">⭐ My Wallet</a>
+      <a class="chip" href="/wallet.html?v=11">☆ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -44,7 +44,11 @@
   <script src="/shared.js?v=11"></script>
   <script>
     (async function init(){
-      const data = await fetch('/api/offers').then(r=>r.json());
+      const V = '11'; // cache-buster for API + assets
+
+      // ✅ Bust any stale cached /api/offers on mobile
+      const data = await fetch('/api/offers?v=' + V).then(r=>r.json());
+
       Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
       const state = { q:'', brand:'', category:'', sortNearby:false };
 
@@ -70,6 +74,14 @@
 
       try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
       render();
+
+      // ✅ SW (optional) — bump to make sure phone refreshes it
+      if ('serviceWorker' in navigator){
+        const SW_VERSION = '7';
+        navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
+          .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
+          .catch(()=>{});
+      }
     })();
   </script>
 </body>
