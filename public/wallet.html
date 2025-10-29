@@ -6,8 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <!-- Cache-busted CSS -->
-  <link rel="stylesheet" href="/theme.css?v=14">
+  <link rel="stylesheet" href="/theme.css?v=11">
 </head>
 <body>
   <div class="site">
@@ -36,8 +35,7 @@
     </footer>
   </div>
 
-  <!-- Cache-busted JS (defer so it runs after HTML parse) -->
-  <script src="/shared.js?v=14" defer></script>
+  <script src="/shared.js?v=11"></script>
   <script>
     (async function init(){
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
@@ -68,7 +66,6 @@
         grid.innerHTML = '';
         rows.forEach(o => grid.appendChild(Shared.makeCard(o, {wallet:true})));
 
-        // Suggestions (unsaved but similar)
         const sug = Shared.suggest(all, state, 8);
         const wrap = document.getElementById('suggest');
         document.getElementById('moreTitle').style.display = sug.length ? 'block' : 'none';
@@ -79,18 +76,13 @@
       await render();
     })();
 
-    // Service Worker (versioned separately from CSS/JS)
+    /* SW (optional) — keep version aligned with CSS/JS */
     (function(){
       if (!('serviceWorker' in navigator)) return;
-      const SW_VERSION = '6';
+      const SW_VERSION = '11';
       navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache: 'none' })
-        .then(reg => {
-          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (!window.__swReloaded) { window.__swReloaded = true; location.reload(); }
-          });
-          reg.update();
-        }).catch(()=>{});
+        .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); reg.update(); })
+        .catch(()=>{});
     })();
   </script>
 </body>
