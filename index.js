@@ -59,6 +59,16 @@ function sendCsv(res, filename, csvString) {
   res.status(200).send('\uFEFF' + csvString);
 }
 
+app.use((req,res,next)=>{
+  if (req.path.startsWith('/api/') || req.path === '/offers.json') {
+    res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma','no-cache');
+    res.setHeader('Expires','0');
+    res.setHeader('Surrogate-Control','no-store');
+  }
+  next();
+});
+
 // ---------- Static with proper cache headers ----------
 app.use(express.static(PUBLIC_DIR, {
   extensions: ['html'],
