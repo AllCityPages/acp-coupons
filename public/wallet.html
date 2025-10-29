@@ -11,7 +11,7 @@
 <body>
   <div class="site">
     <header class="header">
-      <a href="/offers.html" class="logo" title="Back">←</a>
+      <a href="/offers.html?v=11" class="logo" title="Back">←</a>
       <div class="title">
         <h1>My Wallet</h1>
         <p>Saved offers: <span id="count">0</span></p>
@@ -20,7 +20,7 @@
 
     <div id="bar" class="actionbar">
       <button id="btn-near" class="chip">📍 Sort by Nearby</button>
-      <a class="chip" href="/offers.html">↩ Back to Offers</a>
+      <a class="chip" href="/offers.html?v=11">↩ Back to Offers</a>
     </div>
 
     <div id="cats" class="cats"></div>
@@ -38,8 +38,11 @@
   <script src="/shared.js?v=11"></script>
   <script>
     (async function init(){
+      const V = '11'; // cache-buster for API + assets
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
-      const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers);
+
+      // ✅ Bust stale cached /api/offers on mobile
+      const all = await fetch('/api/offers?v=' + V).then(r=>r.json()).then(x=>x.offers);
 
       Shared.renderCategoryChips(document.getElementById('cats'), state, render);
       Shared.renderNotifyCTA(document.getElementById('bar'));
@@ -74,15 +77,14 @@
       }
 
       await render();
-    })();
 
-    /* SW (optional) — keep version aligned with CSS/JS */
-    (function(){
-      if (!('serviceWorker' in navigator)) return;
-      const SW_VERSION = '11';
-      navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache: 'none' })
-        .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); reg.update(); })
-        .catch(()=>{});
+      // ✅ SW (optional) — bump to refresh on phones
+      if ('serviceWorker' in navigator){
+        const SW_VERSION = '7';
+        navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
+          .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
+          .catch(()=>{});
+      }
     })();
   </script>
 </body>
