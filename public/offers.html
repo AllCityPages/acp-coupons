@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css?v=12">
+  <link rel="stylesheet" href="/theme.css?v=11">
 </head>
 <body>
   <div class="site">
@@ -16,6 +16,7 @@
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
       </div>
+      <!-- (v11) no extra My Wallet button on top-right -->
     </header>
 
     <div class="actionbar">
@@ -40,7 +41,7 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=12"></script>
+  <script src="/shared.js?v=11"></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json());
