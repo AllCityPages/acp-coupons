@@ -1,4 +1,4 @@
-/* theme.css — compact rectangle UI (v=11) */
+/* theme.css — Light marketplace theme (v12) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -6,25 +6,28 @@
   --panel:#ffffff;
   --border:#e5e7eb;
   --shadow:0 8px 24px rgba(16,24,40,.06);
+  --radius:16px;
 
-  --brand:#111827;
-  --bar:#ffd400;
+  --brand:#111827;          /* header text color */
+  --bar:#ffd400;            /* yellow action bar */
   --bar-ink:#111827;
 
-  --btn:#111827;        /* primary (CTA) */
+  --btn:#111827;            /* dark pill button */
   --btn-ink:#ffffff;
-  --btn-bg:#ffffff;     /* outline/secondary */
-  --btn-ink-2:#111827;
+  --pill:#f3f4f6;           /* soft gray pill */
+  --pill-ink:#111827;
 
-  --cta:#111827;        /* fallback accent if brand missing */
+  --redeem:#111827;         /* “Tap to Redeem” */
+  --favorite:#f97316;       /* star (optional accent) */
+  --wallet:#0ea5e9;         /* add to wallet (optional) */
 }
 
 html,body{background:var(--bg);color:var(--ink)}
 *{box-sizing:border-box}
 
-.site{max-width:1200px;margin:0 auto;padding:16px 20px}
+.site{ max-width:1200px;margin:0 auto;padding:16px 20px; }
 
-.header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.header{ display:flex;align-items:center;gap:12px;margin-bottom:12px; }
 .logo{
   width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
   background:#e9eef7;border:1px solid #cdd7ea;font-weight:800;color:#1763d1;
@@ -32,31 +35,55 @@ html,body{background:var(--bg);color:var(--ink)}
 .title h1{font-size:18px;line-height:1;margin:0}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
+/* ----- Action bar + compact chips ----- */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
   margin:8px 0 18px;border:1px solid #f2c900;
 }
-.actionbar .chip{
-  appearance:none;border:0;background:rgba(17,24,39,.07);
-  color:var(--bar-ink);padding:8px 12px;border-radius:10px;font-weight:600;
+
+/* 24px-tall compact control used for chips AND mini buttons */
+.compact{
+  --h:24px; --fs:12px; --rad:8px;
+  display:inline-flex;align-items:center;gap:6px;
+  height:var(--h); padding:4px 10px;
+  border-radius:var(--rad);
+  font-size:var(--fs); line-height:14px; font-weight:600;
+  border:1px solid rgba(17,24,39,.12);
+  background:#ffffff; color:var(--ink);
+  cursor:pointer; text-decoration:none;
 }
 
+/* Chips live on yellow bar */
+.actionbar .compact{ box-shadow:0 1px 0 rgba(0,0,0,.04); }
+
+/* Mini buttons elsewhere (Apply / Clear) reuse the same size */
+.btn-mini{ composes: compact; }           /* if your editor supports, else keep both classes */
+.btn-mini{                                  /* duplicated for plain CSS */
+  --h:24px; --fs:12px; --rad:8px;
+  display:inline-flex;align-items:center;gap:6px;
+  height:var(--h); padding:4px 12px;
+  border-radius:var(--rad);
+  font-size:var(--fs); line-height:14px; font-weight:700;
+  border:1px solid var(--border);
+  background:#fff; color:var(--ink);
+}
+
+/* Filters */
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .input, .select{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
   background:#fff;color:var(--ink);min-width:220px;
 }
 
-/* Grid */
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+/* Grid & cards */
+.grid{ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px; }
 @media (max-width:1100px){ .grid{grid-template-columns:repeat(3,1fr)} }
 @media (max-width:800px){ .grid{grid-template-columns:repeat(2,1fr)} }
 @media (max-width:520px){ .grid{grid-template-columns:1fr} }
 
-/* Card */
 .card{
-  background:var(--panel);border:1px solid var(--border);border-radius:16px;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
   box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;
 }
 .card .img{width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa}
@@ -64,46 +91,25 @@ html,body{background:var(--bg);color:var(--ink)}
 .card h3{margin:0 0 4px;font-size:18px}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
+.card .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 
-/* --- Compact rectangle badges --- */
-.meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+/* Badges (also 24px tall to match) */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
-  height:24px; padding:0 8px; border:1px solid var(--border);
-  border-radius:8px; font-size:12px; line-height:1; background:#fff;
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
+  background:#f9fafb;font-size:12px;color:#374151;gap:6px;
 }
-.badge.ok{background:#eef2ff;border-color:#c7d2fe;color:#1d4ed8}
-.badge.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
-.badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
-.badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
+.badge.warn{ background:#fff7ed;border-color:#fde68a;color:#92400e }
+.badge.danger{ background:#fee2e2;border-color:#fecaca;color:#b91c1c }
+.badge.neutral{ background:#f3f4f6;border-color:#e5e7eb;color:#6b7280 }
+.badge.ok{ background:#eef2ff;border-color:#c7d2fe;color:#3730a3 }
 
-/* --- Buttons = same size/shape as badges --- */
-.btnrow{display:flex;gap:8px;flex-wrap:wrap}
-
+/* Larger CTAs (unchanged for cards) */
 .btn{
-  display:inline-flex;align-items:center;justify-content:center;
-  gap:6px;border:1px solid var(--border);background:var(--btn-bg);
-  color:var(--btn-ink-2); text-decoration:none !important; cursor:pointer;
-  border-radius:8px; font-weight:600;
+  display:inline-flex;align-items:center;gap:8px;padding:9px 12px;
+  border-radius:999px;border:1px solid var(--border);background:var(--pill);
+  color:var(--pill-ink);font-weight:600;text-decoration:none;cursor:pointer;
 }
+.btn-cta{ background:var(--btn); color:var(--btn-ink); border-color:#0f1629 }
 
-/* exact badge sizing */
-.btn-compact{height:24px; padding:0 8px; font-size:12px; line-height:1}
-
-/* primary CTA (still compact) */
-.btn-cta{background:var(--btn); color:var(--btn-ink); border-color:#0f1629}
-
-/* secondary variations */
-.btn-outline{background:#fff}
-.btn-soft{background:#f3f4f6;border-color:#e5e7eb;color:#111827}
-
-/* Footer */
-.footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
-
-/* Category chips */
-.cats{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px}
-.pill{
-  border:1px solid var(--border);background:#fff;color:var(--ink);
-  padding:6px 10px;border-radius:10px;font-weight:600;font-size:13px;
-}
-.pill.active{background:#111827;color:#fff;border-color:#0f1629}
+.footer{ text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px; }
