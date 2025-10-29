@@ -1,7 +1,7 @@
-/* service-worker.js — cache v6 */
-const VERSION = 'v6';
+/* service-worker.js — cache v7 (API bypass) */
+const VERSION = 'v7';
 const STATIC_CACHE = `static-${VERSION}`;
-const HTML_CACHE = `html-${VERSION}`;
+const HTML_CACHE   = `html-${VERSION}`;
 const STATIC_ASSETS = [
   '/theme.css',
   '/shared.js',
@@ -9,7 +9,7 @@ const STATIC_ASSETS = [
   '/wallet.html',
 ];
 
-/* Install: pre-cache core assets and take control immediately */
+/* ---------- Install: pre-cache core assets & take control ---------- */
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -17,18 +17,17 @@ self.addEventListener('install', (event) => {
   );
 });
 
-/* Activate: clean old caches and claim clients */
+/* ---------- Activate: clean old caches & claim clients ---------- */
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    const keep = new Set([STATIC_CACHE, HTML_CACHE]);
     const keys = await caches.keys();
-    await Promise.all(
-      keys.filter(k => ![STATIC_CACHE, HTML_CACHE].includes(k)).map(k => caches.delete(k))
-    );
+    await Promise.all(keys.filter(k => !keep.has(k)).map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });
 
-/* Strategy helpers */
+/* ---------- Helpers ---------- */
 async function networkFirstHTML(request) {
   try {
     const net = await fetch(request, { cache: 'no-store' });
@@ -52,19 +51,40 @@ async function cacheFirstStatic(request) {
   }
   return net;
 }
+async function networkOnlyNoStore(request) {
+  // Always hit the network; do not cache results
+  return fetch(request, { cache: 'no-store' });
+}
 
-/* Fetch router */
+/* ---------- Fetch router ---------- */
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  const isHTML = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
-  if (isHTML) { event.respondWith(networkFirstHTML(req)); return; }
+  const url = new URL(req.url);
 
+  // ✅ Never cache API/QR/coupon resources (fresh on every request)
+  const isApi = url.pathname.startsWith('/api/');
+  const isOfferJson = url.pathname === '/offers.json';
+  const isQr = url.pathname.startsWith('/qr');
+  const isCoupon = url.pathname.startsWith('/coupon');
+  if (isApi || isOfferJson || isQr || isCoupon) {
+    event.respondWith(networkOnlyNoStore(req));
+    return;
+  }
+
+  // HTML navigations → network-first (so updates show up), fallback to cache
+  const isHTML = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
+  if (isHTML) {
+    event.respondWith(networkFirstHTML(req));
+    return;
+  }
+
+  // Everything else (css/js/images/fonts) → cache-first
   event.respondWith(cacheFirstStatic(req));
 });
 
-/* Allow page to skip waiting right away */
+/* ---------- Allow pages to trigger immediate activation ---------- */
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
