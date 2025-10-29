@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css?v=14">
+  <link rel="stylesheet" href="/theme.css?v=11">
 </head>
 <body>
   <div class="site">
@@ -16,14 +16,13 @@
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
       </div>
-      <!-- Removed the extra top-right “My Wallet” button -->
+      <!-- (v11) no extra My Wallet button on top-right -->
     </header>
 
-    <!-- Yellow action bar with compact chips -->
     <div class="actionbar">
-      <button id="btn-near" class="compact">📍 Show deals near me</button>
-      <a class="compact" href="/wallet.html">⭐ My Favorites</a>
-      <a class="compact" href="/wallet.html">💼 My Wallet</a>
+      <button id="btn-near" class="chip">📍 Show deals near me</button>
+      <a class="chip" href="/wallet.html">⭐ My Wallet</a>
+      <a class="chip" href="/wallet.html">☆ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -31,9 +30,8 @@
       <select id="brand" class="select">
         <option value="">All brands</option>
       </select>
-      <!-- Compact Apply / Clear -->
-      <button id="apply" class="btn-mini">Apply</button>
-      <button id="clear" class="btn-mini">Clear</button>
+      <button id="apply" class="btn-compact">Apply</button>
+      <button id="clear" class="btn-compact">Clear</button>
     </div>
 
     <section id="grid" class="grid"></section>
@@ -43,7 +41,7 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=14"></script>
+  <script src="/shared.js?v=11"></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json());
@@ -68,13 +66,8 @@
         document.getElementById('brand').value = '';
         state.q=''; state.brand=''; render();
       };
-      document.getElementById('btn-near').onclick = async ()=>{
-        state.sortNearby = true;
-        try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
-        render();
-      };
+      document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
 
-      // Precompute nearby distances (if allowed) then render
       try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
       render();
     })();
