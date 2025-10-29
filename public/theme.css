@@ -1,4 +1,4 @@
-/* theme.css — v11 (stable, updated) */
+/* theme.css — v12 (stable) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -48,7 +48,7 @@ html,body{background:var(--bg);color:var(--ink)}
   background:#fff;color:var(--ink);min-width:220px;
 }
 
-/* Compact rectangular buttons (Apply/Clear/Print etc.) */
+/* Compact rectangular buttons (utility) */
 .btn-compact{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -87,18 +87,30 @@ a.btn-compact{text-decoration:none}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* Legacy pill buttons (kept for compatibility) */
+/* ------------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------------ */
+
+/* Rectangular by default (fixes unwanted pills) */
 .btn{
   display:inline-flex;align-items:center;gap:8px;padding:9px 12px;
-  border-radius:999px;border:1px solid var(--border);
-  background:#f3f4f6;color:#111827;font-weight:600;text-decoration:none;cursor:pointer;
+  border-radius:8px; /* rectangle default */
+  border:1px solid var(--border);
+  background:#f3f4f6;color:#111827;font-weight:600;
+  text-decoration:none;cursor:pointer;
 }
+
+/* Optional legacy pill look (only when explicitly used) */
+.btn-pill{ border-radius:999px; }
+
+/* Outline + disabled */
 .btn-outline{background:#fff}
 .btn[disabled]{opacity:.55;pointer-events:none}
 
+/* Button row wrapper */
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 
-/* Category chips (if used) */
+/* Category chips (separate from .btn) */
 .pill{
   height:24px;padding:0 10px;border-radius:999px;border:1px solid var(--border);
   background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
@@ -108,15 +120,15 @@ a.btn-compact{text-decoration:none}
 .footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
 
 /* ------------------------------------------------------------------
-   NEW OVERRIDES to make card buttons rectangular + compact (v11+)
+   CTA + compact utilities
    ------------------------------------------------------------------ */
 
-/* CTA stays branded but uses compact rectangle */
+/* CTA (still rectangular) */
 .btn-cta{
   background:var(--cta,#111827);
   color:#fff;
   border:1px solid #0f1629;
-  border-radius:8px;  /* override pill */
+  border-radius:8px;
   height:24px;
   padding:0 10px;
   font-size:12px;
@@ -124,12 +136,12 @@ a.btn-compact{text-decoration:none}
   font-weight:700;
 }
 
-/* Any .btn meant to be compact can add this class */
+/* Any .btn can opt into compact height */
 .btn.btn-compact{
   height:24px;
   padding:0 10px;
   font-size:12px;
-  border-radius:8px;  /* override pill */
+  border-radius:8px;
   line-height:1;
 }
 
@@ -141,7 +153,7 @@ a.btn-compact{text-decoration:none}
   border-radius:8px;
 }
 
-/* If you add compact style to yellow-bar chips */
+/* Chips using compact utility */
 .chip.btn-compact{
   background:#fff;
   color:var(--ink);
@@ -151,4 +163,32 @@ a.btn-compact{text-decoration:none}
   padding:0 10px;
   font-size:12px;
   line-height:1;
+}
+
+/* ------------------------------------------------------------------
+   FINAL CARD OVERRIDES (force red-area buttons to match badges)
+   ------------------------------------------------------------------ */
+
+.card .btn,
+.card .btn-outline,
+.card .btn-cta{
+  height:24px;
+  padding:0 10px;
+  font-size:12px;
+  line-height:1;
+  border-radius:8px;
+}
+
+/* CTA inside cards */
+.card .btn-cta{
+  background:var(--cta,#111827);
+  color:#fff;
+  border-color:#0f1629;
+}
+
+/* Outline look inside cards */
+.card .btn-outline{
+  background:#fff;
+  color:var(--ink);
+  border:1px solid var(--border);
 }
