@@ -1,5 +1,4 @@
-<script>
-/* shared.js — v11 (stable) */
+/* shared.js — v11 (stable, updated) */
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -87,7 +86,7 @@ const Shared = (function(){
       if(!('Notification' in window)) return;
       if(Notification.permission==='denied'){
         const b=document.createElement('button');
-        b.className='chip';
+        b.className='chip btn-compact'; /* compact look in yellow bar */
         b.textContent='🔔 Enable push notifications';
         b.onclick=async()=>{const p=await Notification.requestPermission();if(p==='granted'){b.remove();}};
         actionbarEl.appendChild(b);
@@ -122,9 +121,9 @@ const Shared = (function(){
 
     const row=document.createElement('div'); row.className='btnrow'; body.appendChild(row);
 
-    // CTA (large pill, brand tinted)
+    /* CTA — compact rectangle, brand tinted */
     const cta=document.createElement('a');
-    cta.className='btn btn-cta';
+    cta.className='btn btn-cta btn-compact';
     cta.textContent=opts.wallet?'Use Now':'Tap to Redeem';
     cta.href=`/coupon?offer=${encodeURIComponent(o.id)}`;
     cta.style.background=o.brand_color||'var(--cta)';
@@ -132,23 +131,23 @@ const Shared = (function(){
     if(exp.expired){ cta.setAttribute('disabled',''); cta.href='javascript:void(0)'; }
     row.appendChild(cta);
 
-    // Favorite / Saved (large pill)
-    const fav=document.createElement('button'); fav.className='btn';
+    /* Favorite / Saved — compact rectangle */
+    const fav=document.createElement('button'); fav.className='btn btn-compact';
     const setFav=()=>{ const saved=isSaved(o.id); fav.innerHTML = saved ? 'Saved ✓' : '☆ Favorite'; };
     fav.onclick=()=>{ if(isSaved(o.id)){ remove(o.id); if(opts.wallet) el.remove(); } else { save(o.id); } setFav(); };
     setFav(); row.appendChild(fav);
 
-    // Add to Wallet (large pill)
-    const add=document.createElement('button'); add.className='btn'; add.textContent='Add to Wallet';
+    /* Add to Wallet — compact rectangle */
+    const add=document.createElement('button'); add.className='btn btn-compact'; add.textContent='Add to Wallet';
     add.onclick=()=>{ save(o.id); setFav(); };
     row.appendChild(add);
 
-    // Print (compact rectangular v11)
+    /* Print — compact rectangle (outline) */
     const print=document.createElement('a');
-    print.className='btn-compact';
+    print.className='btn btn-outline btn-compact';
     print.textContent='Print';
-    print.href=`/coupon-print.html?offer=${encodeURIComponent(o.id)}`;
-    body.appendChild(print);
+    print.href=`/coupon-print.html?offer=${encodeURIComponent(o.id)}&src=card`;
+    row.appendChild(print);
 
     return el;
   }
@@ -196,4 +195,3 @@ const Shared = (function(){
   };
 })();
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
-</script>
