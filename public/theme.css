@@ -1,4 +1,4 @@
-/* theme.css — v11 (stable) */
+/* theme.css — v11 (stable + compact header chips) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -29,16 +29,21 @@ html,body{background:var(--bg);color:var(--ink)}
 .title h1{font-size:18px;line-height:1;margin:0}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* Yellow action bar + chips (compact) */
+/* Yellow action bar */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
   margin:8px 0 18px;border:1px solid #f2c900;
 }
+/* ⬇️ Make the three header buttons compact, white, outlined like Print */
 .actionbar .chip{
-  appearance:none;border:0;background:rgba(17,24,39,.07);
-  color:var(--bar-ink);padding:0 10px;border-radius:8px;font-weight:700;
-  font-size:12px;height:24px;display:inline-flex;align-items:center;
+  appearance:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;padding:0 10px;border-radius:8px;
+  border:1px solid var(--border);
+  background:#fff;color:var(--ink);
+  font-size:12px;font-weight:700;line-height:1;
+  text-decoration:none;cursor:pointer;
 }
 
 /* Filters */
@@ -48,7 +53,7 @@ html,body{background:var(--bg);color:var(--ink)}
   background:#fff;color:var(--ink);min-width:220px;
 }
 
-/* Compact rectangular buttons for Apply/Clear/Print (v11) */
+/* Compact rectangular buttons for Apply/Clear/Print */
 .btn-compact{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -74,7 +79,7 @@ html,body{background:var(--bg);color:var(--ink)}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
 
-/* Meta badges (compact) */
+/* Meta badges */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -95,10 +100,9 @@ html,body{background:var(--bg);color:var(--ink)}
 .btn-cta{background:var(--cta);color:#fff;border-color:#0f1629}
 .btn-outline{background:#fff}
 .btn[disabled]{opacity:.55;pointer-events:none}
-
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 
-/* Category chips (if used) */
+/* Category chips */
 .pill{
   height:24px;padding:0 10px;border-radius:999px;border:1px solid var(--border);
   background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
