@@ -9,10 +9,10 @@
   --radius:16px;
 
   --brand:#111827;
-  --bar:#ffd400;     /* yellow action bar */
+  --bar:#ffd400;
   --bar-ink:#111827;
 
-  --cta:#111827;     /* fallback CTA fill */
+  --cta:#111827;
 }
 
 html,body{background:var(--bg);color:var(--ink)}
@@ -29,19 +29,26 @@ html,body{background:var(--bg);color:var(--ink)}
 .title h1{font-size:18px;line-height:1;margin:0}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* Yellow action bar + chips (compact) */
+/* Yellow action bar + chips */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
   margin:8px 0 18px;border:1px solid #f2c900;
 }
-.actionbar .chip{
-  appearance:none;border:0;background:rgba(17,24,39,.07);
-  color:var(--bar-ink);padding:0 10px;border-radius:8px;font-weight:700;
-  font-size:12px;height:24px;display:inline-flex;align-items:center;
+
+/* ----- Pico guard: neutralize any external button styles on our components */
+.actionbar .chip, .btn-compact, .btn{
+  -webkit-appearance:none; appearance:none;
 }
 
-/* Filters */
+/* Chips */
+.actionbar .chip{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid transparent;
+  background:rgba(17,24,39,.07);color:var(--bar-ink);
+  font-weight:700;font-size:12px;line-height:1;cursor:pointer;
+}
+
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .input,.select{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
@@ -57,7 +64,7 @@ html,body{background:var(--bg);color:var(--ink)}
 }
 a.btn-compact{text-decoration:none}
 
-/* Card grid */
+/* Grid */
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
 @media (max-width:1100px){ .grid{grid-template-columns:repeat(3,1fr)} }
 @media (max-width:800px){ .grid{grid-template-columns:repeat(2,1fr)} }
@@ -75,7 +82,7 @@ a.btn-compact{text-decoration:none}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
 
-/* Meta badges (compact) */
+/* Badges */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -87,47 +94,27 @@ a.btn-compact{text-decoration:none}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* =========================
-   BUTTONS (rectangular)
-   ========================= */
-
-/* Global buttons used inside cards (replaces old pill style) */
+/* Buttons (rectangular) */
 .btn{
   display:inline-flex;align-items:center;gap:8px;justify-content:center;
-  height:32px;padding:0 14px;
-  border-radius:8px;                 /* ← soft corners */
-  border:1px solid var(--border);
-  background:#fff;color:#111827;
-  font-weight:700;font-size:14px;line-height:1;
+  height:32px;padding:0 14px;border-radius:8px;border:1px solid var(--border);
+  background:#fff;color:#111827;font-weight:700;font-size:14px;line-height:1;
   text-decoration:none;cursor:pointer;
 }
 a.btn{text-decoration:none}
-
-/* Primary CTA (e.g., Tap to Redeem) */
-.btn-cta{
-  background:var(--cta,#111827);
-  color:#fff;border-color:#0f1629;
-}
-
-/* Outline (e.g., Saved, Print) */
+.btn-cta{background:var(--cta,#111827);color:#fff;border-color:#0f1629}
 .btn-outline{background:#fff;color:var(--ink);border:1px solid var(--border)}
-
-/* Disabled state */
 .btn[disabled]{opacity:.55;pointer-events:none}
-
-/* Button row inside cards */
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 
-/* Category chips (if you use them elsewhere) */
+/* Category chips elsewhere */
 .pill{
-  height:24px;padding:0 10px;border-radius:8px; /* softened, no pills */
-  border:1px solid var(--border);
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
 }
 .pill.active{background:#111827;color:#fff;border-color:#111827}
 
 .footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
 
-/* (Optional) If anything still looks rounded from a cached stylesheet,
-   this hard-override ensures no 999px pills sneak in. */
-.btn, .pill { border-radius:8px !important; }
+/* Final safety: never allow 999px pills to sneak in */
+.btn, .pill, .actionbar .chip { border-radius:8px !important; }
