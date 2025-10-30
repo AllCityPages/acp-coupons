@@ -118,3 +118,54 @@ a.btn{text-decoration:none}
 
 /* Final safety: never allow 999px pills to sneak in */
 .btn, .pill, .actionbar .chip { border-radius:8px !important; }
+
+/* ----------------------------------------------------
+   CARD ACTION BUTTONS — compact (24px, 12px text, 8px)
+   Applies to: Tap to Redeem, Saved/Favorite, Add to Wallet, Print
+   ---------------------------------------------------- */
+
+.card .btn,
+.card .btn-cta,
+.card .btn-outline {
+  height:24px;
+  min-height:24px;
+  line-height:1;
+  padding:0 10px;
+  font-size:12px;
+  font-weight:700;
+  border-radius:8px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+
+/* Primary CTA (Tap to Redeem) */
+.card .btn-cta {
+  background:var(--cta, #111827);
+  color:#fff;
+  border:1px solid #0f1629;
+  /* keep it same height as others */
+  height:24px;
+}
+
+/* Outline / secondary (Saved, Favorite, Print, Add to Wallet) */
+.card .btn-outline,
+.card .btn {
+  background:#fff;
+  color:var(--ink);
+  border:1px solid var(--border);
+}
+
+/* Make the row itself tighter like the meta badges */
+.card .btnrow {
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+/* If any old pill CSS is still lurking, kill it here */
+.card .btn,
+.card .btn-cta,
+.card .btn-outline {
+  border-radius:8px !important;
+}
