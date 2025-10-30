@@ -282,3 +282,15 @@ a.btn{text-decoration:none}
   color:var(--ink) !important;
   border:1px solid var(--border) !important;
 }
+
+/* nuclear fix: every .btn on the page becomes badge-size */
+.btn,
+.btn-cta,
+.btn-outline {
+  height:24px !important;
+  padding:0 10px !important;
+  font-size:12px !important;
+  border-radius:8px !important;
+  line-height:1 !important;
+  font-weight:600 !important;
+}
