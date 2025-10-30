@@ -55,4 +55,79 @@ html,body{background:var(--bg);color:var(--ink)}
   background:#fff;color:#111827;font-size:12px;font-weight:700;line-height:1;
   text-decoration:none;cursor:pointer;gap:6px;
 }
-a.btn-compact{text-
+a.btn-compact{text-decoration:none}
+
+/* Card grid */
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+@media (max-width:1100px){ .grid{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:800px){ .grid{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:520px){ .grid{grid-template-columns:1fr} }
+
+/* Card */
+.card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--radius);box-shadow:var(--shadow);
+  overflow:hidden;display:flex;flex-direction:column;
+}
+.card .img{width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa}
+.card .body{padding:12px 14px}
+.card h3{margin:0 0 4px;font-size:18px}
+.card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
+.card .desc{color:#374151;font-size:13px;margin:0 0 12px}
+
+/* Meta badges (compact) */
+.badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
+  background:#f7f7f9;color:#374151;font-size:12px;line-height:1;
+}
+.badge.ok{background:#eef6ff;border-color:#dbeafe;color:#1d4ed8}
+.badge.warn{background:#fff7ed;border-color:#ffedd5;color:#b45309}
+.badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
+.badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
+
+/* =========================
+   BUTTONS (rectangular)
+   ========================= */
+
+/* Global buttons used inside cards (replaces old pill style) */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;justify-content:center;
+  height:32px;padding:0 14px;
+  border-radius:8px;                 /* ← soft corners */
+  border:1px solid var(--border);
+  background:#fff;color:#111827;
+  font-weight:700;font-size:14px;line-height:1;
+  text-decoration:none;cursor:pointer;
+}
+a.btn{text-decoration:none}
+
+/* Primary CTA (e.g., Tap to Redeem) */
+.btn-cta{
+  background:var(--cta,#111827);
+  color:#fff;border-color:#0f1629;
+}
+
+/* Outline (e.g., Saved, Print) */
+.btn-outline{background:#fff;color:var(--ink);border:1px solid var(--border)}
+
+/* Disabled state */
+.btn[disabled]{opacity:.55;pointer-events:none}
+
+/* Button row inside cards */
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Category chips (if you use them elsewhere) */
+.pill{
+  height:24px;padding:0 10px;border-radius:8px; /* softened, no pills */
+  border:1px solid var(--border);
+  background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
+}
+.pill.active{background:#111827;color:#fff;border-color:#111827}
+
+.footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
+
+/* (Optional) If anything still looks rounded from a cached stylesheet,
+   this hard-override ensures no 999px pills sneak in. */
+.btn, .pill { border-radius:8px !important; }
