@@ -222,3 +222,63 @@ a.btn{text-decoration:none}
   -webkit-appearance:none !important;
   appearance:none !important;
 }
+
+/* =========================================================
+   FINAL OVERRIDE — make card actions match badges exactly
+   Targets: Tap to Redeem, Favorite/Saved, Add to Wallet, Print
+   ========================================================= */
+
+/* 1) Rows that hold card actions */
+.btnrow,
+.card .btnrow,
+.offer-actions {
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+/* 2) Actual buttons — force badge specs */
+.btnrow .btn,
+.btnrow .btn-cta,
+.btnrow .btn-outline,
+.card .btn,
+.card .btn-cta,
+.card .btn-outline,
+.offer-actions .btn,
+.offer-actions .btn-cta,
+.offer-actions .btn-outline {
+  height:24px !important;
+  min-height:24px !important;
+  padding:0 10px !important;
+  border-radius:8px !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  font-weight:600 !important;  /* close to your badge weight */
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:4px !important;
+  -webkit-appearance:none !important;
+  appearance:none !important;
+}
+
+/* 3) Primary color button (Tap to Redeem) — only color differs */
+.btnrow .btn-cta,
+.card .btn-cta,
+.offer-actions .btn-cta {
+  background:var(--cta, #111827) !important;
+  color:#fff !important;
+  border:1px solid #0f1629 !important;
+}
+
+/* 4) Secondary/outline buttons (Favorite, Saved, Add to Wallet, Print) */
+.btnrow .btn,
+.btnrow .btn-outline,
+.card .btn,
+.card .btn-outline,
+.offer-actions .btn,
+.offer-actions .btn-outline {
+  background:#fff !important;
+  color:var(--ink) !important;
+  border:1px solid var(--border) !important;
+}
