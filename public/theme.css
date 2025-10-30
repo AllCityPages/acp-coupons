@@ -1,4 +1,4 @@
-/* theme.css — v12 (rectangular buttons, soft corners) */
+/* theme.css — compact buttons, 24px, 12px, 8px corners */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -36,27 +36,25 @@ html,body{background:var(--bg);color:var(--ink)}
   margin:8px 0 18px;border:1px solid #f2c900;
 }
 
-/* ----- Pico guard: neutralize any external button styles on our components */
-.actionbar .chip, .btn-compact, .btn{
-  -webkit-appearance:none; appearance:none;
-}
-
-/* Chips */
+/* chips in the yellow bar — 24px, 12px, 8px */
 .actionbar .chip{
+  -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid transparent;
   background:rgba(17,24,39,.07);color:var(--bar-ink);
   font-weight:700;font-size:12px;line-height:1;cursor:pointer;
 }
 
+/* Filters */
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .input,.select{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
   background:#fff;color:var(--ink);min-width:220px;
 }
 
-/* Compact rectangular buttons (Apply/Clear etc.) */
+/* small rectangular buttons (Apply / Clear) */
 .btn-compact{
+  -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#fff;color:#111827;font-size:12px;font-weight:700;line-height:1;
@@ -64,7 +62,7 @@ html,body{background:var(--bg);color:var(--ink)}
 }
 a.btn-compact{text-decoration:none}
 
-/* Grid */
+/* Card grid */
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
 @media (max-width:1100px){ .grid{grid-template-columns:repeat(3,1fr)} }
 @media (max-width:800px){ .grid{grid-template-columns:repeat(2,1fr)} }
@@ -82,7 +80,7 @@ a.btn-compact{text-decoration:none}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
 
-/* Badges */
+/* Badges (the green box area) */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -94,20 +92,54 @@ a.btn-compact{text-decoration:none}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* Buttons (rectangular) */
-.btn{
-  display:inline-flex;align-items:center;gap:8px;justify-content:center;
-  height:32px;padding:0 14px;border-radius:8px;border:1px solid var(--border);
-  background:#fff;color:#111827;font-weight:700;font-size:14px;line-height:1;
-  text-decoration:none;cursor:pointer;
+/* =========================================================
+   GLOBAL BUTTON (single source of truth)
+   ========================================================= */
+.btn,
+.btn-cta,
+.btn-outline{
+  -webkit-appearance:none;appearance:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;               /* ← same as badge */
+  min-height:24px;
+  padding:0 10px;            /* ← same as badge */
+  border-radius:8px;         /* ← same as badge */
+  font-size:12px;            /* ← same as badge */
+  line-height:1;
+  font-weight:600;           /* badge-like, not extra bold */
+  gap:6px;
+  text-decoration:none;
+  cursor:pointer;
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--ink);
 }
-a.btn{text-decoration:none}
-.btn-cta{background:var(--cta,#111827);color:#fff;border-color:#0f1629}
-.btn-outline{background:#fff;color:var(--ink);border:1px solid var(--border)}
-.btn[disabled]{opacity:.55;pointer-events:none}
-.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+a.btn,a.btn-outline,a.btn-cta{text-decoration:none}
 
-/* Category chips elsewhere */
+/* Primary (Tap to Redeem) */
+.btn-cta{
+  background:var(--cta,#111827);
+  color:#fff;
+  border:1px solid #0f1629;
+}
+
+/* Outline / secondary (Favorite, Saved, Add to Wallet, Print) */
+.btn-outline{
+  background:#fff;
+  color:var(--ink);
+  border:1px solid var(--border);
+}
+
+/* Button rows in cards */
+.btnrow,
+.card .btnrow,
+.offer-actions{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+/* Category pills elsewhere */
 .pill{
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
@@ -116,181 +148,15 @@ a.btn{text-decoration:none}
 
 .footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
 
-/* Final safety: never allow 999px pills to sneak in */
-.btn, .pill, .actionbar .chip { border-radius:8px !important; }
-
-/* ----------------------------------------------------
-   CARD ACTION BUTTONS — compact (24px, 12px text, 8px)
-   Applies to: Tap to Redeem, Saved/Favorite, Add to Wallet, Print
-   ---------------------------------------------------- */
-
-.card .btn,
-.card .btn-cta,
-.card .btn-outline {
-  height:24px;
-  min-height:24px;
-  line-height:1;
-  padding:0 10px;
-  font-size:12px;
-  font-weight:700;
-  border-radius:8px;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-}
-
-/* Primary CTA (Tap to Redeem) */
-.card .btn-cta {
-  background:var(--cta, #111827);
-  color:#fff;
-  border:1px solid #0f1629;
-  /* keep it same height as others */
-  height:24px;
-}
-
-/* Outline / secondary (Saved, Favorite, Print, Add to Wallet) */
-.card .btn-outline,
-.card .btn {
-  background:#fff;
-  color:var(--ink);
-  border:1px solid var(--border);
-}
-
-/* Make the row itself tighter like the meta badges */
-.card .btnrow {
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-
-/* If any old pill CSS is still lurking, kill it here */
-.card .btn,
-.card .btn-cta,
-.card .btn-outline {
-  border-radius:8px !important;
-}
-
-/* ----------------------------------------------------
-   MAKE CARD ACTION BUTTONS MATCH BADGES
-   (for: Tap to Redeem, Favorite/Saved, Add to Wallet, Print)
-   ---------------------------------------------------- */
-.card .btnrow {
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-
-/* Base for all 4 buttons on the card */
-.card .btn,
-.card .btn-cta,
-.card .btn-outline {
-  /* match .badge --------------------------------------------------- */
-  height:24px;
-  min-height:24px;
-  padding:0 10px;
-  border-radius:8px;
-  font-size:12px;
-  line-height:1;
-  font-weight:600;        /* badges aren’t extra bold — 600 is close */
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:4px;
-  /* --------------------------------------------------------------- */
-}
-
-/* Primary (Tap to Redeem) — just color, no size change */
-.card .btn-cta {
-  background:var(--cta, #111827);
-  color:#fff;
-  border:1px solid #0f1629;
-}
-
-/* Secondary (Favorite / Saved / Add to Wallet / Print) */
-.card .btn,
-.card .btn-outline {
-  background:#fff;
-  color:var(--ink);
-  border:1px solid var(--border);
-}
-
-/* If any old pill or bigger button sneaks in, kill it */
-.card .btn,
-.card .btn-cta,
-.card .btn-outline {
-  border-radius:8px !important;
-  -webkit-appearance:none !important;
-  appearance:none !important;
-}
-
-/* =========================================================
-   FINAL OVERRIDE — make card actions match badges exactly
-   Targets: Tap to Redeem, Favorite/Saved, Add to Wallet, Print
-   ========================================================= */
-
-/* 1) Rows that hold card actions */
-.btnrow,
-.card .btnrow,
-.offer-actions {
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-
-/* 2) Actual buttons — force badge specs */
-.btnrow .btn,
-.btnrow .btn-cta,
-.btnrow .btn-outline,
-.card .btn,
-.card .btn-cta,
-.card .btn-outline,
-.offer-actions .btn,
-.offer-actions .btn-cta,
-.offer-actions .btn-outline {
-  height:24px !important;
-  min-height:24px !important;
-  padding:0 10px !important;
-  border-radius:8px !important;
-  font-size:12px !important;
-  line-height:1 !important;
-  font-weight:600 !important;  /* close to your badge weight */
-  display:inline-flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  gap:4px !important;
-  -webkit-appearance:none !important;
-  appearance:none !important;
-}
-
-/* 3) Primary color button (Tap to Redeem) — only color differs */
-.btnrow .btn-cta,
-.card .btn-cta,
-.offer-actions .btn-cta {
-  background:var(--cta, #111827) !important;
-  color:#fff !important;
-  border:1px solid #0f1629 !important;
-}
-
-/* 4) Secondary/outline buttons (Favorite, Saved, Add to Wallet, Print) */
-.btnrow .btn,
-.btnrow .btn-outline,
-.card .btn,
-.card .btn-outline,
-.offer-actions .btn,
-.offer-actions .btn-outline {
-  background:#fff !important;
-  color:var(--ink) !important;
-  border:1px solid var(--border) !important;
-}
-
-/* nuclear fix: every .btn on the page becomes badge-size */
-.btn,
-.btn-cta,
-.btn-outline {
+/* Last guard — if an old stylesheet/pico tries to set pills or bigger buttons */
+button.btn,
+a.btn,
+button.btn-cta,
+a.btn-cta,
+button.btn-outline,
+a.btn-outline {
   height:24px !important;
   padding:0 10px !important;
   font-size:12px !important;
   border-radius:8px !important;
-  line-height:1 !important;
-  font-weight:600 !important;
 }
