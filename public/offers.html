@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css?v=11">
+  <link rel="stylesheet" href="/theme.css?v=12">
 </head>
 <body>
   <div class="site">
@@ -16,13 +16,12 @@
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
       </div>
-      <!-- (v11) no extra My Wallet button on top-right -->
     </header>
 
     <div class="actionbar">
       <button id="btn-near" class="chip">📍 Show deals near me</button>
-      <a class="chip" href="/wallet.html?v=11">⭐ My Wallet</a>
-      <a class="chip" href="/wallet.html?v=11">☆ My Favorites</a>
+      <a class="chip" href="/wallet.html?v=12">⭐ My Wallet</a>
+      <a class="chip" href="/wallet.html?v=12">☆ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -41,12 +40,10 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=11"></script>
+  <script src="/shared.js?v=12"></script>
   <script>
     (async function init(){
-      const V = '11'; // cache-buster for API + assets
-
-      // ✅ Bust any stale cached /api/offers on mobile
+      const V = '12'; // cache-buster for API + assets
       const data = await fetch('/api/offers?v=' + V).then(r=>r.json());
 
       Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
@@ -57,7 +54,7 @@
         grid.innerHTML = '';
         let rows = Shared.applyFilter(data.offers, state);
         if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
-        rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
+        rows.forEach(o => grid.appendChild(Shared.makeCard(o))); // card buttons pick up new .btn styles
       }
 
       document.getElementById('apply').onclick = ()=>{
@@ -75,7 +72,6 @@
       try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
       render();
 
-      // ✅ SW (optional) — bump to make sure phone refreshes it
       if ('serviceWorker' in navigator){
         const SW_VERSION = '7';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
