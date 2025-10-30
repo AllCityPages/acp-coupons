@@ -169,3 +169,56 @@ a.btn{text-decoration:none}
 .card .btn-outline {
   border-radius:8px !important;
 }
+
+/* ----------------------------------------------------
+   MAKE CARD ACTION BUTTONS MATCH BADGES
+   (for: Tap to Redeem, Favorite/Saved, Add to Wallet, Print)
+   ---------------------------------------------------- */
+.card .btnrow {
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+/* Base for all 4 buttons on the card */
+.card .btn,
+.card .btn-cta,
+.card .btn-outline {
+  /* match .badge --------------------------------------------------- */
+  height:24px;
+  min-height:24px;
+  padding:0 10px;
+  border-radius:8px;
+  font-size:12px;
+  line-height:1;
+  font-weight:600;        /* badges aren’t extra bold — 600 is close */
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  /* --------------------------------------------------------------- */
+}
+
+/* Primary (Tap to Redeem) — just color, no size change */
+.card .btn-cta {
+  background:var(--cta, #111827);
+  color:#fff;
+  border:1px solid #0f1629;
+}
+
+/* Secondary (Favorite / Saved / Add to Wallet / Print) */
+.card .btn,
+.card .btn-outline {
+  background:#fff;
+  color:var(--ink);
+  border:1px solid var(--border);
+}
+
+/* If any old pill or bigger button sneaks in, kill it */
+.card .btn,
+.card .btn-cta,
+.card .btn-outline {
+  border-radius:8px !important;
+  -webkit-appearance:none !important;
+  appearance:none !important;
+}
