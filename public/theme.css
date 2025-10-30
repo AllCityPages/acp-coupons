@@ -1,4 +1,4 @@
-/* theme.css — v14 */
+/* theme.css — v13 (24px system + colored action buttons) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -7,48 +7,60 @@
   --border:#e5e7eb;
   --shadow:0 8px 24px rgba(16,24,40,.06);
   --radius:16px;
+
+  --brand:#111827;
   --bar:#ffd400;
   --bar-ink:#111827;
+
   --cta:#111827;
 }
 
 html,body{background:var(--bg);color:var(--ink)}
 *{box-sizing:border-box}
+
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
 
-/* header */
+/* Header */
 .header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .logo{
   width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
   background:#e9eef7;border:1px solid #cdd7ea;font-weight:800;color:#1763d1;
 }
-.title h1{font-size:18px;margin:0}
+.title h1{font-size:18px;line-height:1;margin:0}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* yellow bar */
+/* Yellow action bar */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
   margin:8px 0 18px;border:1px solid #f2c900;
 }
+
+/* chips in yellow bar — base 24px white style */
 .actionbar .chip{
   -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid transparent;
   background:rgba(17,24,39,.07);color:var(--bar-ink);
-  font-weight:700;font-size:12px;line-height:1;cursor:pointer;text-decoration:none;
-}
-/* white chips in the bar */
-.actionbar .chip--white{
-  background:#fff;color:#111827;border:1px solid rgba(0,0,0,.04);
+  font-weight:700;font-size:12px;line-height:1;cursor:pointer;
+  text-decoration:none;
 }
 
-/* filters */
+/* explicit WHITE chips in yellow bar (Show deals near me, My Wallet, My Favorites) */
+.actionbar .chip--white{
+  background:#ffffff;
+  color:#111827;
+  border:1px solid rgba(0,0,0,0.05);
+}
+
+/* Filters */
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .input,.select{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
   background:#fff;color:var(--ink);min-width:220px;
 }
+
+/* small rectangular buttons (Apply / Clear) */
 .btn-compact{
   -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
@@ -56,12 +68,15 @@ html,body{background:var(--bg);color:var(--ink)}
   background:#fff;color:#111827;font-size:12px;font-weight:700;line-height:1;
   text-decoration:none;cursor:pointer;gap:6px;
 }
+a.btn-compact{text-decoration:none}
 
-/* grid + card */
+/* Card grid */
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
-@media (max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:520px){.grid{grid-template-columns:1fr}}
+@media (max-width:1100px){ .grid{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:800px){ .grid{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:520px){ .grid{grid-template-columns:1fr} }
+
+/* Card */
 .card{
   background:var(--panel);border:1px solid var(--border);
   border-radius:var(--radius);box-shadow:var(--shadow);
@@ -73,17 +88,21 @@ html,body{background:var(--bg);color:var(--ink)}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
 
-/* badges */
+/* Badges (green area) */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#f7f7f9;color:#374151;font-size:12px;line-height:1;
 }
+.badge.ok{background:#eef6ff;border-color:#dbeafe;color:#1d4ed8}
+.badge.warn{background:#fff7ed;border-color:#ffedd5;color:#b45309}
+.badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
+.badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* ======================================================
-   GLOBAL 24PX BUTTONS
-   ====================================================== */
+/* =========================================================
+   GLOBAL BUTTONS (24px, 12px, 8px)
+   ========================================================= */
 .btn,
 .btn-cta,
 .btn-outline{
@@ -104,7 +123,7 @@ html,body{background:var(--bg);color:var(--ink)}
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
 
-/* base row */
+/* base button row */
 .btnrow,
 .card .btnrow,
 .offer-actions{
@@ -113,42 +132,53 @@ a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
   flex-wrap:wrap;
 }
 
-/* ===== named variants you wanted ===== */
-
-/* Add to Wallet → black / white */
+/* ===================== CARD VARIANTS ===================== */
+/* Add to Wallet → black with white text */
 .btn-add-wallet{
-  background:#000 !important;
-  color:#fff !important;
-  border:1px solid #000 !important;
+  background:#000000 !important;
+  color:#ffffff !important;
+  border:1px solid #000000 !important;
 }
 
-/* Favorite → yellow / black */
+/* Favorite → yellow with black text */
 .btn-favorite{
   background:#ffd400 !important;
   color:#111827 !important;
   border:1px solid #e5c200 !important;
 }
 
-/* Saved → green / white */
+/* Saved → green with white text */
 .btn-saved{
-  background:#16a34a !important;
-  color:#fff !important;
+  background:#16a34a !important; /* Tailwind-ish green-600 */
+  color:#ffffff !important;
   border:1px solid #15803d !important;
 }
 
-/* keep CTA dark */
+/* keep primary CTA dark if you still use it */
 .btn-cta{
   background:var(--cta,#111827);
   color:#fff;
   border:1px solid #0f1629;
 }
 
+/* Category pills elsewhere */
+.pill{
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
+  background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
+}
+.pill.active{background:#111827;color:#fff;border-color:#111827}
+
 .footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
 
-/* last guard to kill old big/pill buttons */
+/* final guard */
 button.btn,
 a.btn,
 button.btn-cta,
 a.btn-cta,
 button.btn-outline,
-a.btn-outline { height:24px !important; padding:0 10px !important; font-size:12px !important; border-radius:8px !important; }
+a.btn-outline {
+  height:24px !important;
+  padding:0 10px !important;
+  font-size:12px !important;
+  border-radius:8px !important;
+}
