@@ -5,7 +5,6 @@
   <title>My Wallet — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- only our CSS, forced refresh with v=13 -->
   <link rel="stylesheet" href="/theme.css?v=13">
 </head>
 <body>
@@ -19,8 +18,10 @@
     </header>
 
     <div id="bar" class="actionbar">
-      <button id="btn-near" class="chip">📍 Sort by Nearby</button>
-      <a class="chip" href="/offers.html?v=13">↩ Back to Offers</a>
+      <!-- white with black text -->
+      <button id="btn-near" class="chip chip--white">📍 Sort by Nearby</button>
+      <!-- white with black text -->
+      <a class="chip chip--white" href="/offers.html?v=13">↩ Back to Offers</a>
     </div>
 
     <div id="cats" class="cats"></div>
@@ -35,7 +36,6 @@
     </footer>
   </div>
 
-  <!-- force-refresh shared.js too -->
   <script src="/shared.js?v=13"></script>
   <script>
     (async function init(){
@@ -77,14 +77,10 @@
 
       await render();
 
-      // bump SW so Safari stops serving stale CSS/JS
       if ('serviceWorker' in navigator){
         const SW_VERSION = '8';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
-          .then(reg => {
-            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
-            reg.update();
-          })
+          .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
           .catch(()=>{});
       }
     })();
