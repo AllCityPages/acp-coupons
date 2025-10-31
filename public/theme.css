@@ -1,4 +1,4 @@
-/* theme.css — v13 (24px system + colored action buttons) */
+/* theme.css — v12 (rectangular buttons, soft corners) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -9,10 +9,10 @@
   --radius:16px;
 
   --brand:#111827;
-  --bar:#ffd400;
+  --bar:#ffd400;     /* yellow action bar */
   --bar-ink:#111827;
 
-  --cta:#111827;
+  --cta:#111827;     /* fallback CTA fill */
 }
 
 html,body{background:var(--bg);color:var(--ink)}
@@ -29,28 +29,16 @@ html,body{background:var(--bg);color:var(--ink)}
 .title h1{font-size:18px;line-height:1;margin:0}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* Yellow action bar */
+/* Yellow action bar + chips (compact) */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
   margin:8px 0 18px;border:1px solid #f2c900;
 }
-
-/* chips in yellow bar — base 24px white style */
 .actionbar .chip{
-  -webkit-appearance:none;appearance:none;
-  display:inline-flex;align-items:center;justify-content:center;
-  height:24px;padding:0 10px;border-radius:8px;border:1px solid transparent;
-  background:rgba(17,24,39,.07);color:var(--bar-ink);
-  font-weight:700;font-size:12px;line-height:1;cursor:pointer;
-  text-decoration:none;
-}
-
-/* explicit WHITE chips in yellow bar (Show deals near me, My Wallet, My Favorites) */
-.actionbar .chip--white{
-  background:#ffffff;
-  color:#111827;
-  border:1px solid rgba(0,0,0,0.05);
+  appearance:none;border:0;background:rgba(17,24,39,.07);
+  color:var(--bar-ink);padding:0 10px;border-radius:8px;font-weight:700;
+  font-size:12px;height:24px;display:inline-flex;align-items:center;
 }
 
 /* Filters */
@@ -60,9 +48,8 @@ html,body{background:var(--bg);color:var(--ink)}
   background:#fff;color:var(--ink);min-width:220px;
 }
 
-/* small rectangular buttons (Apply / Clear) */
+/* Compact rectangular buttons (Apply/Clear etc.) */
 .btn-compact{
-  -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#fff;color:#111827;font-size:12px;font-weight:700;line-height:1;
@@ -88,7 +75,7 @@ a.btn-compact{text-decoration:none}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
 
-/* Badges (green area) */
+/* Meta badges (compact) */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -100,85 +87,47 @@ a.btn-compact{text-decoration:none}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* =========================================================
-   GLOBAL BUTTONS (24px, 12px, 8px)
-   ========================================================= */
-.btn,
-.btn-cta,
-.btn-outline{
-  -webkit-appearance:none;appearance:none;
-  display:inline-flex;align-items:center;justify-content:center;
-  height:24px;min-height:24px;
-  padding:0 10px;
-  border-radius:8px;
-  font-size:12px;
-  line-height:1;
-  font-weight:600;
-  gap:6px;
+/* =========================
+   BUTTONS (rectangular)
+   ========================= */
+
+/* Global buttons used inside cards (replaces old pill style) */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;justify-content:center;
+  height:32px;padding:0 14px;
+  border-radius:8px;                 /* ← soft corners */
   border:1px solid var(--border);
-  background:#fff;
-  color:var(--ink);
-  text-decoration:none;
-  cursor:pointer;
+  background:#fff;color:#111827;
+  font-weight:700;font-size:14px;line-height:1;
+  text-decoration:none;cursor:pointer;
 }
-a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
+a.btn{text-decoration:none}
 
-/* base button row */
-.btnrow,
-.card .btnrow,
-.offer-actions{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-
-/* ===================== CARD VARIANTS ===================== */
-/* Add to Wallet → black with white text */
-.btn-add-wallet{
-  background:#000000 !important;
-  color:#ffffff !important;
-  border:1px solid #000000 !important;
-}
-
-/* Favorite → yellow with black text */
-.btn-favorite{
-  background:#ffd400 !important;
-  color:#111827 !important;
-  border:1px solid #e5c200 !important;
-}
-
-/* Saved → green with white text */
-.btn-saved{
-  background:#16a34a !important; /* Tailwind-ish green-600 */
-  color:#ffffff !important;
-  border:1px solid #15803d !important;
-}
-
-/* keep primary CTA dark if you still use it */
+/* Primary CTA (e.g., Tap to Redeem) */
 .btn-cta{
   background:var(--cta,#111827);
-  color:#fff;
-  border:1px solid #0f1629;
+  color:#fff;border-color:#0f1629;
 }
 
-/* Category pills elsewhere */
+/* Outline (e.g., Saved, Print) */
+.btn-outline{background:#fff;color:var(--ink);border:1px solid var(--border)}
+
+/* Disabled state */
+.btn[disabled]{opacity:.55;pointer-events:none}
+
+/* Button row inside cards */
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Category chips (if you use them elsewhere) */
 .pill{
-  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
+  height:24px;padding:0 10px;border-radius:8px; /* softened, no pills */
+  border:1px solid var(--border);
   background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
 }
 .pill.active{background:#111827;color:#fff;border-color:#111827}
 
 .footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
 
-/* final guard */
-button.btn,
-a.btn,
-button.btn-cta,
-a.btn-cta,
-button.btn-outline,
-a.btn-outline {
-  height:24px !important;
-  padding:0 10px !important;
-  font-size:12px !important;
-  border-radius:8px !important;
-}
+/* (Optional) If anything still looks rounded from a cached stylesheet,
+   this hard-override ensures no 999px pills sneak in. */
+.btn, .pill { border-radius:8px !important; }
