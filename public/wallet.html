@@ -5,13 +5,12 @@
   <title>My Wallet — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css?v=11">
+  <link rel="stylesheet" href="/theme.css?v=14">
 </head>
 <body>
   <div class="site">
     <header class="header">
-      <a href="/offers.html?v=11" class="logo" title="Back">←</a>
+      <a href="/offers.html?v=14" class="logo" title="Back">←</a>
       <div class="title">
         <h1>My Wallet</h1>
         <p>Saved offers: <span id="count">0</span></p>
@@ -19,11 +18,9 @@
     </header>
 
     <div id="bar" class="actionbar">
-      <button id="btn-near" class="chip">📍 Sort by Nearby</button>
-      <a class="chip" href="/offers.html?v=11">↩ Back to Offers</a>
+      <button id="btn-near" class="chip chip--white">📍 Sort by Nearby</button>
+      <a class="chip chip--white" href="/offers.html?v=14">↩ Back to Offers</a>
     </div>
-
-    <div id="cats" class="cats"></div>
 
     <section id="grid" class="grid"></section>
 
@@ -35,17 +32,12 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=11"></script>
+  <script src="/shared.js?v=14"></script>
   <script>
     (async function init(){
-      const V = '11'; // cache-buster for API + assets
+      // fetch all offers (no ?v= so it actually returns)
+      const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
-
-      // ✅ Bust stale cached /api/offers on mobile
-      const all = await fetch('/api/offers?v=' + V).then(r=>r.json()).then(x=>x.offers);
-
-      Shared.renderCategoryChips(document.getElementById('cats'), state, render);
-      Shared.renderNotifyCTA(document.getElementById('bar'));
 
       document.getElementById('btn-near').onclick = async ()=>{
         state.sortNearby = !state.sortNearby;
@@ -78,9 +70,8 @@
 
       await render();
 
-      // ✅ SW (optional) — bump to refresh on phones
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '7';
+        const SW_VERSION = '9';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
           .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
           .catch(()=>{});
