@@ -5,8 +5,8 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- only our CSS, forced refresh with v=13 -->
-  <link rel="stylesheet" href="/theme.css?v=13">
+  <!-- Removed Pico to prevent it styling buttons -->
+  <link rel="stylesheet" href="/theme.css?v=12">
 </head>
 <body>
   <div class="site">
@@ -20,8 +20,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip">📍 Show deals near me</button>
-      <a class="chip" href="/wallet.html?v=13">⭐ My Wallet</a>
-      <a class="chip" href="/wallet.html?v=13">☆ My Favorites</a>
+      <a class="chip" href="/wallet.html?v=12">⭐ My Wallet</a>
+      <a class="chip" href="/wallet.html?v=12">☆ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -40,11 +40,10 @@
     </footer>
   </div>
 
-  <!-- force-refresh shared.js too -->
-  <script src="/shared.js?v=13"></script>
+  <script src="/shared.js?v=12"></script>
   <script>
     (async function init(){
-      const V = '13';
+      const V = '12';
       const data = await fetch('/api/offers?v='+V).then(r=>r.json());
 
       Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
@@ -70,21 +69,13 @@
       };
       document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
 
-      try {
-        await Shared.computeNearbySort();
-        Shared.__nearbyReady = true;
-      } catch {}
-
+      try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
       render();
 
-      // bump SW so Safari stops serving stale CSS/JS
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '8';
+        const SW_VERSION = '7';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
-          .then(reg => {
-            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
-            reg.update();
-          })
+          .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
           .catch(()=>{});
       }
     })();
