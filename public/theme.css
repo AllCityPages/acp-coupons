@@ -1,4 +1,4 @@
-/* theme.css — v11 (stable, updated) */
+/* theme.css — v14 (cards 24px, custom button colors) */
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -8,16 +8,14 @@
   --shadow:0 8px 24px rgba(16,24,40,.06);
   --radius:16px;
 
-  --brand:#111827;
-  --bar:#ffd400;     /* yellow action bar */
+  --bar:#ffd400;
   --bar-ink:#111827;
 
-  --cta:#111827;     /* fallback CTA fill */
+  --cta:#111827;
 }
 
 html,body{background:var(--bg);color:var(--ink)}
 *{box-sizing:border-box}
-
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
 
 /* Header */
@@ -26,19 +24,27 @@ html,body{background:var(--bg);color:var(--ink)}
   width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
   background:#e9eef7;border:1px solid #cdd7ea;font-weight:800;color:#1763d1;
 }
-.title h1{font-size:18px;line-height:1;margin:0}
+.title h1{font-size:18px;margin:0;line-height:1}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* Yellow action bar + chips (compact) */
+/* Yellow action bar */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
   margin:8px 0 18px;border:1px solid #f2c900;
 }
 .actionbar .chip{
-  appearance:none;border:0;background:rgba(17,24,39,.07);
-  color:var(--bar-ink);padding:0 10px;border-radius:8px;font-weight:700;
-  font-size:12px;height:24px;display:inline-flex;align-items:center;
+  -webkit-appearance:none;appearance:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid transparent;
+  background:rgba(17,24,39,.07);color:var(--bar-ink);
+  font-weight:700;font-size:12px;line-height:1;cursor:pointer;text-decoration:none;
+}
+/* you wanted the top 3 white/black */
+.actionbar .chip--white{
+  background:#ffffff;
+  color:#111827;
+  border:1px solid rgba(0,0,0,.04);
 }
 
 /* Filters */
@@ -47,9 +53,8 @@ html,body{background:var(--bg);color:var(--ink)}
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
   background:#fff;color:var(--ink);min-width:220px;
 }
-
-/* Compact rectangular buttons (Apply/Clear/Print etc.) */
 .btn-compact{
+  -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#fff;color:#111827;font-size:12px;font-weight:700;line-height:1;
@@ -59,9 +64,9 @@ a.btn-compact{text-decoration:none}
 
 /* Card grid */
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
-@media (max-width:1100px){ .grid{grid-template-columns:repeat(3,1fr)} }
-@media (max-width:800px){ .grid{grid-template-columns:repeat(2,1fr)} }
-@media (max-width:520px){ .grid{grid-template-columns:1fr} }
+@media (max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
 
 /* Card */
 .card{
@@ -69,13 +74,15 @@ a.btn-compact{text-decoration:none}
   border-radius:var(--radius);box-shadow:var(--shadow);
   overflow:hidden;display:flex;flex-direction:column;
 }
-.card .img{width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa}
+.card .img{
+  width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa
+}
 .card .body{padding:12px 14px}
 .card h3{margin:0 0 4px;font-size:18px}
 .card .brand{color:var(--muted);font-size:13px;margin-bottom:8px}
 .card .desc{color:#374151;font-size:13px;margin:0 0 12px}
 
-/* Meta badges (compact) */
+/* Badges (green box area) */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -87,68 +94,83 @@ a.btn-compact{text-decoration:none}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* Legacy pill buttons (kept for compatibility) */
-.btn{
-  display:inline-flex;align-items:center;gap:8px;padding:9px 12px;
-  border-radius:999px;border:1px solid var(--border);
-  background:#f3f4f6;color:#111827;font-weight:600;text-decoration:none;cursor:pointer;
+/* =======================================================
+   24px BUTTON SYSTEM (everything in cards)
+   ======================================================= */
+.btn,
+.btn-cta,
+.btn-outline{
+  -webkit-appearance:none;appearance:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;min-height:24px;
+  padding:0 10px;
+  border-radius:8px;
+  font-size:12px;
+  line-height:1;
+  font-weight:600;
+  gap:6px;
+  border:1px solid var(--border);
+  background:#fff;
+  color:var(--ink);
+  text-decoration:none;
+  cursor:pointer;
 }
-.btn-outline{background:#fff}
-.btn[disabled]{opacity:.55;pointer-events:none}
+a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
 
-.btnrow{display:flex;gap:8px;flex-wrap:wrap}
-
-/* Category chips (if used) */
-.pill{
-  height:24px;padding:0 10px;border-radius:999px;border:1px solid var(--border);
-  background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
+/* row in card */
+.btnrow,
+.card .btnrow,
+.offer-actions{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
 }
-.pill.active{background:#111827;color:#fff;border-color:#111827}
 
-.footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
-
-/* ------------------------------------------------------------------
-   NEW OVERRIDES to make card buttons rectangular + compact (v11+)
-   ------------------------------------------------------------------ */
-
-/* CTA stays branded but uses compact rectangle */
+/* ====== your colors ====== */
+/* Tap to Redeem still uses CTA */
 .btn-cta{
   background:var(--cta,#111827);
   color:#fff;
   border:1px solid #0f1629;
-  border-radius:8px;  /* override pill */
-  height:24px;
-  padding:0 10px;
-  font-size:12px;
-  line-height:1;
-  font-weight:700;
+}
+/* Add to Wallet → black + white */
+.btn-add-wallet{
+  background:#000 !important;
+  color:#fff !important;
+  border:1px solid #000 !important;
+}
+/* Favorite → yellow + black */
+.btn-favorite{
+  background:#ffd400 !important;
+  color:#111827 !important;
+  border:1px solid #e5c200 !important;
+}
+/* Saved → green + white */
+.btn-saved{
+  background:#16a34a !important;
+  color:#ffffff !important;
+  border:1px solid #15803d !important;
 }
 
-/* Any .btn meant to be compact can add this class */
-.btn.btn-compact{
-  height:24px;
-  padding:0 10px;
-  font-size:12px;
-  border-radius:8px;  /* override pill */
-  line-height:1;
+/* Category pills elsewhere */
+.pill{
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
+  background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
 }
+.pill.active{background:#111827;color:#fff;border-color:#111827}
 
-/* Outline + compact (e.g., Print) */
-.btn-outline.btn-compact{
-  background:#fff;
-  color:var(--ink);
-  border:1px solid var(--border);
-  border-radius:8px;
-}
+/* Footer */
+.footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
 
-/* If you add compact style to yellow-bar chips */
-.chip.btn-compact{
-  background:#fff;
-  color:var(--ink);
-  border:1px solid var(--border);
-  border-radius:8px;
-  height:24px;
-  padding:0 10px;
-  font-size:12px;
-  line-height:1;
+/* guard: kill old pill/big buttons from cache */
+button.btn,
+a.btn,
+button.btn-cta,
+a.btn-cta,
+button.btn-outline,
+a.btn-outline {
+  height:24px !important;
+  padding:0 10px !important;
+  font-size:12px !important;
+  border-radius:8px !important;
 }
