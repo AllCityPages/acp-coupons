@@ -5,8 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-  <link rel="stylesheet" href="/theme.css?v=11">
+  <link rel="stylesheet" href="/theme.css?v=14">
 </head>
 <body>
   <div class="site">
@@ -16,13 +15,12 @@
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
       </div>
-      <!-- (v11) no extra My Wallet button on top-right -->
     </header>
 
     <div class="actionbar">
-      <button id="btn-near" class="chip">📍 Show deals near me</button>
-      <a class="chip" href="/wallet.html?v=11">⭐ My Wallet</a>
-      <a class="chip" href="/wallet.html?v=11">☆ My Favorites</a>
+      <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
+      <a class="chip chip--white" href="/wallet.html?v=14">⭐ My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=14">☆ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -41,21 +39,20 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=11"></script>
+  <script src="/shared.js?v=14"></script>
   <script>
     (async function init(){
-      const V = '11'; // cache-buster for API + assets
+      // IMPORTANT: no ?v= here so we actually get offers
+      const data = await fetch('/api/offers').then(r=>r.json());
+      const offers = data.offers || [];
 
-      // ✅ Bust any stale cached /api/offers on mobile
-      const data = await fetch('/api/offers?v=' + V).then(r=>r.json());
-
-      Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
+      Shared.populateBrandFilter(offers, document.getElementById('brand'));
       const state = { q:'', brand:'', category:'', sortNearby:false };
 
       function render(){
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
-        let rows = Shared.applyFilter(data.offers, state);
+        let rows = Shared.applyFilter(offers, state);
         if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
         rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
       }
@@ -75,9 +72,8 @@
       try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch {}
       render();
 
-      // ✅ SW (optional) — bump to make sure phone refreshes it
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '7';
+        const SW_VERSION = '9';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
           .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
           .catch(()=>{});
