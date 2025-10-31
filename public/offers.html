@@ -5,6 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
+  <!-- only our CSS, forced refresh with v=13 -->
   <link rel="stylesheet" href="/theme.css?v=13">
 </head>
 <body>
@@ -18,12 +19,9 @@
     </header>
 
     <div class="actionbar">
-      <!-- white with black text -->
-      <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <!-- white with black text -->
-      <a class="chip chip--white" href="/wallet.html?v=13">⭐ My Wallet</a>
-      <!-- white with black text -->
-      <a class="chip chip--white" href="/wallet.html?v=13">☆ My Favorites</a>
+      <button id="btn-near" class="chip">📍 Show deals near me</button>
+      <a class="chip" href="/wallet.html?v=13">⭐ My Wallet</a>
+      <a class="chip" href="/wallet.html?v=13">☆ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -42,6 +40,7 @@
     </footer>
   </div>
 
+  <!-- force-refresh shared.js too -->
   <script src="/shared.js?v=13"></script>
   <script>
     (async function init(){
@@ -56,7 +55,6 @@
         grid.innerHTML = '';
         let rows = Shared.applyFilter(data.offers, state);
         if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
-        // IMPORTANT: makeCard should put classes on buttons; we’ll rely on CSS variants above
         rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
       }
 
@@ -79,10 +77,14 @@
 
       render();
 
+      // bump SW so Safari stops serving stale CSS/JS
       if ('serviceWorker' in navigator){
         const SW_VERSION = '8';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION, { updateViaCache:'none' })
-          .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
+          .then(reg => {
+            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
+            reg.update();
+          })
           .catch(()=>{});
       }
     })();
