@@ -5,7 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- Removed Pico to prevent it styling buttons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="/theme.css?v=12">
 </head>
 <body>
@@ -43,8 +43,8 @@
   <script src="/shared.js?v=12"></script>
   <script>
     (async function init(){
-      const V = '12';
-      const data = await fetch('/api/offers?v='+V).then(r=>r.json());
+      const V = '12'; // cache-buster for API + assets
+      const data = await fetch('/api/offers?v=' + V).then(r=>r.json());
 
       Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
       const state = { q:'', brand:'', category:'', sortNearby:false };
@@ -54,7 +54,7 @@
         grid.innerHTML = '';
         let rows = Shared.applyFilter(data.offers, state);
         if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
-        rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
+        rows.forEach(o => grid.appendChild(Shared.makeCard(o))); // card buttons pick up new .btn styles
       }
 
       document.getElementById('apply').onclick = ()=>{
