@@ -5,7 +5,7 @@
   <title>My Wallet — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- Removed Pico to prevent it styling buttons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
   <link rel="stylesheet" href="/theme.css?v=12">
 </head>
 <body>
@@ -38,9 +38,10 @@
   <script src="/shared.js?v=12"></script>
   <script>
     (async function init(){
-      const V = '12';
+      const V = '12'; // cache-buster for API + assets
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
-      const all = await fetch('/api/offers?v='+V).then(r=>r.json()).then(x=>x.offers);
+
+      const all = await fetch('/api/offers?v=' + V).then(r=>r.json()).then(x=>x.offers);
 
       Shared.renderCategoryChips(document.getElementById('cats'), state, render);
       Shared.renderNotifyCTA(document.getElementById('bar'));
