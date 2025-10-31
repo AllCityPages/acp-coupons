@@ -5,6 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
+  <!-- keep your CSS -->
   <link rel="stylesheet" href="/theme.css?v=13">
 </head>
 <body>
@@ -21,9 +22,9 @@
       <!-- white with black text -->
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
       <!-- white with black text -->
-      <a class="chip chip--white" href="/wallet.html?v=13">⭐ My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=14">⭐ My Wallet</a>
       <!-- white with black text -->
-      <a class="chip chip--white" href="/wallet.html?v=13">☆ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=14">☆ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -42,10 +43,11 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=13"></script>
+  <!-- updated to v=14 so we get the Favorite/Saved color toggle -->
+  <script src="/shared.js?v=14"></script>
   <script>
     (async function init(){
-      const V = '13';
+      const V = '14';
       const data = await fetch('/api/offers?v='+V).then(r=>r.json());
 
       Shared.populateBrandFilter(data.offers, document.getElementById('brand'));
@@ -56,7 +58,6 @@
         grid.innerHTML = '';
         let rows = Shared.applyFilter(data.offers, state);
         if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
-        // IMPORTANT: makeCard should put classes on buttons; we’ll rely on CSS variants above
         rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
       }
 
