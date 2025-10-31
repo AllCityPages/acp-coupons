@@ -5,12 +5,12 @@
   <title>My Wallet — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=13">
+  <link rel="stylesheet" href="/theme.css?v=14">
 </head>
 <body>
   <div class="site">
     <header class="header">
-      <a href="/offers.html?v=13" class="logo" title="Back">←</a>
+      <a href="/offers.html?v=14" class="logo" title="Back">←</a>
       <div class="title">
         <h1>My Wallet</h1>
         <p>Saved offers: <span id="count">0</span></p>
@@ -36,10 +36,10 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=13"></script>
+  <script src="/shared.js?v=14"></script>
   <script>
     (async function init(){
-      const V = '13';
+      const V = '14';
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
       const all = await fetch('/api/offers?v='+V).then(r=>r.json()).then(x=>x.offers);
 
