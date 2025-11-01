@@ -6,8 +6,8 @@
     "category": "Mexican",
     "description": "Buy one entrée, get one of equal or lesser value free. One redemption per customer.",
     "expires_days": 30,
-    "hero_image": "/tacobell/hero-bogo.png",
-    "logo": "/static/tacobell/logo.png",
+    "hero_image": "/tacobell/tacobell-hero.png",
+    "logo": "/tacobell/tacobell-logo.png",
     "brand_color": "#702082",
     "accent_color": "#8A2BE2",
     "fine_print": "At participating locations. Not valid with other offers."
