@@ -1,4 +1,4 @@
-// shared.js — v16 (inline brand logo + saved button colors)
+// shared.js — v17 (title-row with inline logo + saved button colors)
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -41,6 +41,7 @@ const Shared = (function(){
       s.push(id);
       localStorage.setItem(LS_SAVED, JSON.stringify(s));
     }
+    // tell server (fire and forget)
     try {
       fetch('/api/save', {
         method:'POST',
@@ -173,7 +174,7 @@ const Shared = (function(){
     const el=document.createElement('article');
     el.className='card';
 
-    // image
+    // hero image
     const img=document.createElement('img');
     img.className='img';
     img.src=o.hero_image||'';
@@ -185,12 +186,25 @@ const Shared = (function(){
     body.className='body';
     el.appendChild(body);
 
-    // title
+    // ===== TITLE ROW (title + logo) =====
+    const titleRow = document.createElement('div');
+    titleRow.className = 'title-row';
+
     const h3=document.createElement('h3');
     h3.textContent=o.title||o.id;
-    body.appendChild(h3);
+    titleRow.appendChild(h3);
 
-    // brand row (text left, logo right)
+    if (o.logo){
+      const logo = document.createElement('img');
+      logo.className = 'brand-logo-inline';
+      logo.src = o.logo;
+      logo.alt = (o.restaurant || 'Brand') + ' logo';
+      titleRow.appendChild(logo);
+    }
+
+    body.appendChild(titleRow);
+
+    // ===== BRAND ROW (brand text only) =====
     const brandRow = document.createElement('div');
     brandRow.className = 'brand-row';
 
@@ -198,14 +212,6 @@ const Shared = (function(){
     brand.className = 'brand';
     brand.textContent = o.restaurant || '';
     brandRow.appendChild(brand);
-
-    if (o.logo){
-      const logo = document.createElement('img');
-      logo.className = 'brand-logo-inline';
-      logo.src = o.logo;
-      logo.alt = (o.restaurant || 'Brand') + ' logo';
-      brandRow.appendChild(logo);
-    }
 
     body.appendChild(brandRow);
 
