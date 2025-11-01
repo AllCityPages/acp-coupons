@@ -222,6 +222,8 @@ app.get('/api/offers', async (_req, res) => {
     description: o.description || '',
     category: o.category || '',
     hero_image: o.hero_image || o.logo || '',
+    // 👇 THIS is the fix — send logo to the front-end
+    logo: o.logo || '',
     brand_color: o.brand_color || '#111827',
     accent_color: o.accent_color || '#2563eb',
     expires_days: o.expires_days || 90,
@@ -427,8 +429,8 @@ new Chart(document.getElementById('pie'), {
       const v = heat[r][c];
       const cell = document.createElement('td');
       const k = v/max;
-      cell.style.background = \`hsl(24, 95%, \${Math.round(48 - 28*k)}%)\`;
-      cell.title = \`\${v} at \${c}:00\`;
+      cell.style.background = `hsl(24, 95%, ${Math.round(48 - 28*k)}%)`;
+      cell.title = `${v} at ${c}:00`;
       tr.appendChild(cell);
     }
     tbl.appendChild(tr);
