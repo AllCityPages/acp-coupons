@@ -1,4 +1,18 @@
-/* theme.css — v14 (cards 24px, custom button colors) */
+/* =========================================================
+   theme.css — v14+
+   Font options:
+   1) System UI (default)
+   2) Roboto (uncomment import + body)
+   3) Montserrat (uncomment import + body)
+   ========================================================= */
+
+/* --- OPTIONAL: load a web font --- */
+/* Roboto */
+/* @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap'); */
+
+/* Montserrat */
+/* @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap'); */
+
 :root{
   --bg:#ffffff;
   --ink:#111827;
@@ -14,13 +28,46 @@
   --cta:#111827;
 }
 
-html,body{background:var(--bg);color:var(--ink)}
-*{box-sizing:border-box}
-
-/* make sure everything can inherit the same font */
+/* =========================================================
+   1) DEFAULT FONT (system UI)
+   To use Roboto or Montserrat, comment this out and
+   uncomment the block below it.
+   ========================================================= */
 body{
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  margin:0;
 }
+
+/* =========================================================
+   2) ROBOTO (uncomment to use)
+   ========================================================= */
+/*
+body{
+  font-family:"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Helvetica Neue", Arial, sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  margin:0;
+}
+*/
+
+/* =========================================================
+   3) MONTSERRAT (uncomment to use)
+   ========================================================= */
+/*
+body{
+  font-family:"Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Helvetica Neue", Arial, sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  margin:0;
+}
+*/
+
+*{box-sizing:border-box}
 
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
 
@@ -46,7 +93,7 @@ body{
   background:rgba(17,24,39,.07);color:var(--bar-ink);
   font-weight:700;font-size:12px;line-height:1;cursor:pointer;text-decoration:none;
 }
-/* you wanted the top 3 white/black */
+/* top 3 white/black */
 .actionbar .chip--white{
   background:#ffffff;
   color:#111827;
@@ -133,8 +180,8 @@ a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
   flex-wrap:wrap;
 }
 
-/* ====== your colors ====== */
-/* Tap to Redeem still uses CTA */
+/* ====== colors ====== */
+/* Tap to Redeem */
 .btn-cta{
   background:var(--cta,#111827);
   color:#fff;
@@ -181,9 +228,10 @@ a.btn-outline {
   font-size:12px !important;
   border-radius:8px !important;
   font-weight:400 !important;
+  font-family:inherit !important;
 }
 
-/* make Favorite / Saved match */
+/* make Favorite / Saved match Tap to Redeem */
 .btn-favorite,
 .btn-saved {
   font-weight:400 !important;
@@ -191,7 +239,7 @@ a.btn-outline {
   font-family:inherit !important;
 }
 
-/* unify text for all card buttons (including Add to Wallet, CTA) */
+/* unify text for all card buttons */
 .btn-add-wallet,
 .btn-favorite,
 .btn-saved,
@@ -201,7 +249,7 @@ a.btn-outline {
   font-family:inherit !important;
 }
 
-/* 🔨 Safari / button nuclear: force actual <button> elements to drop native bold */
+/* Safari / button nuclear: force actual <button> elements to drop native bold */
 button.btn,
 button.btn-add-wallet,
 button.btn-favorite,
@@ -209,7 +257,7 @@ button.btn-saved,
 button.btn-cta {
   -webkit-appearance:none !important;
   appearance:none !important;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif !important;
+  font-family:inherit !important;
   font-weight:400 !important;
   font-size:12px !important;
   line-height:1 !important;
