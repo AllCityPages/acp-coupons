@@ -42,14 +42,14 @@
   },
 
   "bk-bogo-whopper": {
-    "title": "BOGO Whopper®",
+    "title": "Buy 1 Get 1 Free - Whopper®",
     "restaurant": "Burger King",
     "client_slug": "bk-frisco",
     "category": "Burgers",
     "description": "Buy one Whopper®, get one of equal or lesser value free.",
     "expires_days": 35,
-    "hero_image": "/static/bk/hero-whopper.png",
-    "logo": "/static/bk/logo.png",
+    "hero_image": "/burgerking/burgerking-hero-whopper.png",
+    "logo": "/burgerking/burgerking-logo.png",
     "brand_color": "#A64A29",
     "accent_color": "#C4622D",
     "fine_print": "Limit one per customer."
