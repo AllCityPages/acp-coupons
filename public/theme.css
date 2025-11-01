@@ -16,6 +16,12 @@
 
 html,body{background:var(--bg);color:var(--ink)}
 *{box-sizing:border-box}
+
+/* make sure everything can inherit the same font */
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
 
 /* Header */
@@ -114,6 +120,7 @@ a.btn-compact{text-decoration:none}
   color:#111827;
   text-decoration:none;
   cursor:pointer;
+  font-family:inherit;
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
 
@@ -176,7 +183,7 @@ a.btn-outline {
   font-weight:400 !important;
 }
 
-/* make Favorite / Saved match Tap to Redeem text weight */
+/* make Favorite / Saved match */
 .btn-favorite,
 .btn-saved {
   font-weight:400 !important;
@@ -184,7 +191,7 @@ a.btn-outline {
   font-family:inherit !important;
 }
 
-/* unify text for all card buttons */
+/* unify text for all card buttons (including Add to Wallet, CTA) */
 .btn-add-wallet,
 .btn-favorite,
 .btn-saved,
@@ -192,4 +199,18 @@ a.btn-outline {
   font-weight:400 !important;
   font-size:12px !important;
   font-family:inherit !important;
+}
+
+/* 🔨 Safari / button nuclear: force actual <button> elements to drop native bold */
+button.btn,
+button.btn-add-wallet,
+button.btn-favorite,
+button.btn-saved,
+button.btn-cta {
+  -webkit-appearance:none !important;
+  appearance:none !important;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif !important;
+  font-weight:400 !important;
+  font-size:12px !important;
+  line-height:1 !important;
 }
