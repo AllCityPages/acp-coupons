@@ -1,4 +1,4 @@
-// shared.js — v15 (inline brand logo + asset resolver)
+// shared.js — v16 (inline brand logo + saved button colors)
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -6,21 +6,6 @@ const Shared = (function(){
   let _statsCache = null;
   let _nearby = { lat:null, lng:null, brandDist: new Map() };
   let _categories = ['All','Burgers','Chicken','Pizza','Mexican','Sandwiches'];
-
-  // ---------- asset resolver ----------
-  // Many of your offers use "/popeyes/..." but your server serves "/static/...".
-  // This normalizes both:
-  //   "/static/popeyes/..."  -> kept
-  //   "/popeyes/..."         -> "/static/popeyes/..."
-  //   "https://..."          -> kept
-  function resolveAsset(p){
-    if (!p) return '';
-    if (p.startsWith('http://') || p.startsWith('https://')) return p;
-    if (p.startsWith('/static/')) return p;
-    // ensure leading slash
-    if (p.startsWith('/')) return '/static' + p;
-    return '/static/' + p;
-  }
 
   /* ---------- utils ---------- */
   const debounce=(fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
@@ -56,7 +41,6 @@ const Shared = (function(){
       s.push(id);
       localStorage.setItem(LS_SAVED, JSON.stringify(s));
     }
-    // optional: tell server
     try {
       fetch('/api/save', {
         method:'POST',
@@ -72,7 +56,6 @@ const Shared = (function(){
 
   /* ---------- filters ---------- */
   function populateBrandFilter(rows, selectEl){
-    // your API uses "restaurant" as the brand field
     const brands=[...new Set(rows.map(r=>r.restaurant).filter(Boolean))].sort();
     brands.forEach(b=>{
       const o=document.createElement('option');
@@ -123,11 +106,7 @@ const Shared = (function(){
   async function getStats(){
     if(_statsCache) return _statsCache;
     try{
-      // NOTE: your server now returns { stats, sources } on /api/offer-stats
-      // but we only use .stats here
-      _statsCache = await fetch('/api/offer-stats')
-        .then(r=>r.json())
-        .then(x=>x.stats||{});
+      _statsCache = await fetch('/api/offer-stats').then(r=>r.json()).then(x=>x.stats||{});
     }catch{
       _statsCache = {};
     }
@@ -194,10 +173,10 @@ const Shared = (function(){
     const el=document.createElement('article');
     el.className='card';
 
-    // image (hero) — now resolved to /static/... if needed
+    // image
     const img=document.createElement('img');
     img.className='img';
-    img.src = resolveAsset(o.hero_image || o.logo || '');
+    img.src=o.hero_image||'';
     img.alt=o.title||'';
     el.appendChild(img);
 
@@ -211,7 +190,7 @@ const Shared = (function(){
     h3.textContent=o.title||o.id;
     body.appendChild(h3);
 
-    // brand row: text on left, logo on right
+    // brand row (text left, logo right)
     const brandRow = document.createElement('div');
     brandRow.className = 'brand-row';
 
@@ -220,11 +199,10 @@ const Shared = (function(){
     brand.textContent = o.restaurant || '';
     brandRow.appendChild(brand);
 
-    // show logo if available — now path-fixed
     if (o.logo){
       const logo = document.createElement('img');
       logo.className = 'brand-logo-inline';
-      logo.src = resolveAsset(o.logo);
+      logo.src = o.logo;
       logo.alt = (o.restaurant || 'Brand') + ' logo';
       brandRow.appendChild(logo);
     }
@@ -239,7 +217,7 @@ const Shared = (function(){
       body.appendChild(p);
     }
 
-    // meta (expires, redeemed, distance)
+    // meta
     const meta=document.createElement('div');
     meta.className='meta';
 
@@ -265,17 +243,16 @@ const Shared = (function(){
 
     body.appendChild(meta);
 
-    // actions row
+    // actions
     const row=document.createElement('div');
     row.className='btnrow';
     body.appendChild(row);
 
-    /* 1) Tap to Redeem */
+    // 1) Tap to Redeem
     const cta=document.createElement('a');
     cta.className='btn btn-cta';
     cta.textContent=opts.wallet ? 'Use Now' : 'Tap to Redeem';
     cta.href=`/coupon?offer=${encodeURIComponent(o.id)}`;
-    // let offer set its own brand color
     if (o.brand_color){
       cta.style.background = o.brand_color;
       cta.style.borderColor = o.brand_color;
@@ -286,9 +263,8 @@ const Shared = (function(){
     }
     row.appendChild(cta);
 
-    /* 2) Favorite / Saved (toggle) */
+    // 2) Favorite
     const fav=document.createElement('button');
-
     const setFav=()=>{
       const saved=isSaved(o.id);
       if(saved){
@@ -299,7 +275,6 @@ const Shared = (function(){
         fav.className='btn btn-favorite';
       }
     };
-
     fav.onclick=()=>{
       if(isSaved(o.id)){
         remove(o.id);
@@ -312,17 +287,17 @@ const Shared = (function(){
     setFav();
     row.appendChild(fav);
 
-    /* 3) Add to Wallet (always black/white) */
+    // 3) Add to Wallet
     const add=document.createElement('button');
     add.className='btn btn-add-wallet';
     add.textContent='Add to Wallet';
     add.onclick=()=>{
       save(o.id);
-      setFav(); // update favorite to "Saved"
+      setFav();
     };
     row.appendChild(add);
 
-    /* 4) Print */
+    // 4) Print
     const print=document.createElement('a');
     print.className='btn btn-outline';
     print.textContent='Print';
@@ -372,7 +347,7 @@ const Shared = (function(){
     renderNotifyCTA, enableNearbyAlerts,
     computeNearbySort, sortByNearby,
     get __nearbyReady(){ return Boolean(_nearby.brandDist && _nearby.brandDist.size); },
-    set __nearbyReady(v){},
+    set __nearbyReady(_v){},
     getStats,
   };
 })();
