@@ -8,7 +8,7 @@
 
 /* --- OPTIONAL: load a web font --- */
 /* Roboto */
-/* @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap'); */
+ @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap'); 
 
 /* Montserrat */
 /* @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap'); */
@@ -33,6 +33,7 @@
    To use Roboto or Montserrat, comment this out and
    uncomment the block below it.
    ========================================================= */
+*/
 body{
   font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -40,11 +41,12 @@ body{
   color:var(--ink);
   margin:0;
 }
+*/
 
 /* =========================================================
    2) ROBOTO (uncomment to use)
    ========================================================= */
-/*
+
 body{
   font-family:"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Helvetica Neue", Arial, sans-serif;
@@ -52,7 +54,7 @@ body{
   color:var(--ink);
   margin:0;
 }
-*/
+
 
 /* =========================================================
    3) MONTSERRAT (uncomment to use)
