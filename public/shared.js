@@ -1,4 +1,4 @@
-// shared.js — v14 (with inline brand logo)
+// shared.js — v15 (inline brand logo + asset resolver)
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -6,6 +6,21 @@ const Shared = (function(){
   let _statsCache = null;
   let _nearby = { lat:null, lng:null, brandDist: new Map() };
   let _categories = ['All','Burgers','Chicken','Pizza','Mexican','Sandwiches'];
+
+  // ---------- asset resolver ----------
+  // Many of your offers use "/popeyes/..." but your server serves "/static/...".
+  // This normalizes both:
+  //   "/static/popeyes/..."  -> kept
+  //   "/popeyes/..."         -> "/static/popeyes/..."
+  //   "https://..."          -> kept
+  function resolveAsset(p){
+    if (!p) return '';
+    if (p.startsWith('http://') || p.startsWith('https://')) return p;
+    if (p.startsWith('/static/')) return p;
+    // ensure leading slash
+    if (p.startsWith('/')) return '/static' + p;
+    return '/static/' + p;
+  }
 
   /* ---------- utils ---------- */
   const debounce=(fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
@@ -108,7 +123,11 @@ const Shared = (function(){
   async function getStats(){
     if(_statsCache) return _statsCache;
     try{
-      _statsCache = await fetch('/api/offer-stats').then(r=>r.json()).then(x=>x.stats||{});
+      // NOTE: your server now returns { stats, sources } on /api/offer-stats
+      // but we only use .stats here
+      _statsCache = await fetch('/api/offer-stats')
+        .then(r=>r.json())
+        .then(x=>x.stats||{});
     }catch{
       _statsCache = {};
     }
@@ -175,10 +194,10 @@ const Shared = (function(){
     const el=document.createElement('article');
     el.className='card';
 
-    // image
+    // image (hero) — now resolved to /static/... if needed
     const img=document.createElement('img');
     img.className='img';
-    img.src=o.hero_image||'';
+    img.src = resolveAsset(o.hero_image || o.logo || '');
     img.alt=o.title||'';
     el.appendChild(img);
 
@@ -201,11 +220,11 @@ const Shared = (function(){
     brand.textContent = o.restaurant || '';
     brandRow.appendChild(brand);
 
-    // show logo if available
+    // show logo if available — now path-fixed
     if (o.logo){
       const logo = document.createElement('img');
       logo.className = 'brand-logo-inline';
-      logo.src = o.logo;
+      logo.src = resolveAsset(o.logo);
       logo.alt = (o.restaurant || 'Brand') + ' logo';
       brandRow.appendChild(logo);
     }
