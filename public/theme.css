@@ -111,7 +111,7 @@ a.btn-compact{text-decoration:none}
   gap:6px;
   border:1px solid var(--border);
   background:#fff;
-  color:var(--ink);
+  color:#111827;
   text-decoration:none;
   cursor:pointer;
 }
@@ -174,4 +174,22 @@ a.btn-outline {
   font-size:12px !important;
   border-radius:8px !important;
   font-weight:400 !important;
+}
+
+/* make Favorite / Saved match Tap to Redeem text weight */
+.btn-favorite,
+.btn-saved {
+  font-weight:400 !important;
+  font-size:12px !important;
+  font-family:inherit !important;
+}
+
+/* unify text for all card buttons */
+.btn-add-wallet,
+.btn-favorite,
+.btn-saved,
+.btn-cta {
+  font-weight:400 !important;
+  font-size:12px !important;
+  font-family:inherit !important;
 }
