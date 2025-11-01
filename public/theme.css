@@ -1,50 +1,17 @@
 /* =========================================================
    theme.css — v15
-   - unified 24px button system
-   - inline brand row + logo (for Popeyes, etc.)
-   - font OPTIONS (pick ONE)
+   - Roboto on by default
+   - 24px button system
+   - Favorite = yellow, Saved = green
+   - Inline brand logo support
    ========================================================= */
 
-/* =========================================================
-   FONT OPTIONS — pick ONE:
-   1) System UI (recommended for speed)
-   2) Roboto (matching your current setup)  <-- ACTIVE
-   3) Montserrat (more geometric)
-   ========================================================= */
-
-/* 1) SYSTEM UI (uncomment this block and comment the others if you want it) */
-/*
-@import url('');
-body{
-  font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  background:var(--bg);
-  color:var(--ink);
-  margin:0;
-}
-*/
-
-/* 2) ROBOTO (ACTIVE) */
+/* --- OPTIONAL: load a web font --- */
+/* Roboto */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
-body{
-  font-family:"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Helvetica Neue", Arial, sans-serif;
-  background:var(--bg);
-  color:var(--ink);
-  margin:0;
-}
 
-/* 3) MONTSERRAT (use this instead of Roboto if you prefer) */
-/*
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap');
-body{
-  font-family:"Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Helvetica Neue", Arial, sans-serif;
-  background:var(--bg);
-  color:var(--ink);
-  margin:0;
-}
-*/
+/* Montserrat (if you want it, turn off Roboto above) */
+/* @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap'); */
 
 :root{
   --bg:#ffffff;
@@ -61,11 +28,25 @@ body{
   --cta:#111827;
 }
 
+/* =========================================================
+   FONT
+   ========================================================= */
+
+body{
+  font-family:"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Helvetica Neue", Arial, sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  margin:0;
+}
+
 *{box-sizing:border-box}
 
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
 
-/* Header */
+/* =========================================================
+   HEADER
+   ========================================================= */
 .header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .logo{
   width:38px;height:38px;border-radius:9px;display:grid;place-items:center;
@@ -74,7 +55,9 @@ body{
 .title h1{font-size:18px;margin:0;line-height:1}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* Yellow action bar */
+/* =========================================================
+   ACTION BAR (yellow)
+   ========================================================= */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
@@ -87,14 +70,15 @@ body{
   background:rgba(17,24,39,.07);color:var(--bar-ink);
   font-weight:700;font-size:12px;line-height:1;cursor:pointer;text-decoration:none;
 }
-/* top 3 white/black */
 .actionbar .chip--white{
   background:#ffffff;
   color:#111827;
   border:1px solid rgba(0,0,0,.04);
 }
 
-/* Filters */
+/* =========================================================
+   FILTERS
+   ========================================================= */
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .input,.select{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
@@ -109,25 +93,29 @@ body{
 }
 a.btn-compact{text-decoration:none}
 
-/* Card grid */
+/* =========================================================
+   CARD GRID
+   ========================================================= */
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
 @media (max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width:520px){.grid{grid-template-columns:1fr}}
 
-/* Card */
+/* =========================================================
+   CARD
+   ========================================================= */
 .card{
   background:var(--panel);border:1px solid var(--border);
   border-radius:var(--radius);box-shadow:var(--shadow);
   overflow:hidden;display:flex;flex-direction:column;
 }
 .card .img{
-  width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa
+  width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa;
 }
 .card .body{padding:12px 14px}
 .card h3{margin:0 0 4px;font-size:18px}
 
-/* original brand style (used inside brand-row) */
+/* brand text (left) */
 .card .brand,
 .brand{
   color:var(--muted);
@@ -136,8 +124,7 @@ a.btn-compact{text-decoration:none}
 }
 
 /* =========================================================
-   INLINE BRAND ROW (text left, logo right)
-   matches shared.js → brandRow + brand-logo-inline
+   INLINE BRAND LOGO ROW
    ========================================================= */
 .brand-row{
   display:flex;
@@ -146,11 +133,8 @@ a.btn-compact{text-decoration:none}
   gap:8px;
   margin-bottom:8px;
 }
-
-/* logo thumbnail in the “red circle” spot */
 .brand-logo-inline{
   width:42px;
-  max-height:32px;
   height:auto;
   flex:0 0 auto;
   object-fit:contain;
@@ -159,17 +143,17 @@ a.btn-compact{text-decoration:none}
   padding:3px;
   box-shadow:0 1px 3px rgba(15,23,42,.12);
 }
-@media (max-width:480px){
-  .brand-logo-inline{
-    width:36px;
-    max-height:28px;
-    padding:2px;
-  }
+
+/* description */
+.card .desc{
+  color:#374151;
+  font-size:13px;
+  margin:0 0 12px;
 }
 
-.card .desc{color:#374151;font-size:13px;margin:0 0 12px}
-
-/* Badges (green box area) */
+/* =========================================================
+   BADGES
+   ========================================================= */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
@@ -181,9 +165,9 @@ a.btn-compact{text-decoration:none}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* =======================================================
-   24px BUTTON SYSTEM (everything in cards)
-   ======================================================= */
+/* =========================================================
+   24px BUTTON SYSTEM
+   ========================================================= */
 .btn,
 .btn-cta,
 .btn-outline{
@@ -205,7 +189,7 @@ a.btn-compact{text-decoration:none}
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
 
-/* row in card */
+/* button row in card */
 .btnrow,
 .card .btnrow,
 .offer-actions{
@@ -214,43 +198,62 @@ a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
   flex-wrap:wrap;
 }
 
-/* ====== colors ====== */
-/* Tap to Redeem */
+/* primary / Tap to Redeem */
 .btn-cta{
   background:var(--cta,#111827);
   color:#fff;
   border:1px solid #0f1629;
 }
-/* Add to Wallet → black + white */
+
+/* Add to Wallet → always black */
 .btn-add-wallet{
   background:#000 !important;
   color:#fff !important;
   border:1px solid #000 !important;
 }
-/* Favorite → yellow + black */
+
+/* Favorite → yellow + black (per your request) */
 .btn-favorite{
   background:#ffd400 !important;
   color:#111827 !important;
   border:1px solid #e5c200 !important;
 }
-/* Saved → green + white */
+
+/* Saved → green */
 .btn-saved{
   background:#16a34a !important;
   color:#ffffff !important;
   border:1px solid #15803d !important;
 }
 
-/* Category pills elsewhere */
+/* Outline / Print */
+.btn-outline{
+  background:#fff;
+  color:#111827;
+}
+
+/* =========================================================
+   CATEGORY PILLS (top)
+   ========================================================= */
 .pill{
   height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
 }
 .pill.active{background:#111827;color:#fff;border-color:#111827}
 
-/* Footer */
-.footer{text-align:center;color:var(--muted);font-size:13px;padding:22px 0 30px}
+/* =========================================================
+   FOOTER
+   ========================================================= */
+.footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:13px;
+  padding:22px 0 30px;
+}
 
-/* guard: kill old pill/big buttons from cache */
+/* =========================================================
+   GUARD RAILS (kill old cached pill styles)
+   ========================================================= */
 button.btn,
 a.btn,
 button.btn-cta,
@@ -265,25 +268,17 @@ a.btn-outline {
   font-family:inherit !important;
 }
 
-/* make Favorite / Saved match Tap to Redeem */
-.btn-favorite,
-.btn-saved {
-  font-weight:400 !important;
-  font-size:12px !important;
-  font-family:inherit !important;
-}
-
-/* unify text for all card buttons */
-.btn-add-wallet,
+/* make Favorite / Saved match */
 .btn-favorite,
 .btn-saved,
+.btn-add-wallet,
 .btn-cta {
   font-weight:400 !important;
   font-size:12px !important;
   font-family:inherit !important;
 }
 
-/* Safari / button nuclear: force actual <button> elements to drop native bold */
+/* Safari: remove native bold on button */
 button.btn,
 button.btn-add-wallet,
 button.btn-favorite,
