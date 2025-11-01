@@ -1,4 +1,4 @@
-// shared.js — v14
+// shared.js — v14 (with inline brand logo)
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -187,15 +187,32 @@ const Shared = (function(){
     body.className='body';
     el.appendChild(body);
 
+    // title
     const h3=document.createElement('h3');
     h3.textContent=o.title||o.id;
     body.appendChild(h3);
 
-    const brand=document.createElement('div');
-    brand.className='brand';
-    brand.textContent=o.restaurant||'';
-    body.appendChild(brand);
+    // brand row: text on left, logo on right
+    const brandRow = document.createElement('div');
+    brandRow.className = 'brand-row';
 
+    const brand = document.createElement('div');
+    brand.className = 'brand';
+    brand.textContent = o.restaurant || '';
+    brandRow.appendChild(brand);
+
+    // show logo if available
+    if (o.logo){
+      const logo = document.createElement('img');
+      logo.className = 'brand-logo-inline';
+      logo.src = o.logo;
+      logo.alt = (o.restaurant || 'Brand') + ' logo';
+      brandRow.appendChild(logo);
+    }
+
+    body.appendChild(brandRow);
+
+    // description
     if(o.description){
       const p=document.createElement('p');
       p.className='desc';
