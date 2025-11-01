@@ -1,11 +1,10 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- pull the latest button system + brand-row + inline logo styles -->
   <link rel="stylesheet" href="/theme.css?v=15">
 </head>
 <body>
@@ -20,9 +19,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <!-- both go to wallet, you can split later -->
-      <a class="chip chip--white" href="/wallet.html?v=15">💰 My Wallet</a>
-      <a class="chip chip--white" href="/wallet.html?v=15">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=16">💰 My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=16">⭐ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -34,7 +32,6 @@
       <button id="clear" class="btn-compact">Clear</button>
     </div>
 
-    <!-- cards injected here -->
     <section id="grid" class="grid"></section>
 
     <footer class="footer">
@@ -42,19 +39,22 @@
     </footer>
   </div>
 
-  <!-- updated shared.js that renders brand-row + inline logo -->
-  <script src="/shared.js?v=15"></script>
+  <script src="/shared.js?v=16"></script>
   <script>
     (async function init(){
-      // fetch current catalog
-      const data = await fetch('/api/offers').then(r=>r.json());
+      // fetch actual offers
+      const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
       const offers = data.offers || [];
 
-      // fill the brand dropdown
+      // populate brand filter
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
 
-      // local UI state
-      const state = { q:'', brand:'', category:'', sortNearby:false };
+      const state = {
+        q: '',
+        brand: '',
+        category: '',
+        sortNearby: false
+      };
 
       function render(){
         const grid = document.getElementById('grid');
@@ -63,16 +63,20 @@
         if (state.sortNearby && Shared.__nearbyReady) {
           rows = Shared.sortByNearby(rows);
         }
-        rows.forEach(o => grid.appendChild(Shared.makeCard(o)));
+        rows.forEach(o => {
+          grid.appendChild(Shared.makeCard(o));
+        });
       }
 
-      // filter buttons
-      document.getElementById('apply').onclick = ()=>{
+      // Apply
+      document.getElementById('apply').onclick = () => {
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
         render();
       };
-      document.getElementById('clear').onclick = ()=>{
+
+      // Clear
+      document.getElementById('clear').onclick = () => {
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
         state.q = '';
@@ -80,22 +84,36 @@
         render();
       };
 
-      // nearby alerts
-      document.getElementById('btn-near').onclick = Shared.enableNearbyAlerts;
+      // Nearby button → enable alerts + geo sort
+      document.getElementById('btn-near').onclick = async () => {
+        await Shared.enableNearbyAlerts();
+        try {
+          await Shared.computeNearbySort();
+          Shared.__nearbyReady = true;
+          state.sortNearby = true;
+          render();
+        } catch(e) {
+          // geo failed, ignore
+        }
+      };
 
-      // try to get nearby distances, then render
+      // try pre-compute nearby in background
       try {
         await Shared.computeNearbySort();
         Shared.__nearbyReady = true;
-      } catch (e) {}
+      } catch(e) {}
+
       render();
 
-      // PWA SW
+      // service worker
       if ('serviceWorker' in navigator){
         const SW_VERSION = '9';
-        navigator.serviceWorker.register('/service-worker.js?v=' + SW_VERSION, { updateViaCache:'none' })
+        navigator.serviceWorker
+          .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
           .then(reg => {
-            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type:'SKIP_WAITING' });
+            }
             reg.update();
           })
           .catch(()=>{});
