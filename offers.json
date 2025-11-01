@@ -1,10 +1,10 @@
 {
   "tacobell-freeitem": {
-    "title": "Buy 1 Get 1 Free — Any Entrée",
+    "title": "Buy 1 Get 1 Free — Any Crispy or Soft Taco",
     "restaurant": "Taco Bell",
     "client_slug": "taco-bell-allen",
     "category": "Mexican",
-    "description": "Buy one entrée, get one of equal or lesser value free. One redemption per customer.",
+    "description": "Buy one Taco, get one of equal or lesser value free. One redemption per customer.",
     "expires_days": 30,
     "hero_image": "/tacobell/tacobell-hero-freetaco.png",
     "logo": "/tacobell/tacobell-logo.png",
