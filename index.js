@@ -79,13 +79,12 @@ app.use(express.static(PUBLIC_DIR, {
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
     } else if (/\.(css|js|mjs|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf)$/.test(filePath)) {
-      // images, css, js → long cache
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
   }
 }));
 
-// important for /static/popeyes/... since you’re putting files in /public/popeyes
+// serve /static/* from /public/*
 app.use('/static', express.static(PUBLIC_DIR));
 
 // SW no-cache
@@ -122,7 +121,6 @@ async function loadCatalog() {
 
 // ======================================================================
 //  COUPON ISSUANCE / VIEW  (single, with attribution)
-//  (this is the NEWER version — we keep only this one)
 // ======================================================================
 app.get('/coupon', async (req, res) => {
   const { offers } = await loadCatalog();
@@ -235,7 +233,7 @@ app.post('/api/redeem', async (req, res) => {
 });
 
 // ======================================================================
-//  PUBLIC OFFERS API (now includes logo)
+//  PUBLIC OFFERS API (includes logo)
 // ======================================================================
 app.get('/api/offers', async (_req, res) => {
   const { offers } = await loadCatalog();
@@ -245,9 +243,7 @@ app.get('/api/offers', async (_req, res) => {
     restaurant: o.restaurant || '',
     description: o.description || '',
     category: o.category || '',
-    // your cards use hero_image on top, but if missing, fall back to logo
     hero_image: o.hero_image || o.logo || '',
-    // IMPORTANT: send logo so /public/shared.js can render it in the red circle
     logo: o.logo || '',
     brand_color: o.brand_color || '#111827',
     accent_color: o.accent_color || '#2563eb',
@@ -401,7 +397,7 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
   const lineLabels = Object.keys(byDay).sort();
   const lineData = lineLabels.map(k => byDay[k]);
 
-  // 7x24 heatmap
+  // build 7x24 heatmap
   const hm = Array.from({ length: 7 }, () => Array(24).fill(0));
   filtered.forEach(p => {
     if (p.status !== 'redeemed' || !p.redeemed_at) return;
@@ -409,7 +405,7 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
     hm[d.getDay()][d.getHours()]++;
   });
 
-  // this is the IMPORTANT FIX: we stringify server-side, then parse on client
+  // IMPORTANT: safe stringify for embedding into HTML
   const heatJSON = JSON.stringify(hm).replace(/</g, '\\u003c');
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -456,8 +452,7 @@ const lineLabels = ${JSON.stringify(lineLabels)};
 const lineData   = ${JSON.stringify(lineData)};
 const pieLabels  = ${JSON.stringify(pieLabels)};
 const pieData    = ${JSON.stringify(pieData)};
-// parse the 7x24 matrix safely
-const heat       = JSON.parse('${heatJSON}'); // [7][24]
+const heat       = JSON.parse('${heatJSON}'); // 7x24
 
 new Chart(document.getElementById('line'), {
   type:'line',
@@ -546,10 +541,8 @@ app.get('/hub/dashboard.pdf', requireKey, async (req, res) => {
 app.get('/', (_req, res) => res.redirect('/offers.html'));
 
 // ======================================================================
-//  Printable coupon + QR (kept, but deduped)
+//  Printable coupon + QR
 // ======================================================================
-
-// single offer JSON for print
 app.get('/api/offer/:id', async (req, res) => {
   const { offers } = await loadCatalog();
   const id = req.params.id;
@@ -559,7 +552,6 @@ app.get('/api/offer/:id', async (req, res) => {
 });
 
 // QR that issues fresh token
-// usage: /qr?offer=ID&src=print4|print1|flyer|<custom>
 app.get('/qr', async (req, res) => {
   const id = (req.query.offer || '').toString();
   const src = (req.query.src || '').toString();
@@ -580,7 +572,7 @@ app.get('/qr', async (req, res) => {
   }
 });
 
-// server-side PDF for single or 4-up
+// PDF (single / 4-up)
 app.get('/coupon-print.pdf', async (req, res) => {
   const offer = (req.query.offer || '').toString();
   const per = (req.query.per || '').toString();
@@ -615,7 +607,6 @@ app.get('/coupon-print.pdf', async (req, res) => {
 
 // ======================================================================
 //  Public aggregate stats (issued & redeemed) + sources
-//  (this is the SINGLE version now)
 // ======================================================================
 app.get('/api/offer-stats', async (_req, res) => {
   const db = await jread(DB_FILE, { passes: [], redemptions: [] });
