@@ -62,7 +62,7 @@
     "category": "Burgers",
     "description": "Get a free sandwich combo with any sanweich combo purchase.",
     "expires_days": 40,
-    "hero_image": "/wendys/wendys-hero-side.png",
+    "hero_image": "/wendys/wendys-hero-combo.png",
     "logo": "/wendys/wendys-logo.png",
     "brand_color": "#C8102E",
     "accent_color": "#E2231A",
