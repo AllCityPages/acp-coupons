@@ -56,11 +56,11 @@
   },
 
   "wendys-free-side": {
-    "title": "Free Side with Any Entrée",
+    "title": "Buy 1 Get 1 Free - Sandwich Combo",
     "restaurant": "Wendy's",
     "client_slug": "wendys-frisco",
     "category": "Burgers",
-    "description": "Get a free side with any entrée purchase.",
+    "description": "Get a free sandwich combo with any sanweich combo purchase.",
     "expires_days": 40,
     "hero_image": "/wendys/wendys-hero-side.png",
     "logo": "/wendys/wendys-logo.png",
@@ -69,14 +69,14 @@
     "fine_print": "One redemption per customer. Not redeemable for cash."
   },
 
-  "kfc-bucket-10": {
-    "title": "$10 Off Family Bucket",
+  "kfc-tender-combo": {
+    "title": "Buy one Get one 1/2 off - Tender Combo",
     "restaurant": "KFC",
     "client_slug": "kfc-mckinney",
     "category": "Chicken",
-    "description": "Get $10 off any Family Bucket. One redemption per customer.",
+    "description": "Buy one Tender Combo get one 1/2 off. One redemption per customer.",
     "expires_days": 30,
-    "hero_image": "/static/kfc/hero-bucket.png",
+    "hero_image": "/kfc/kfc-hero-tenders.png",
     "logo": "/kfc/kfc-logo.png",
     "brand_color": "#E4002B",
     "accent_color": "#E4002B",
