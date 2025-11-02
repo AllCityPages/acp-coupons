@@ -62,8 +62,8 @@
     "category": "Burgers",
     "description": "Get a free side with any entrée purchase.",
     "expires_days": 40,
-    "hero_image": "/static/wendys/hero-side.png",
-    "logo": "/static/wendys/logo.png",
+    "hero_image": "/wendys/wendys-hero-side.png",
+    "logo": "/wendys/wendys-logo.png",
     "brand_color": "#C8102E",
     "accent_color": "#E2231A",
     "fine_print": "One redemption per customer. Not redeemable for cash."
@@ -77,7 +77,7 @@
     "description": "Get $10 off any Family Bucket. One redemption per customer.",
     "expires_days": 30,
     "hero_image": "/static/kfc/hero-bucket.png",
-    "logo": "/static/kfc/logo.png",
+    "logo": "/kfc/kfc-logo.png",
     "brand_color": "#E4002B",
     "accent_color": "#E4002B",
     "fine_print": "Offer available at participating locations."
