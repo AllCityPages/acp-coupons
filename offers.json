@@ -35,7 +35,7 @@
     "description": "Buy one Sandwich Combo, get one of equal or lesser value free. One redemption per customer.",
     "expires_days": 30,
     "hero_image": "/mcdonalds/mcdonalds-hero-mcmuffin.png",
-    "logo": "/static/mcd/logo.png",
+    "logo": "/mcdonalds/mcdonalds-logo.png",
     "brand_color": "#DA291C",
     "accent_color": "#FF0000",
     "fine_print": "Not valid with any other offers. Valid only at participating McDonald's."
