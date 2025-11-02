@@ -111,15 +111,15 @@
     "fine_print": "Valid at participating locations only."
   },
 
-  "subway-free-cookie": {
-    "title": "Free Cookie with Any Footlong",
+  "subway-free-sub": {
+    "title": "Buy 1 Get 1 Free - Footlong Sub",
     "restaurant": "Subway",
     "client_slug": "subway-allen",
     "category": "Sandwiches",
-    "description": "Enjoy a free cookie with any Footlong purchase.",
+    "description": "Enjoy a free Footlong Sub with any Footlong purchase of equal or lesser value.",
     "expires_days": 20,
-    "hero_image": "/static/subway/hero-footlong.png",
-    "logo": "/static/subway/logo.png",
+    "hero_image": "/subway/subway-hero-bogo.png",
+    "logo": "/subway/subway-logo.png",
     "brand_color": "#00543D",
     "accent_color": "#009E5A",
     "fine_print": "One per customer. While supplies last."
