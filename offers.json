@@ -48,7 +48,7 @@
     "category": "Burgers",
     "description": "Buy one Whopper®, get one of equal or lesser value free.",
     "expires_days": 35,
-    "hero_image": "/burgerking/burgerking-hero-2whoppers.png",
+    "hero_image": "/burgerking/burgerking-hero-bogo.png",
     "logo": "/burgerking/burgerking-logo.png",
     "brand_color": "#A64A29",
     "accent_color": "#C4622D",
