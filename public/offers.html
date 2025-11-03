@@ -5,12 +5,14 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=15">
+  <!-- bumped version so Safari stops caching old css -->
+  <link rel="stylesheet" href="/theme.css?v=17">
 </head>
 <body>
   <div class="site">
     <header class="header">
-      <div class="logo">A</div>
+      <!-- logo hook -->
+      <div class="logo" data-logo>LD</div>
       <div class="title">
         <h1>Local Deals Hub</h1>
         <p>Precision Beats Saturation — Every Scan Counts.™</p>
@@ -19,8 +21,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <a class="chip chip--white" href="/wallet.html?v=16">💰 My Wallet</a>
-      <a class="chip chip--white" href="/wallet.html?v=16">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=17">💰 My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=17">⭐ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -39,14 +41,13 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=16"></script>
+  <!-- bumped js version too -->
+  <script src="/shared.js?v=18"></script>
   <script>
     (async function init(){
-      // fetch actual offers
       const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
       const offers = data.offers || [];
 
-      // populate brand filter
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
 
       const state = {
@@ -68,14 +69,12 @@
         });
       }
 
-      // Apply
       document.getElementById('apply').onclick = () => {
         state.q = document.getElementById('q').value.trim();
         state.brand = document.getElementById('brand').value;
         render();
       };
 
-      // Clear
       document.getElementById('clear').onclick = () => {
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
@@ -84,7 +83,6 @@
         render();
       };
 
-      // Nearby button → enable alerts + geo sort
       document.getElementById('btn-near').onclick = async () => {
         await Shared.enableNearbyAlerts();
         try {
@@ -92,12 +90,9 @@
           Shared.__nearbyReady = true;
           state.sortNearby = true;
           render();
-        } catch(e) {
-          // geo failed, ignore
-        }
+        } catch(e) {}
       };
 
-      // try pre-compute nearby in background
       try {
         await Shared.computeNearbySort();
         Shared.__nearbyReady = true;
@@ -105,7 +100,6 @@
 
       render();
 
-      // service worker
       if ('serviceWorker' in navigator){
         const SW_VERSION = '9';
         navigator.serviceWorker
