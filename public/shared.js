@@ -1,4 +1,11 @@
-// shared.js — v17 (title-row with inline logo + saved button colors)
+// shared.js — v18 (branding + title-row + saved button colors)
+const BRAND = {
+  name: 'Local Deals Hub',
+  // change this to wherever you actually put the file (e.g. '/img/acp-logo.png')
+  logo: '/logo.png',
+  home: '/offers.html'
+};
+
 const Shared = (function(){
   const LS_SAVED = 'acp_saved_offers';
   const QKEYS = ['q','brand','category','sortNearby'];
@@ -29,6 +36,31 @@ const Shared = (function(){
     history.replaceState(null,'',u.toString());
   }
 
+  /* ---------- branding ---------- */
+  function initBranding(){
+    const els = document.querySelectorAll('[data-logo]');
+    els.forEach(el => {
+      // if we have a logo image
+      if (BRAND.logo) {
+        el.classList.add('has-img');
+        // keep href for <a> (wallet back button), just replace inner
+        el.innerHTML = `<img src="${BRAND.logo}" alt="${BRAND.name || 'Logo'}">`;
+      } else {
+        // fallback letter
+        const letter = (BRAND.name || 'A').slice(0,1).toUpperCase();
+        el.textContent = letter;
+      }
+    });
+
+    // also update the title text if needed
+    if (BRAND.name) {
+      const h1 = document.querySelector('.title h1');
+      if (h1 && !h1.dataset.locked) {
+        h1.textContent = BRAND.name;
+      }
+    }
+  }
+
   /* ---------- wallet storage ---------- */
   function getSaved(){
     try { return JSON.parse(localStorage.getItem(LS_SAVED) || '[]'); }
@@ -41,7 +73,6 @@ const Shared = (function(){
       s.push(id);
       localStorage.setItem(LS_SAVED, JSON.stringify(s));
     }
-    // tell server (fire and forget)
     try {
       fetch('/api/save', {
         method:'POST',
@@ -174,19 +205,16 @@ const Shared = (function(){
     const el=document.createElement('article');
     el.className='card';
 
-    // hero image
     const img=document.createElement('img');
     img.className='img';
     img.src=o.hero_image||'';
     img.alt=o.title||'';
     el.appendChild(img);
 
-    // body
     const body=document.createElement('div');
     body.className='body';
     el.appendChild(body);
 
-    // ===== TITLE ROW (title + logo) =====
     const titleRow = document.createElement('div');
     titleRow.className = 'title-row';
 
@@ -204,7 +232,6 @@ const Shared = (function(){
 
     body.appendChild(titleRow);
 
-    // ===== BRAND ROW (brand text only) =====
     const brandRow = document.createElement('div');
     brandRow.className = 'brand-row';
 
@@ -215,7 +242,6 @@ const Shared = (function(){
 
     body.appendChild(brandRow);
 
-    // description
     if(o.description){
       const p=document.createElement('p');
       p.className='desc';
@@ -223,7 +249,6 @@ const Shared = (function(){
       body.appendChild(p);
     }
 
-    // meta
     const meta=document.createElement('div');
     meta.className='meta';
 
@@ -249,12 +274,10 @@ const Shared = (function(){
 
     body.appendChild(meta);
 
-    // actions
     const row=document.createElement('div');
     row.className='btnrow';
     body.appendChild(row);
 
-    // 1) Tap to Redeem
     const cta=document.createElement('a');
     cta.className='btn btn-cta';
     cta.textContent=opts.wallet ? 'Use Now' : 'Tap to Redeem';
@@ -269,7 +292,6 @@ const Shared = (function(){
     }
     row.appendChild(cta);
 
-    // 2) Favorite
     const fav=document.createElement('button');
     const setFav=()=>{
       const saved=isSaved(o.id);
@@ -293,7 +315,6 @@ const Shared = (function(){
     setFav();
     row.appendChild(fav);
 
-    // 3) Add to Wallet
     const add=document.createElement('button');
     add.className='btn btn-add-wallet';
     add.textContent='Add to Wallet';
@@ -303,7 +324,6 @@ const Shared = (function(){
     };
     row.appendChild(add);
 
-    // 4) Print
     const print=document.createElement('a');
     print.className='btn btn-outline';
     print.textContent='Print';
@@ -355,8 +375,16 @@ const Shared = (function(){
     get __nearbyReady(){ return Boolean(_nearby.brandDist && _nearby.brandDist.size); },
     set __nearbyReady(_v){},
     getStats,
+    initBranding
   };
 })();
 
 // warm stats
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
+
+// make sure branding runs on every page that loads shared.js
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof Shared.initBranding === 'function') {
+    Shared.initBranding();
+  }
+});
