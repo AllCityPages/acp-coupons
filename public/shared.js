@@ -459,3 +459,10 @@ document.addEventListener('DOMContentLoaded', () => {
     Shared.initBranding();
   }
 });
+
+// Simple debug helpers (optional; remove in prod)
+window.ACP = Object.assign(window.ACP || {}, {
+  favs: () => JSON.parse(localStorage.getItem('acp_favorites_v1')||'[]'),
+  wals: () => JSON.parse(localStorage.getItem('acp_wallet_v1')||'[]')
+});
+
