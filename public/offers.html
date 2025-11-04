@@ -5,7 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=20">
+  <link rel="stylesheet" href="/theme.css?v=21">
 </head>
 <body>
   <div class="site">
@@ -19,8 +19,9 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <a class="chip chip--white" href="/wallet.html?v=20">💰 My Wallet</a>
-      <a class="chip chip--white" href="/favorites.html?v=20">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=21">💰 My Wallet</a>
+      <!-- Opens wallet.html with the Favorites tab selected -->
+      <a class="chip chip--white" href="/wallet.html?v=21&tab=favorites">⭐ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -39,7 +40,7 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=20"></script>
+  <script src="/shared.js?v=21"></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
@@ -80,7 +81,7 @@
       render();
 
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '10';
+        const SW_VERSION = '11';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION,{updateViaCache:'none'})
           .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
           .catch(()=>{});
