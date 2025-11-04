@@ -1,4 +1,4 @@
-// shared.js — v18 (branding + title-row + saved button colors)
+// shared.js — v19 (independent Favorites & Wallet + branding + nearby)
 const BRAND = {
   name: 'Local Deals Hub',
   // change this to wherever you actually put the file (e.g. '/img/acp-logo.png')
@@ -7,7 +7,10 @@ const BRAND = {
 };
 
 const Shared = (function(){
-  const LS_SAVED = 'acp_saved_offers';
+  // ====== NEW: independent storage keys ======
+  const LS_FAV = 'acp_favorites_v1';
+  const LS_WAL = 'acp_wallet_v1';
+
   const QKEYS = ['q','brand','category','sortNearby'];
 
   let _statsCache = null;
@@ -40,50 +43,69 @@ const Shared = (function(){
   function initBranding(){
     const els = document.querySelectorAll('[data-logo]');
     els.forEach(el => {
-      // if we have a logo image
       if (BRAND.logo) {
         el.classList.add('has-img');
-        // keep href for <a> (wallet back button), just replace inner
         el.innerHTML = `<img src="${BRAND.logo}" alt="${BRAND.name || 'Logo'}">`;
       } else {
-        // fallback letter
         const letter = (BRAND.name || 'A').slice(0,1).toUpperCase();
         el.textContent = letter;
       }
     });
-
-    // also update the title text if needed
     if (BRAND.name) {
       const h1 = document.querySelector('.title h1');
-      if (h1 && !h1.dataset.locked) {
-        h1.textContent = BRAND.name;
-      }
+      if (h1 && !h1.dataset.locked) h1.textContent = BRAND.name;
     }
   }
 
-  /* ---------- wallet storage ---------- */
-  function getSaved(){
-    try { return JSON.parse(localStorage.getItem(LS_SAVED) || '[]'); }
-    catch { return []; }
-  }
-  function isSaved(id){ return getSaved().includes(id); }
-  function save(id){
-    const s = getSaved();
-    if(!s.includes(id)){
-      s.push(id);
-      localStorage.setItem(LS_SAVED, JSON.stringify(s));
-    }
+  /* ---------- local storage helpers (NEW) ---------- */
+  function loadSet(key){
     try {
-      fetch('/api/save', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({offer_id:id})
-      });
-    } catch {}
+      const raw = localStorage.getItem(key);
+      if(!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch(_) { return new Set(); }
   }
-  function remove(id){
-    const s = getSaved().filter(x=>x!==id);
-    localStorage.setItem(LS_SAVED, JSON.stringify(s));
+  function saveSet(key, set){
+    localStorage.setItem(key, JSON.stringify(Array.from(set)));
+  }
+
+  let _fav = loadSet(LS_FAV);
+  let _wal = loadSet(LS_WAL);
+
+  // One-time migration from old combined key, if it exists
+  (function migrateOld(){
+    try{
+      const raw = localStorage.getItem('acp_saved_offers');
+      if(!raw) return;
+      const old = JSON.parse(raw);
+      if(old && typeof old === 'object'){
+        if(Array.isArray(old.favorites)) _fav = new Set(old.favorites);
+        if(Array.isArray(old.wallet)) _wal = new Set(old.wallet);
+        if(Array.isArray(old)) _wal = new Set(old); // legacy array treated as wallet
+        saveSet(LS_FAV, _fav);
+        saveSet(LS_WAL, _wal);
+      }
+      localStorage.removeItem('acp_saved_offers');
+    }catch(_){}
+  })();
+
+  // Public getters
+  function getFavoriteIds(){ return Array.from(_fav); }
+  function getWalletIds(){ return Array.from(_wal); }
+  function isFavorite(id){ return _fav.has(String(id)); }
+  function isInWallet(id){ return _wal.has(String(id)); }
+
+  // Mutators (independent)
+  function toggleFavorite(id){
+    id = String(id);
+    if(_fav.has(id)) _fav.delete(id); else _fav.add(id);
+    saveSet(LS_FAV, _fav);
+  }
+  function toggleWallet(id){
+    id = String(id);
+    if(_wal.has(id)) _wal.delete(id); else _wal.add(id);
+    saveSet(LS_WAL, _wal);
   }
 
   /* ---------- filters ---------- */
@@ -204,6 +226,7 @@ const Shared = (function(){
 
     const el=document.createElement('article');
     el.className='card';
+    el.dataset.offerId = String(o.id);
 
     const img=document.createElement('img');
     img.className='img';
@@ -292,51 +315,97 @@ const Shared = (function(){
     }
     row.appendChild(cta);
 
+    // Favorite button (independent)
     const fav=document.createElement('button');
-    const setFav=()=>{
-      const saved=isSaved(o.id);
-      if(saved){
-        fav.textContent='Saved ✓';
-        fav.className='btn btn-saved';
-      }else{
-        fav.textContent='⭐ Favorite';
-        fav.className='btn btn-favorite';
-      }
-    };
-    fav.onclick=()=>{
-      if(isSaved(o.id)){
-        remove(o.id);
-        if(opts.wallet) el.remove();
-      }else{
-        save(o.id);
-      }
-      setFav();
-    };
-    setFav();
+    fav.className='btn btn-fav';
+    fav.setAttribute('data-action','fav');
+    fav.setAttribute('data-offer-id', String(o.id));
     row.appendChild(fav);
 
-    const add=document.createElement('button');
-    add.className='btn btn-add-wallet';
-    add.textContent='Add to Wallet';
-    add.onclick=()=>{
-      save(o.id);
-      setFav();
-    };
-    row.appendChild(add);
+    // Wallet button (independent)
+    const wal=document.createElement('button');
+    wal.className='btn btn-wallet';
+    wal.setAttribute('data-action','wallet');
+    wal.setAttribute('data-offer-id', String(o.id));
+    row.appendChild(wal);
 
+    // Print
     const print=document.createElement('a');
     print.className='btn btn-outline';
     print.textContent='Print';
     print.href=`/coupon-print.html?offer=${encodeURIComponent(o.id)}&src=card`;
     row.appendChild(print);
 
+    // Initial button state
+    updateButtonsFor(o.id);
+
     return el;
   }
 
+  // Button state updater for one offer id
+  function updateButtonsFor(id){
+    id = String(id);
+    const favBtn = document.querySelector(`.btn-fav[data-offer-id="${id}"]`);
+    const walBtn = document.querySelector(`.btn-wallet[data-offer-id="${id}"]`);
+
+    if(favBtn){
+      if(isFavorite(id)){
+        favBtn.classList.add('btn-on');
+        favBtn.textContent = 'Saved ✓';
+      } else {
+        favBtn.classList.remove('btn-on');
+        favBtn.textContent = '⭐ Favorite';
+      }
+    }
+
+    if(walBtn){
+      if(isInWallet(id)){
+        walBtn.classList.add('btn-on');
+        walBtn.textContent = 'Saved ✓';
+      } else {
+        walBtn.classList.remove('btn-on');
+        walBtn.textContent = 'Add to Wallet';
+      }
+    }
+  }
+
+  // Event delegation: keep actions separate
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.offerId;
+    if(!id) return;
+
+    if(action === 'fav'){
+      toggleFavorite(id);
+      updateButtonsFor(id);
+      return;
+    }
+
+    if(action === 'wallet'){
+      const wasIn = isInWallet(id);
+      toggleWallet(id);
+      updateButtonsFor(id);
+      // If we're on the wallet page and the user removed it, remove the card from DOM
+      if (wasIn && !isInWallet(id) && location.pathname.includes('wallet')) {
+        const card = btn.closest('.card');
+        if(card) card.remove();
+        // also update the count if present
+        const countEl = document.querySelector('#count');
+        if(countEl){
+          const current = Number(countEl.textContent||'0');
+          if(current>0) countEl.textContent = String(current-1);
+        }
+      }
+      return;
+    }
+  });
+
   /* ---------- suggestions (wallet) ---------- */
   function suggest(all, state, n=8){
-    const saved=new Set(getSaved());
-    const pool=all.filter(o=>!saved.has(o.id));
+    const inWallet=new Set(getWalletIds());
+    const pool=all.filter(o=>!inWallet.has(String(o.id)));
     const cat=(state.category||'').toLowerCase();
     const brand=(state.brand||'').toLowerCase();
     const byCat=pool.filter(o=>(o.category||'').toLowerCase()===cat && cat);
@@ -367,7 +436,9 @@ const Shared = (function(){
 
   return {
     readQuery, writeQuery, debounce,
-    getSaved, isSaved, save, remove,
+    // NEW exports
+    getFavoriteIds, getWalletIds, isFavorite, isInWallet, toggleFavorite, toggleWallet, updateButtonsFor,
+    // unchanged
     populateBrandFilter, applyFilter, renderCategoryChips,
     makeCard, suggest,
     renderNotifyCTA, enableNearbyAlerts,
@@ -382,7 +453,7 @@ const Shared = (function(){
 // warm stats
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
 
-// make sure branding runs on every page that loads shared.js
+// run branding on load
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof Shared.initBranding === 'function') {
     Shared.initBranding();
