@@ -5,13 +5,13 @@
   <title>My Wallet — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=17">
+  <link rel="stylesheet" href="/theme.css?v=19">
 </head>
 <body>
   <div class="site">
     <header class="header">
       <!-- if we have a logo, show it; if not, show back arrow -->
-      <a href="/offers.html?v=17" class="logo logo--back" data-logo>←</a>
+      <a href="/offers.html?v=19" class="logo logo--back" data-logo>←</a>
       <div class="title">
         <h1>My Wallet</h1>
         <p>Saved offers: <span id="count">0</span></p>
@@ -20,7 +20,7 @@
 
     <div id="bar" class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Sort by Nearby</button>
-      <a class="chip chip--white" href="/offers.html?v=17">↩ Back to Offers</a>
+      <a class="chip chip--white" href="/offers.html?v=19">↩ Back to Offers</a>
     </div>
 
     <section id="grid" class="grid"></section>
@@ -33,7 +33,7 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=18"></script>
+  <script src="/shared.js?v=19"></script>
   <script>
     (async function init(){
       const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
@@ -47,8 +47,8 @@
       };
 
       async function render(){
-        const savedIds = new Set(Shared.getSaved());
-        const subset = all.filter(o => savedIds.has(o.id));
+        const walletIds = new Set(Shared.getWalletIds());
+        const subset = all.filter(o => walletIds.has(String(o.id)));
         document.getElementById('count').textContent = subset.length;
 
         let rows = Shared.applyFilter(subset, state);
@@ -59,13 +59,21 @@
 
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
-        rows.forEach(o => grid.appendChild(Shared.makeCard(o, {wallet:true})));
+        rows.forEach(o => {
+          const card = Shared.makeCard(o, {wallet:true});
+          grid.appendChild(card);
+          Shared.updateButtonsFor(o.id);
+        });
 
         const sug = Shared.suggest(all, state, 8);
         const wrap = document.getElementById('suggest');
         document.getElementById('moreTitle').style.display = sug.length ? 'block' : 'none';
         wrap.innerHTML = '';
-        sug.forEach(o => wrap.appendChild(Shared.makeCard(o)));
+        sug.forEach(o => {
+          const card = Shared.makeCard(o);
+          wrap.appendChild(card);
+          Shared.updateButtonsFor(o.id);
+        });
       }
 
       await render();
