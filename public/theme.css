@@ -1,8 +1,9 @@
 /* =========================================================
-   theme.css — v19
+   theme.css — v21
    - Favorite (yellow) and Wallet (black) are separate
    - Saved state is green and applies only to the clicked button
    - Header logo supports image via .has-img
+   - NEW: Tabs styling for Wallet | Favorites in wallet.html
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -216,7 +217,7 @@ a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
   border:1px solid #0f1629;
 }
 
-/* NEW: independent button styles */
+/* Independent buttons */
 .btn-fav{
   background:#ffd400 !important;
   color:#111827 !important;
@@ -277,7 +278,6 @@ a.btn-outline {
   width:62px;
   height:62px;
 }
-
 .header .logo.has-img img {
   width:100%;
   height:100%;
@@ -288,3 +288,31 @@ a.btn-outline {
 
 /* if the header gets too tight, add a little gap */
 .header { gap:14px; }
+
+/* ===== Tabs (NEW) ===== */
+.tabs{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--bar);
+  border:1px solid #f2c900;
+  border-radius:12px;
+  padding:8px 10px;
+  margin:8px 0 18px;
+}
+.tab{
+  -webkit-appearance:none;appearance:none;
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;padding:0 10px;border-radius:8px;
+  border:1px solid rgba(0,0,0,.04);
+  background:#ffffff;
+  color:#111827;
+  font-weight:700;
+  font-size:12px;
+  line-height:1;
+  cursor:pointer;
+}
+.tab.active{
+  background:#111827;
+  color:#ffffff;
+  border-color:#111827;
+}
+.tab-spacer{ flex:1 1 auto; }
