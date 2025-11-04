@@ -5,13 +5,11 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- bump cache version -->
-  <link rel="stylesheet" href="/theme.css?v=19">
+  <link rel="stylesheet" href="/theme.css?v=20">
 </head>
 <body>
   <div class="site">
     <header class="header">
-      <!-- logo hook -->
       <div class="logo" data-logo>LD</div>
       <div class="title">
         <h1>Local Deals Hub</h1>
@@ -21,8 +19,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <a class="chip chip--white" href="/wallet.html?v=19">💰 My Wallet</a>
-      <a class="chip chip--white" href="/wallet.html?v=19">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=20">💰 My Wallet</a>
+      <a class="chip chip--white" href="/favorites.html?v=20">⭐ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -41,28 +39,24 @@
     </footer>
   </div>
 
-  <!-- bump js version -->
-  <script src="/shared.js?v=19"></script>
+  <script src="/shared.js?v=20"></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
       const offers = data.offers || [];
 
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
-
       const state = { q:'', brand:'', category:'', sortNearby:false };
 
       function render(){
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
         let rows = Shared.applyFilter(offers, state);
-        if (state.sortNearby && Shared.__nearbyReady) {
-          rows = Shared.sortByNearby(rows);
-        }
+        if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
         rows.forEach(o => {
           const card = Shared.makeCard(o);
           grid.appendChild(card);
-          Shared.updateButtonsFor(o.id); // ensure correct button states
+          Shared.updateButtonsFor(o.id);
         });
       }
 
@@ -71,40 +65,24 @@
         state.brand = document.getElementById('brand').value;
         render();
       };
-
       document.getElementById('clear').onclick = () => {
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
-        state.q = '';
-        state.brand = '';
+        state.q = ''; state.brand = '';
         render();
       };
-
       document.getElementById('btn-near').onclick = async () => {
         await Shared.enableNearbyAlerts();
-        try {
-          await Shared.computeNearbySort();
-          Shared.__nearbyReady = true;
-          state.sortNearby = true;
-          render();
-        } catch(e) {}
+        try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; state.sortNearby = true; render(); } catch(e) {}
       };
 
-      try {
-        await Shared.computeNearbySort();
-        Shared.__nearbyReady = true;
-      } catch(e) {}
-
+      try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch(e) {}
       render();
 
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '9';
-        navigator.serviceWorker
-          .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
-          .then(reg => {
-            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
-            reg.update();
-          })
+        const SW_VERSION = '10';
+        navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION,{updateViaCache:'none'})
+          .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
           .catch(()=>{});
       }
     })();
