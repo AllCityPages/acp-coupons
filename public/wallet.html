@@ -5,25 +5,24 @@
   <title>Wallet & Favorites — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=21">
+  <link rel="stylesheet" href="/theme.css?v=22">
 </head>
 <body>
   <div class="site">
     <header class="header">
-      <a href="/offers.html?v=21" class="logo logo--back" data-logo>←</a>
+      <a href="/offers.html?v=22" class="logo logo--back" data-logo>←</a>
       <div class="title">
         <h1 id="pageTitle">My Wallet</h1>
         <p><span id="subtitlePrefix">Saved offers</span>: <span id="count">0</span></p>
       </div>
     </header>
 
-    <!-- Tabs -->
+    <!-- Tabs row (order: Sort, Wallet, Favorites, Back) -->
     <div class="tabs">
+      <button id="btn-near" class="tab" data-role="sort">📍 Sort by Nearby</button>
       <button id="tabWallet" class="tab" data-tab="wallet">💰 Wallet</button>
       <button id="tabFavorites" class="tab" data-tab="favorites">⭐ Favorites</button>
-      <span class="tab-spacer"></span>
-      <button id="btn-near" class="chip chip--white" style="display:none">📍 Sort by Nearby</button>
-      <a class="chip chip--white" href="/offers.html?v=21">↩ Back to Offers</a>
+      <a id="tabBack" class="tab" href="/offers.html?v=22">↩ Back to Offers</a>
     </div>
 
     <section id="grid" class="grid"></section>
@@ -36,16 +35,16 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=21"></script>
+  <script src="/shared.js?v=22"></script>
   <script>
     (async function init(){
       const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
 
-      // Determine initial tab from URL (?tab=favorites)
+      // Get initial tab from URL (?tab=favorites)
       const url = new URL(location.href);
       let currentTab = (url.searchParams.get('tab') === 'favorites') ? 'favorites' : 'wallet';
 
-      // Nearby sort only applies to Wallet tab
+      // State + handles
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
       const btnNear = document.getElementById('btn-near');
       const tabWallet = document.getElementById('tabWallet');
@@ -55,22 +54,24 @@
       const countEl = document.getElementById('count');
 
       function setActiveTabUI(){
-        // toggle active class
+        // active class for tabs
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         (currentTab === 'wallet' ? tabWallet : tabFavorites).classList.add('active');
 
-        // title + nearby visibility
+        // show "active" state for Sort when engaged
+        if (state.sortNearby) btnNear.classList.add('active'); else btnNear.classList.remove('active');
+        btnNear.textContent = state.sortNearby ? '📍 Sorted by Nearby' : '📍 Sort by Nearby';
+
+        // titles
         if (currentTab === 'wallet'){
           titleEl.textContent = 'My Wallet';
           subtitlePrefix.textContent = 'Saved offers';
-          btnNear.style.display = '';
         } else {
           titleEl.textContent = 'My Favorites';
           subtitlePrefix.textContent = 'Saved favorites';
-          btnNear.style.display = 'none';
         }
 
-        // reflect tab in URL (without reloading)
+        // reflect tab in URL without reloading
         url.searchParams.set('tab', currentTab);
         history.replaceState(null, '', url.toString());
       }
@@ -80,8 +81,8 @@
 
       btnNear.onclick = async ()=>{
         state.sortNearby = !state.sortNearby;
-        btnNear.textContent = state.sortNearby ? '📍 Sorted by Nearby' : '📍 Sort by Nearby';
         if (state.sortNearby) await Shared.computeNearbySort();
+        setActiveTabUI();
         render();
       };
 
@@ -110,7 +111,7 @@
           Shared.updateButtonsFor(o.id);
         });
 
-        // Suggestions only for Wallet view (and only if not empty list elsewhere)
+        // Suggestions: only for Wallet
         const sugWrap = document.getElementById('suggest');
         const moreTitle = document.getElementById('moreTitle');
         if (currentTab === 'wallet'){
@@ -120,8 +121,8 @@
           moreTitle.style.display = sug.length ? 'block' : 'none';
           sugWrap.innerHTML = '';
           sug.forEach(o => {
-            const card = Shared.makeCard(o);
-            sugWrap.appendChild(card);
+            const c = Shared.makeCard(o);
+            sugWrap.appendChild(c);
             Shared.updateButtonsFor(o.id);
           });
         } else {
@@ -134,20 +135,18 @@
       await render();
 
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '11';
+        const SW_VERSION = '12';
         navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION,{updateViaCache:'none'})
           .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
           .catch(()=>{});
       }
 
-      // If a user un-wallets an item on this page, we already remove the card in shared.js.
-      // If they un-favorite on this page, re-render to reflect the change:
+      // Keep list/count in sync after clicks
       document.addEventListener('click', (e)=>{
         const btn = e.target.closest('[data-action]');
         if(!btn) return;
         const action = btn.dataset.action;
         if (action === 'fav' || action === 'wallet') {
-          // Re-render shortly after toggle so counts and lists stay accurate
           setTimeout(render, 0);
         }
       });
