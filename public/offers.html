@@ -5,11 +5,13 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=21">
+  <!-- bump for cache -->
+  <link rel="stylesheet" href="/theme.css?v=23">
 </head>
 <body>
   <div class="site">
     <header class="header">
+      <!-- logo hook -->
       <div class="logo" data-logo>LD</div>
       <div class="title">
         <h1>Local Deals Hub</h1>
@@ -19,15 +21,18 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <a class="chip chip--white" href="/wallet.html?v=21">💰 My Wallet</a>
-      <!-- Opens wallet.html with the Favorites tab selected -->
-      <a class="chip chip--white" href="/wallet.html?v=21&tab=favorites">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=23">💰 My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=23&tab=favorites">⭐ My Favorites</a>
     </div>
 
+    <!-- Filters: Search | Brand | Category | Apply | Clear -->
     <div class="filters">
       <input id="q" class="input" placeholder="Search offers or brand">
       <select id="brand" class="select">
         <option value="">All brands</option>
+      </select>
+      <select id="category" class="select" aria-label="Categories">
+        <option value="">All categories</option>
       </select>
       <button id="apply" class="btn-compact">Apply</button>
       <button id="clear" class="btn-compact">Clear</button>
@@ -40,20 +45,46 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=21"></script>
+  <!-- bump for cache -->
+  <script src="/shared.js?v=23"></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
       const offers = data.offers || [];
 
+      // Populate brand filter (existing helper)
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
+
+      // Populate categories filter (local helper)
+      (function populateCategoryFilter(rows, selectEl){
+        const cats = [...new Set(
+          rows.map(r => (r.category || '').trim())
+              .filter(Boolean)
+        )].sort((a,b)=>a.localeCompare(b));
+        cats.forEach(c=>{
+          const o=document.createElement('option');
+          o.value=c;
+          o.textContent=c;
+          selectEl.appendChild(o);
+        });
+      })(offers, document.getElementById('category'));
+
       const state = { q:'', brand:'', category:'', sortNearby:false };
+
+      function readControlsIntoState(){
+        state.q = document.getElementById('q').value.trim();
+        state.brand = document.getElementById('brand').value;
+        state.category = document.getElementById('category').value; // NEW
+      }
 
       function render(){
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
+
         let rows = Shared.applyFilter(offers, state);
-        if (state.sortNearby && Shared.__nearbyReady) rows = Shared.sortByNearby(rows);
+        if (state.sortNearby && Shared.__nearbyReady) {
+          rows = Shared.sortByNearby(rows);
+        }
         rows.forEach(o => {
           const card = Shared.makeCard(o);
           grid.appendChild(card);
@@ -62,28 +93,47 @@
       }
 
       document.getElementById('apply').onclick = () => {
-        state.q = document.getElementById('q').value.trim();
-        state.brand = document.getElementById('brand').value;
+        readControlsIntoState();
         render();
       };
+
       document.getElementById('clear').onclick = () => {
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
-        state.q = ''; state.brand = '';
+        document.getElementById('category').value = ''; // NEW
+        state.q = '';
+        state.brand = '';
+        state.category = ''; // NEW
         render();
       };
+
       document.getElementById('btn-near').onclick = async () => {
         await Shared.enableNearbyAlerts();
-        try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; state.sortNearby = true; render(); } catch(e) {}
+        try {
+          await Shared.computeNearbySort();
+          Shared.__nearbyReady = true;
+          state.sortNearby = true;
+          render();
+        } catch(e) {}
       };
 
-      try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch(e) {}
+      // Try to precompute distances so nearby sort is ready if toggled
+      try {
+        await Shared.computeNearbySort();
+        Shared.__nearbyReady = true;
+      } catch(e) {}
+
       render();
 
+      // PWA SW
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '11';
-        navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION,{updateViaCache:'none'})
-          .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
+        const SW_VERSION = '12';
+        navigator.serviceWorker
+          .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
+          .then(reg => {
+            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
+            reg.update();
+          })
           .catch(()=>{});
       }
     })();
