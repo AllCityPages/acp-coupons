@@ -1,9 +1,8 @@
 /* =========================================================
-   theme.css — v21
-   - Favorite (yellow) and Wallet (black) are separate
-   - Saved state is green and applies only to the clicked button
-   - Header logo supports image via .has-img
-   - NEW: Tabs styling for Wallet | Favorites in wallet.html
+   theme.css — v22
+   - Tabs row: Sort | Wallet | Favorites | Back (uniform look)
+   - Sort tab shows .active when sorting is ON
+   - Favorite (yellow) and Wallet (black) buttons on cards stay independent
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -44,32 +43,16 @@ body{
 }
 
 /* when we actually have an image */
-.logo.has-img{
-  background:transparent;
-  border:none;
-  padding:0;
-  display:block;
-}
-.logo.has-img img{
-  width:38px;
-  height:38px;
-  object-fit:contain;
-  display:block;
-  border-radius:9px;
-}
+.logo.has-img{ background:transparent; border:none; padding:0; display:block; }
+.logo.has-img img{ width:38px; height:38px; object-fit:contain; display:block; border-radius:9px; }
 
 /* wallet back version should still be square */
-.logo.logo--back{
-  text-decoration:none;
-  font-size:20px;
-  line-height:1;
-  text-align:center;
-}
+.logo.logo--back{ text-decoration:none; font-size:20px; line-height:1; text-align:center; }
 
 .title h1{font-size:18px;margin:0;line-height:1}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* ACTION BAR */
+/* ACTION BAR (offers page) */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
@@ -82,11 +65,7 @@ body{
   background:rgba(17,24,39,.07);color:var(--bar-ink);
   font-weight:700;font-size:12px;line-height:1;cursor:pointer;text-decoration:none;
 }
-.actionbar .chip--white{
-  background:#ffffff;
-  color:#111827;
-  border:1px solid rgba(0,0,0,.04);
-}
+.actionbar .chip--white{ background:#ffffff; color:#111827; border:1px solid rgba(0,0,0,.04); }
 
 /* FILTERS */
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
@@ -115,58 +94,25 @@ a.btn-compact{text-decoration:none}
   border-radius:var(--radius);box-shadow:var(--shadow);
   overflow:hidden;display:flex;flex-direction:column;
 }
-.card .img{
-  width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa;
-}
+.card .img{ width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa; }
 .card .body{padding:12px 14px}
 
 /* Title row: title (left) + logo (right) */
-.title-row{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:8px;
-  margin-bottom:4px;
-}
-.title-row h3{
-  margin:0;
-  font-size:18px;
-  line-height:1.05;
-}
+.title-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.title-row h3{ margin:0; font-size:18px; line-height:1.05; }
 
 /* brand text */
-.card .brand,
-.brand{
-  color:var(--muted);
-  font-size:13px;
-  line-height:1.1;
-}
-
-.brand-row{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  margin-bottom:8px;
-}
+.card .brand, .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
+.brand-row{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
 
 /* inline brand logos on cards */
 .brand-logo-inline{
-  width:42px;
-  height:auto;
-  flex:0 0 auto;
-  object-fit:contain;
-  background:#fff;
-  border-radius:7px;
-  padding:3px;
-  box-shadow:0 1px 3px rgba(15,23,42,.12);
+  width:42px; height:auto; flex:0 0 auto; object-fit:contain;
+  background:#fff; border-radius:7px; padding:3px; box-shadow:0 1px 3px rgba(15,23,42,.12);
 }
 
 /* description */
-.card .desc{
-  color:#374151;
-  font-size:13px;
-  margin:0 0 12px;
-}
+.card .desc{ color:#374151; font-size:13px; margin:0 0 12px; }
 
 /* BADGES */
 .badge{
@@ -181,9 +127,7 @@ a.btn-compact{text-decoration:none}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
 /* BUTTONS (24px system) */
-.btn,
-.btn-cta,
-.btn-outline{
+.btn, .btn-cta, .btn-outline{
   -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;min-height:24px;
@@ -202,96 +146,38 @@ a.btn-compact{text-decoration:none}
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
 
-.btnrow,
-.card .btnrow,
-.offer-actions{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
+.btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 
 /* primary / Tap to Redeem */
-.btn-cta{
-  background:var(--cta,#111827);
-  color:#fff;
-  border:1px solid #0f1629;
-}
+.btn-cta{ background:var(--cta,#111827); color:#fff; border:1px solid #0f1629; }
 
-/* Independent buttons */
-.btn-fav{
-  background:#ffd400 !important;
-  color:#111827 !important;
-  border:1px solid #e5c200 !important;
-}
-.btn-wallet{
-  background:#000 !important;
-  color:#fff !important;
-  border:1px solid #000 !important;
-}
+/* Independent buttons on cards */
+.btn-fav{ background:#ffd400 !important; color:#111827 !important; border:1px solid #e5c200 !important; }
+.btn-wallet{ background:#000 !important; color:#fff !important; border:1px solid #000 !important; }
 
-/* Saved (applies to either fav or wallet when active) */
-.btn-on{
-  background:#16a34a !important;
-  color:#ffffff !important;
-  border:1px solid #15803d !important;
-}
+/* Saved state */
+.btn-on{ background:#16a34a !important; color:#ffffff !important; border:1px solid #15803d !important; }
 
 /* Outline / Print */
-.btn-outline{
-  background:#fff;
-  color:#111827;
-}
-
-/* Category pills */
-.pill{
-  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
-  background:#fff;font-size:12px;line-height:1;font-weight:700;color:#111827;
-}
-.pill.active{background:#111827;color:#fff;border-color:#111827}
+.btn-outline{ background:#fff; color:#111827; }
 
 /* FOOTER */
-.footer{
-  text-align:center;
-  color:var(--muted);
-  font-size:13px;
-  padding:22px 0 30px;
-}
+.footer{ text-align:center; color:#767f92; font-size:13px; padding:22px 0 30px; }
 
 /* Guards (old cached styles) */
-button.btn,
-a.btn,
-button.btn-cta,
-a.btn-cta,
-button.btn-outline,
-a.btn-outline {
-  height:24px !important;
-  padding:0 10px !important;
-  font-size:12px !important;
-  border-radius:8px !important;
-  font-weight:400 !important;
-  font-family:inherit !important;
+button.btn, a.btn, button.btn-cta, a.btn-cta, button.btn-outline, a.btn-outline{
+  height:24px !important; padding:0 10px !important; font-size:12px !important;
+  border-radius:8px !important; font-weight:400 !important; font-family:inherit !important;
 }
 
 /* bigger header logo */
-.header .logo,
-.header .logo.has-img {
-  width:62px;
-  height:62px;
-}
-.header .logo.has-img img {
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  display:block;
-  border-radius:12px; /* optional */
-}
-
-/* if the header gets too tight, add a little gap */
+.header .logo, .header .logo.has-img { width:62px; height:62px; }
+.header .logo.has-img img { width:100%; height:100%; object-fit:contain; display:block; border-radius:12px; }
 .header { gap:14px; }
 
-/* ===== Tabs (NEW) ===== */
+/* ===== Tabs (Wallet page) ===== */
 .tabs{
-  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   background:var(--bar);
   border:1px solid #f2c900;
   border-radius:12px;
@@ -299,20 +185,15 @@ a.btn-outline {
   margin:8px 0 18px;
 }
 .tab{
-  -webkit-appearance:none;appearance:none;
-  display:inline-flex;align-items:center;justify-content:center;
-  height:24px;padding:0 10px;border-radius:8px;
+  -webkit-appearance:none; appearance:none;
+  display:inline-flex; align-items:center; justify-content:center;
+  height:24px; padding:0 10px; border-radius:8px;
   border:1px solid rgba(0,0,0,.04);
-  background:#ffffff;
-  color:#111827;
-  font-weight:700;
-  font-size:12px;
-  line-height:1;
+  background:#ffffff; color:#111827;
+  font-weight:700; font-size:12px; line-height:1;
   cursor:pointer;
+  text-decoration:none; /* make anchor tabs look identical */
 }
 .tab.active{
-  background:#111827;
-  color:#ffffff;
-  border-color:#111827;
+  background:#111827; color:#ffffff; border-color:#111827;
 }
-.tab-spacer{ flex:1 1 auto; }
