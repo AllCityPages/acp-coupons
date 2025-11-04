@@ -5,8 +5,8 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- bumped version so Safari stops caching old css -->
-  <link rel="stylesheet" href="/theme.css?v=17">
+  <!-- bump cache version -->
+  <link rel="stylesheet" href="/theme.css?v=19">
 </head>
 <body>
   <div class="site">
@@ -21,8 +21,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <a class="chip chip--white" href="/wallet.html?v=17">💰 My Wallet</a>
-      <a class="chip chip--white" href="/wallet.html?v=17">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=19">💰 My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=19">⭐ My Favorites</a>
     </div>
 
     <div class="filters">
@@ -41,8 +41,8 @@
     </footer>
   </div>
 
-  <!-- bumped js version too -->
-  <script src="/shared.js?v=18"></script>
+  <!-- bump js version -->
+  <script src="/shared.js?v=19"></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
@@ -50,12 +50,7 @@
 
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
 
-      const state = {
-        q: '',
-        brand: '',
-        category: '',
-        sortNearby: false
-      };
+      const state = { q:'', brand:'', category:'', sortNearby:false };
 
       function render(){
         const grid = document.getElementById('grid');
@@ -65,7 +60,9 @@
           rows = Shared.sortByNearby(rows);
         }
         rows.forEach(o => {
-          grid.appendChild(Shared.makeCard(o));
+          const card = Shared.makeCard(o);
+          grid.appendChild(card);
+          Shared.updateButtonsFor(o.id); // ensure correct button states
         });
       }
 
@@ -105,9 +102,7 @@
         navigator.serviceWorker
           .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
           .then(reg => {
-            if (reg.waiting) {
-              reg.waiting.postMessage({ type:'SKIP_WAITING' });
-            }
+            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
             reg.update();
           })
           .catch(()=>{});
