@@ -1,8 +1,8 @@
 /* =========================================================
-   theme.css — v17
+   theme.css — v19
+   - Favorite (yellow) and Wallet (black) are separate
+   - Saved state is green and applies only to the clicked button
    - Header logo supports image via .has-img
-   - Wallet back logo compatible
-   - Favorite = yellow, Saved = green
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -216,22 +216,20 @@ a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
   border:1px solid #0f1629;
 }
 
-/* Add to Wallet → black */
-.btn-add-wallet{
+/* NEW: independent button styles */
+.btn-fav{
+  background:#ffd400 !important;
+  color:#111827 !important;
+  border:1px solid #e5c200 !important;
+}
+.btn-wallet{
   background:#000 !important;
   color:#fff !important;
   border:1px solid #000 !important;
 }
 
-/* Favorite → yellow + black */
-.btn-favorite{
-  background:#ffd400 !important;
-  color:#111827 !important;
-  border:1px solid #e5c200 !important;
-}
-
-/* Saved → green */
-.btn-saved{
+/* Saved (applies to either fav or wallet when active) */
+.btn-on{
   background:#16a34a !important;
   color:#ffffff !important;
   border:1px solid #15803d !important;
@@ -272,26 +270,6 @@ a.btn-outline {
   font-weight:400 !important;
   font-family:inherit !important;
 }
-.btn-favorite,
-.btn-saved,
-.btn-add-wallet,
-.btn-cta {
-  font-weight:400 !important;
-  font-size:12px !important;
-  font-family:inherit !important;
-}
-button.btn,
-button.btn-add-wallet,
-button.btn-favorite,
-button.btn-saved,
-button.btn-cta {
-  -webkit-appearance:none !important;
-  appearance:none !important;
-  font-family:inherit !important;
-  font-weight:400 !important;
-  font-size:12px !important;
-  line-height:1 !important;
-}
 
 /* bigger header logo */
 .header .logo,
@@ -309,6 +287,4 @@ button.btn-cta {
 }
 
 /* if the header gets too tight, add a little gap */
-.header {
-  gap:14px;
-}
+.header { gap:14px; }
