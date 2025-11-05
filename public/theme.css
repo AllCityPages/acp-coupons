@@ -1,8 +1,7 @@
 /* =========================================================
-   theme.css — v23
-   - Card image area gets inner padding + white background
-   - Images use object-fit: contain (no cropping)
-   - Tweak padding with --img-pad
+   theme.css — v24
+   - Tight hero frame default (4:3, contain)
+   - Global img padding --img-pad: 10px
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -21,9 +20,9 @@
 
   --cta:#111827;
 
-  /* New image area vars */
+  /* Image area vars */
   --img-bg:#fff;
-  --img-pad:14px;         /* adjust to taste (desktop) */
+  --img-pad:10px;        /* tighter default */
 }
 
 body{
@@ -95,24 +94,22 @@ a.btn-compact{text-decoration:none}
   overflow:hidden;display:flex;flex-direction:column;
 }
 
-/* Image area:
-   - keeps a consistent aspect ratio
-   - adds white padding inside the image frame
-   - contains the full image (no cropping)
+/* Image area (tight by default):
+   - 4:3 frame, inner white gutter, full image visible
 */
 .card .img{
   width:100%;
-  aspect-ratio:16/11;
+  aspect-ratio: 4 / 3;          /* tighter than 16/11 */
   display:block;
   background:var(--img-bg);
   padding:var(--img-pad);
-  object-fit:contain;           /* was cover → prevented cutoffs */
+  object-fit:contain;           /* no cropping */
   border-bottom:1px solid var(--border);
 }
 
-/* (optional) slightly reduce padding on small screens */
+/* optional: slightly tweak padding on small screens if desired */
 @media (max-width:520px){
-  :root{ --img-pad:12px; }
+  :root{ --img-pad:10px; }
 }
 
 .card .body{padding:12px 14px}
