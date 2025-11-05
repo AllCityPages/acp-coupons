@@ -94,7 +94,7 @@ a.btn-compact{text-decoration:none}
   border-radius:var(--radius);box-shadow:var(--shadow);
   overflow:hidden;display:flex;flex-direction:column;
 }
-.card .img{ width:100%;aspect-ratio:16/11;object-fit:cover;background:#f4f6fa; }
+.card .img{ width:100%;aspect-ratio:16/11;object-fit:cover;background:#fff; }
 .card .body{padding:12px 14px}
 
 /* Title row: title (left) + logo (right) */
