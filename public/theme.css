@@ -1,7 +1,6 @@
 /* =========================================================
-   theme.css — v24
-   - Tight hero frame default (4:3, contain)
-   - Global img padding --img-pad: 10px
+   theme.css — v25
+   - Tight hero frame default (4:3, contain, centered)
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -70,7 +69,7 @@ body{
 .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .input,.select{
   padding:10px 12px;border:1px solid var(--border);border-radius:10px;
-  background:#fff;color:var(--ink);min-width:220px;
+  background:#fff;color:#111827;min-width:220px;
 }
 .btn-compact{
   -webkit-appearance:none;appearance:none;
@@ -94,20 +93,21 @@ a.btn-compact{text-decoration:none}
   overflow:hidden;display:flex;flex-direction:column;
 }
 
-/* Image area (tight by default):
-   - 4:3 frame, inner white gutter, full image visible
+/* Image area (tight default):
+   - 4:3 frame, inner white gutter, image fully visible & centered
 */
 .card .img{
   width:100%;
-  aspect-ratio: 4 / 3;          /* tighter than 16/11 */
+  aspect-ratio: 4 / 3;
   display:block;
   background:var(--img-bg);
   padding:var(--img-pad);
-  object-fit:contain;           /* no cropping */
+  object-fit:contain;           
+  object-position:center;
   border-bottom:1px solid var(--border);
 }
 
-/* optional: slightly tweak padding on small screens if desired */
+/* optional: tweak padding on small screens */
 @media (max-width:520px){
   :root{ --img-pad:10px; }
 }
@@ -209,7 +209,7 @@ button.btn, a.btn, button.btn-cta, a.btn-cta, button.btn-outline, a.btn-outline{
   background:#ffffff; color:#111827;
   font-weight:700; font-size:12px; line-height:1;
   cursor:pointer;
-  text-decoration:none; /* make anchor tabs look identical */
+  text-decoration:none;
 }
 .tab.active{
   background:#111827; color:#ffffff; border-color:#111827;
