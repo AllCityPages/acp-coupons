@@ -5,24 +5,25 @@
   <title>Wallet & Favorites — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=24">
+  <link rel="stylesheet" href="/theme.css?v=25">
 </head>
 <body>
   <div class="site">
     <header class="header">
-      <a href="/offers.html?v=24" class="logo logo--back" data-logo>←</a>
+      <!-- back logo / home -->
+      <a href="/offers.html?v=25" class="logo logo--back" data-logo>←</a>
       <div class="title">
         <h1 id="pageTitle">My Wallet</h1>
         <p><span id="subtitlePrefix">Saved offers</span>: <span id="count">0</span></p>
       </div>
     </header>
 
-    <!-- Tabs row (order: Sort, Wallet, Favorites, Back) -->
+    <!-- Tabs row — order: Sort, Wallet, Favorites, Back -->
     <div class="tabs">
       <button id="btn-near" class="tab" data-role="sort">📍 Sort by Nearby</button>
       <button id="tabWallet" class="tab" data-tab="wallet">💰 Wallet</button>
       <button id="tabFavorites" class="tab" data-tab="favorites">⭐ Favorites</button>
-      <a id="tabBack" class="tab" href="/offers.html?v=24">↩ Back to Offers</a>
+      <a id="tabBack" class="tab" href="/offers.html?v=25">↩ Back to Offers</a>
     </div>
 
     <section id="grid" class="grid"></section>
@@ -35,17 +36,17 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=24"></script>
+  <script src="/shared.js?v=25"></script>
   <script>
     (async function init(){
       const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
 
-      // Get initial tab from URL (?tab=favorites)
+      // Initial tab from URL (?tab=favorites)
       const url = new URL(location.href);
       let currentTab = (url.searchParams.get('tab') === 'favorites') ? 'favorites' : 'wallet';
 
-      // State + handles
       const state = Object.assign({ q:'', brand:'', category:'', sortNearby:true }, Shared.readQuery());
+
       const btnNear = document.getElementById('btn-near');
       const tabWallet = document.getElementById('tabWallet');
       const tabFavorites = document.getElementById('tabFavorites');
@@ -54,15 +55,12 @@
       const countEl = document.getElementById('count');
 
       function setActiveTabUI(){
-        // active class for tabs
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         (currentTab === 'wallet' ? tabWallet : tabFavorites).classList.add('active');
 
-        // show "active" state for Sort when engaged
         if (state.sortNearby) btnNear.classList.add('active'); else btnNear.classList.remove('active');
         btnNear.textContent = state.sortNearby ? '📍 Sorted by Nearby' : '📍 Sort by Nearby';
 
-        // titles
         if (currentTab === 'wallet'){
           titleEl.textContent = 'My Wallet';
           subtitlePrefix.textContent = 'Saved offers';
@@ -71,7 +69,6 @@
           subtitlePrefix.textContent = 'Saved favorites';
         }
 
-        // reflect tab in URL without reloading
         url.searchParams.set('tab', currentTab);
         history.replaceState(null, '', url.toString());
       }
@@ -108,10 +105,12 @@
         rows.forEach(o => {
           const card = Shared.makeCard(o, {wallet: currentTab==='wallet'});
           grid.appendChild(card);
-          Shared.updateButtonsFor(o.id);
+          if (typeof Shared.updateButtonsFor === 'function') {
+            Shared.updateButtonsFor(o.id);
+          }
         });
 
-        // Suggestions: only for Wallet
+        // Suggestions appear only for Wallet
         const sugWrap = document.getElementById('suggest');
         const moreTitle = document.getElementById('moreTitle');
         if (currentTab === 'wallet'){
@@ -123,7 +122,9 @@
           sug.forEach(o => {
             const c = Shared.makeCard(o);
             sugWrap.appendChild(c);
-            Shared.updateButtonsFor(o.id);
+            if (typeof Shared.updateButtonsFor === 'function') {
+              Shared.updateButtonsFor(o.id);
+            }
           });
         } else {
           moreTitle.style.display = 'none';
@@ -134,13 +135,6 @@
       setActiveTabUI();
       await render();
 
-      if ('serviceWorker' in navigator){
-        const SW_VERSION = '12';
-        navigator.serviceWorker.register('/service-worker.js?v='+SW_VERSION,{updateViaCache:'none'})
-          .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
-          .catch(()=>{});
-      }
-
       // Keep list/count in sync after clicks
       document.addEventListener('click', (e)=>{
         const btn = e.target.closest('[data-action]');
@@ -150,6 +144,15 @@
           setTimeout(render, 0);
         }
       });
+
+      // Service worker
+      if ('serviceWorker' in navigator){
+        const SW_VERSION = '13';
+        navigator.serviceWorker
+          .register('/service-worker.js?v='+SW_VERSION,{updateViaCache:'none'})
+          .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
+          .catch(()=>{});
+      }
     })();
   </script>
 </body>
