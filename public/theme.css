@@ -1,8 +1,8 @@
 /* =========================================================
-   theme.css — v22
-   - Tabs row: Sort | Wallet | Favorites | Back (uniform look)
-   - Sort tab shows .active when sorting is ON
-   - Favorite (yellow) and Wallet (black) buttons on cards stay independent
+   theme.css — v23
+   - Card image area gets inner padding + white background
+   - Images use object-fit: contain (no cropping)
+   - Tweak padding with --img-pad
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -20,6 +20,10 @@
   --bar-ink:#111827;
 
   --cta:#111827;
+
+  /* New image area vars */
+  --img-bg:#fff;
+  --img-pad:14px;         /* adjust to taste (desktop) */
 }
 
 body{
@@ -41,12 +45,8 @@ body{
   background:#e9eef7;border:1px solid #cdd7ea;font-weight:800;color:#1763d1;
   text-decoration:none;
 }
-
-/* when we actually have an image */
 .logo.has-img{ background:transparent; border:none; padding:0; display:block; }
 .logo.has-img img{ width:38px; height:38px; object-fit:contain; display:block; border-radius:9px; }
-
-/* wallet back version should still be square */
 .logo.logo--back{ text-decoration:none; font-size:20px; line-height:1; text-align:center; }
 
 .title h1{font-size:18px;margin:0;line-height:1}
@@ -94,7 +94,27 @@ a.btn-compact{text-decoration:none}
   border-radius:var(--radius);box-shadow:var(--shadow);
   overflow:hidden;display:flex;flex-direction:column;
 }
-.card .img{ width:100%;aspect-ratio:16/11;object-fit:cover;background:#fff; }
+
+/* Image area:
+   - keeps a consistent aspect ratio
+   - adds white padding inside the image frame
+   - contains the full image (no cropping)
+*/
+.card .img{
+  width:100%;
+  aspect-ratio:16/11;
+  display:block;
+  background:var(--img-bg);
+  padding:var(--img-pad);
+  object-fit:contain;           /* was cover → prevented cutoffs */
+  border-bottom:1px solid var(--border);
+}
+
+/* (optional) slightly reduce padding on small screens */
+@media (max-width:520px){
+  :root{ --img-pad:12px; }
+}
+
 .card .body{padding:12px 14px}
 
 /* Title row: title (left) + logo (right) */
