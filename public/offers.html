@@ -5,7 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=25">
+  <link rel="stylesheet" href="/theme.css?v=27">
 </head>
 <body>
   <div class="site">
@@ -20,8 +20,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <a class="chip chip--white" href="/wallet.html?v=25">💰 My Wallet</a>
-      <a class="chip chip--white" href="/wallet.html?v=25&tab=favorites">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=27">💰 My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=27&tab=favorites">⭐ My Favorites</a>
     </div>
 
     <!-- Filters: Search | Brand | Category | Apply | Clear -->
@@ -44,7 +44,7 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=25"></script>
+  <script src="/shared.js?v=27"></script>
   <script>
     (async function init(){
       const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
@@ -86,7 +86,6 @@
         rows.forEach(o => {
           const card = Shared.makeCard(o);
           grid.appendChild(card);
-          // Guarded call (some builds may not have this helper)
           if (typeof Shared.updateButtonsFor === 'function') {
             Shared.updateButtonsFor(o.id);
           }
@@ -115,12 +114,10 @@
         } catch(e) {}
       };
 
-      // Precompute distances if possible
       try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch(e) {}
 
       render();
 
-      // Service worker
       if ('serviceWorker' in navigator){
         const SW_VERSION = '13';
         navigator.serviceWorker
