@@ -5,13 +5,13 @@
   <title>Wallet & Favorites — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=25">
+  <link rel="stylesheet" href="/theme.css?v=27">
 </head>
 <body>
   <div class="site">
     <header class="header">
       <!-- back logo / home -->
-      <a href="/offers.html?v=25" class="logo logo--back" data-logo>←</a>
+      <a href="/offers.html?v=27" class="logo logo--back" data-logo>←</a>
       <div class="title">
         <h1 id="pageTitle">My Wallet</h1>
         <p><span id="subtitlePrefix">Saved offers</span>: <span id="count">0</span></p>
@@ -23,7 +23,7 @@
       <button id="btn-near" class="tab" data-role="sort">📍 Sort by Nearby</button>
       <button id="tabWallet" class="tab" data-tab="wallet">💰 Wallet</button>
       <button id="tabFavorites" class="tab" data-tab="favorites">⭐ Favorites</button>
-      <a id="tabBack" class="tab" href="/offers.html?v=25">↩ Back to Offers</a>
+      <a id="tabBack" class="tab" href="/offers.html?v=27">↩ Back to Offers</a>
     </div>
 
     <section id="grid" class="grid"></section>
@@ -36,12 +36,11 @@
     </footer>
   </div>
 
-  <script src="/shared.js?v=25"></script>
+  <script src="/shared.js?v=27"></script>
   <script>
     (async function init(){
       const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
 
-      // Initial tab from URL (?tab=favorites)
       const url = new URL(location.href);
       let currentTab = (url.searchParams.get('tab') === 'favorites') ? 'favorites' : 'wallet';
 
@@ -110,7 +109,6 @@
           }
         });
 
-        // Suggestions appear only for Wallet
         const sugWrap = document.getElementById('suggest');
         const moreTitle = document.getElementById('moreTitle');
         if (currentTab === 'wallet'){
@@ -135,7 +133,6 @@
       setActiveTabUI();
       await render();
 
-      // Keep list/count in sync after clicks
       document.addEventListener('click', (e)=>{
         const btn = e.target.closest('[data-action]');
         if(!btn) return;
@@ -145,7 +142,6 @@
         }
       });
 
-      // Service worker
       if ('serviceWorker' in navigator){
         const SW_VERSION = '13';
         navigator.serviceWorker
