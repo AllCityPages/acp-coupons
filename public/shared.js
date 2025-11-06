@@ -1,4 +1,4 @@
-// shared.js — v26 (hero wrapper + independent Favorites & Wallet + branding + nearby)
+// shared.js — v27 (universal RED CTA + hero wrapper + independent Favorites & Wallet + branding + nearby)
 const BRAND = {
   name: 'Local Deals Hub',
   logo: '/logo.png',
@@ -307,14 +307,12 @@ const Shared = (function(){
     row.className='btnrow';
     body.appendChild(row);
 
+    // UNIVERSAL RED CTA (no brand override)
     const cta=document.createElement('a');
     cta.className='btn btn-cta';
     cta.textContent=opts.wallet ? 'Use Now' : 'Tap to Redeem';
     cta.href=`/coupon?offer=${encodeURIComponent(o.id)}`;
-    if (o.brand_color){
-      cta.style.background = o.brand_color;
-      cta.style.borderColor = o.brand_color;
-    }
+    // removed: any brand-based inline styles
     if (exp.expired){
       cta.setAttribute('disabled','');
       cta.href='javascript:void(0)';
