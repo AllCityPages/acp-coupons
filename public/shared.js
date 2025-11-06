@@ -1,13 +1,12 @@
-// shared.js — v19 (independent Favorites & Wallet + branding + nearby)
+// shared.js — v26 (hero wrapper + independent Favorites & Wallet + branding + nearby)
 const BRAND = {
   name: 'Local Deals Hub',
-  // change this to wherever you actually put the file (e.g. '/img/acp-logo.png')
   logo: '/logo.png',
   home: '/offers.html'
 };
 
 const Shared = (function(){
-  // ====== NEW: independent storage keys ======
+  // ====== Independent storage keys ======
   const LS_FAV = 'acp_favorites_v1';
   const LS_WAL = 'acp_wallet_v1';
 
@@ -57,7 +56,7 @@ const Shared = (function(){
     }
   }
 
-  /* ---------- local storage helpers (NEW) ---------- */
+  /* ---------- local storage helpers ---------- */
   function loadSet(key){
     try {
       const raw = localStorage.getItem(key);
@@ -131,7 +130,7 @@ const Shared = (function(){
     });
   }
 
-  /* ---------- category chips ---------- */
+  /* ---------- category chips (optional) ---------- */
   function renderCategoryChips(host, state, onChange){
     host.innerHTML='';
     _categories.forEach(name=>{
@@ -219,7 +218,7 @@ const Shared = (function(){
     }catch{}
   }
 
-  /* ---------- card builder ---------- */
+  /* ---------- card builder (UPDATED hero wrapper) ---------- */
   function makeCard(o, opts={}){
     const stats=(_statsCache&&_statsCache[o.id])?_statsCache[o.id]:{issued:0,redeemed:0};
     const exp=expiryInfo(o);
@@ -228,11 +227,18 @@ const Shared = (function(){
     el.className='card';
     el.dataset.offerId = String(o.id);
 
+    // HERO WRAPPER: padding lives on wrapper; image fills without shrinking
+    const hero=document.createElement('div');
+    hero.className='hero hero--zoom';              // remove hero--zoom if you dislike global gentle zoom
+    if (o.hero_nozoom === true) hero.classList.remove('hero--zoom');
+
     const img=document.createElement('img');
     img.className='img';
     img.src=o.hero_image||'';
     img.alt=o.title||'';
-    el.appendChild(img);
+
+    hero.appendChild(img);
+    el.appendChild(hero);
 
     const body=document.createElement('div');
     body.className='body';
@@ -342,13 +348,13 @@ const Shared = (function(){
     return el;
   }
 
-  // Button state updater for one offer id
+  // Button state updater — updates *all* matching buttons for an id
   function updateButtonsFor(id){
     id = String(id);
-    const favBtn = document.querySelector(`.btn-fav[data-offer-id="${id}"]`);
-    const walBtn = document.querySelector(`.btn-wallet[data-offer-id="${id}"]`);
+    const favBtns = document.querySelectorAll(`.btn-fav[data-offer-id="${id}"]`);
+    const walBtns = document.querySelectorAll(`.btn-wallet[data-offer-id="${id}"]`);
 
-    if(favBtn){
+    favBtns.forEach(favBtn=>{
       if(isFavorite(id)){
         favBtn.classList.add('btn-on');
         favBtn.textContent = 'Saved ✓';
@@ -356,9 +362,9 @@ const Shared = (function(){
         favBtn.classList.remove('btn-on');
         favBtn.textContent = '⭐ Favorite';
       }
-    }
+    });
 
-    if(walBtn){
+    walBtns.forEach(walBtn=>{
       if(isInWallet(id)){
         walBtn.classList.add('btn-on');
         walBtn.textContent = 'Saved ✓';
@@ -366,7 +372,7 @@ const Shared = (function(){
         walBtn.classList.remove('btn-on');
         walBtn.textContent = 'Add to Wallet';
       }
-    }
+    });
   }
 
   // Event delegation: keep actions separate
@@ -436,9 +442,7 @@ const Shared = (function(){
 
   return {
     readQuery, writeQuery, debounce,
-    // NEW exports
     getFavoriteIds, getWalletIds, isFavorite, isInWallet, toggleFavorite, toggleWallet, updateButtonsFor,
-    // unchanged
     populateBrandFilter, applyFilter, renderCategoryChips,
     makeCard, suggest,
     renderNotifyCTA, enableNearbyAlerts,
@@ -453,16 +457,15 @@ const Shared = (function(){
 // warm stats
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
 
-// run branding on load
+// branding on load
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof Shared.initBranding === 'function') {
     Shared.initBranding();
   }
 });
 
-// Simple debug helpers (optional; remove in prod)
+// Simple debug helpers (optional)
 window.ACP = Object.assign(window.ACP || {}, {
   favs: () => JSON.parse(localStorage.getItem('acp_favorites_v1')||'[]'),
   wals: () => JSON.parse(localStorage.getItem('acp_wallet_v1')||'[]')
 });
-
