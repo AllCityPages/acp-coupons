@@ -1,6 +1,7 @@
 /* =========================================================
-   theme.css — v25
-   - Tight hero frame default (4:3, contain, centered)
+   theme.css — v26
+   - Hero wrapper (.hero) with padding; <img> fills it
+   - Auto center + optional subtle zoom to counter transparent PNG margins
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -21,7 +22,8 @@
 
   /* Image area vars */
   --img-bg:#fff;
-  --img-pad:10px;        /* tighter default */
+  --img-pad:10px;        /* gutter inside hero frame */
+  --img-zoom:1.08;       /* gentle compensation for transparent margins */
 }
 
 body{
@@ -93,25 +95,36 @@ a.btn-compact{text-decoration:none}
   overflow:hidden;display:flex;flex-direction:column;
 }
 
-/* Image area (tight default):
-   - 4:3 frame, inner white gutter, image fully visible & centered
-*/
-.card .img{
+/* NEW hero wrapper (padding lives here, not on <img>) */
+.card .hero{
   width:100%;
-  aspect-ratio: 4 / 3;
-  display:block;
+  aspect-ratio:4/3;           /* tight frame */
   background:var(--img-bg);
   padding:var(--img-pad);
-  object-fit:contain;           
-  object-position:center;
   border-bottom:1px solid var(--border);
+  overflow:hidden;
+  position:relative;
 }
 
-/* optional: tweak padding on small screens */
-@media (max-width:520px){
-  :root{ --img-pad:10px; }
+/* The actual hero image fills the hero box */
+.card .hero > img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:contain;          /* no crop */
+  object-position:center;
+  transform-origin:center;
 }
 
+/* Subtle global zoom to counter transparent PNG margins */
+.card .hero.hero--zoom > img{
+  transform:scale(var(--img-zoom));
+}
+
+/* legacy guard: if some cards still have .img directly on the <img> */
+.card .img{ width:100%; height:100%; display:block; object-fit:contain; object-position:center; }
+
+/* Body */
 .card .body{padding:12px 14px}
 
 /* Title row: title (left) + logo (right) */
