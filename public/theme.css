@@ -1,7 +1,8 @@
 /* =========================================================
-   theme.css — v26
+   theme.css — v27
    - Hero wrapper (.hero) with padding; <img> fills it
    - Auto center + optional subtle zoom to counter transparent PNG margins
+   - Universal RED CTA for "Tap to Redeem"
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -18,7 +19,13 @@
   --bar:#ffd400;
   --bar-ink:#111827;
 
-  --cta:#111827;
+  /* Universal CTA — RED */
+  --cta:#e60023;         /* main CTA red */
+  --cta-ink:#ffffff;     /* text color on CTA */
+  --cta-hover:#c4001f;   /* hover */
+  --cta-active:#a7001b;  /* active/pressed */
+  --cta-border:#900017;  /* border on CTA */
+  --focus:#1d4ed8;       /* accessible focus ring */
 
   /* Image area vars */
   --img-bg:#fff;
@@ -178,8 +185,18 @@ a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
 
 .btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 
-/* primary / Tap to Redeem */
-.btn-cta{ background:var(--cta,#111827); color:#fff; border:1px solid #0f1629; }
+/* primary / Tap to Redeem — UNIVERSAL RED */
+.btn-cta{
+  background:var(--cta);
+  color:var(--cta-ink);
+  border:1px solid var(--cta-border);
+}
+.btn-cta:hover{ background:var(--cta-hover); }
+.btn-cta:active{ background:var(--cta-active); }
+.btn-cta:focus{
+  outline:2px solid transparent;
+  box-shadow:0 0 0 3px rgba(29,78,216,.35);
+}
 
 /* Independent buttons on cards */
 .btn-fav{ background:#ffd400 !important; color:#111827 !important; border:1px solid #e5c200 !important; }
