@@ -1,4 +1,8 @@
-// shared.js — v27 (universal RED CTA + hero wrapper + independent Favorites & Wallet + branding + nearby)
+// shared.js — v28
+// - Distance text under logo (same height as brand text)
+// - Address block with multi-location support + nearest calculation
+// - Backward compatible with simple string address
+
 const BRAND = {
   name: 'Local Deals Hub',
   logo: '/logo.png',
@@ -28,7 +32,6 @@ const Shared = (function(){
     if(st.sortNearby!=null) st.sortNearby = st.sortNearby === 'true';
     return st;
   }
-
   function writeQuery(state){
     const u=new URL(location.href);
     QKEYS.forEach(k=>{
@@ -72,7 +75,6 @@ const Shared = (function(){
   let _fav = loadSet(LS_FAV);
   let _wal = loadSet(LS_WAL);
 
-  // One-time migration from old combined key, if it exists
   (function migrateOld(){
     try{
       const raw = localStorage.getItem('acp_saved_offers');
@@ -81,7 +83,7 @@ const Shared = (function(){
       if(old && typeof old === 'object'){
         if(Array.isArray(old.favorites)) _fav = new Set(old.favorites);
         if(Array.isArray(old.wallet)) _wal = new Set(old.wallet);
-        if(Array.isArray(old)) _wal = new Set(old); // legacy array treated as wallet
+        if(Array.isArray(old)) _wal = new Set(old);
         saveSet(LS_FAV, _fav);
         saveSet(LS_WAL, _wal);
       }
@@ -166,6 +168,47 @@ const Shared = (function(){
     return _statsCache;
   }
 
+  /* ---------- geodistance helpers ---------- */
+  function haversineKm(lat1,lng1,lat2,lng2){
+    function toRad(d){return d*Math.PI/180;}
+    const R=6371;
+    const dLat=toRad(lat2-lat1);
+    const dLng=toRad(lng2-lng1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  }
+  function formatMiles(km){
+    if(!isFinite(km)) return '';
+    const mi = km * 0.621371;
+    return (mi<10 ? mi.toFixed(1) : Math.round(mi)) + ' mi';
+  }
+
+  function normalizeAddresses(o){
+    // Accept: o.address (string) OR o.addresses: [string | {label,lat,lng}]
+    let list=[];
+    if (Array.isArray(o.addresses)) list=[...o.addresses];
+    else if (o.address) list=[o.address];
+    return list.map(entry=>{
+      if (typeof entry==='string') return { label: entry };
+      const label = entry.label || [entry.street, entry.city, entry.state].filter(Boolean).join(', ');
+      return { label, lat: entry.lat, lng: entry.lng };
+    }).filter(a => a && a.label);
+  }
+
+  function nearestAddress(o){
+    const addrs = normalizeAddresses(o);
+    if (!addrs.length || _nearby.lat==null || _nearby.lng==null) return null;
+    let bestIdx=-1, bestKm=Infinity;
+    addrs.forEach((a,i)=>{
+      if (isFinite(a.lat) && isFinite(a.lng)){
+        const km = haversineKm(_nearby.lat,_nearby.lng,a.lat,a.lng);
+        if (km<bestKm){ bestKm=km; bestIdx=i; }
+      }
+    });
+    if (bestIdx<0) return null;
+    return { index: bestIdx, distanceKm: bestKm, address: addrs[bestIdx], all:addrs };
+  }
+
   /* ---------- nearby ---------- */
   async function computeNearbySort(){
     if(!navigator.geolocation) return;
@@ -175,6 +218,8 @@ const Shared = (function(){
     if(!pos) return;
     _nearby.lat = pos.coords.latitude;
     _nearby.lng = pos.coords.longitude;
+
+    // Brand-level distances (server-provided)
     const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`)
       .then(r=>r.json())
       .then(x=>x.stores||[])
@@ -195,30 +240,7 @@ const Shared = (function(){
     });
   }
 
-  function formatMiles(km){
-    if(!isFinite(km)) return '';
-    const mi = km * 0.621371;
-    return (mi<10 ? mi.toFixed(1) : Math.round(mi)) + ' mi';
-  }
-
-  /* ---------- notify CTA ---------- */
-  function renderNotifyCTA(actionbarEl){
-    try{
-      if(!('Notification' in window)) return;
-      if(Notification.permission==='denied'){
-        const b=document.createElement('button');
-        b.className='chip btn-compact';
-        b.textContent='🔔 Enable push notifications';
-        b.onclick=async()=>{
-          const p=await Notification.requestPermission();
-          if(p==='granted'){ b.remove(); }
-        };
-        actionbarEl.appendChild(b);
-      }
-    }catch{}
-  }
-
-  /* ---------- card builder (UPDATED hero wrapper) ---------- */
+  /* ---------- card builder ---------- */
   function makeCard(o, opts={}){
     const stats=(_statsCache&&_statsCache[o.id])?_statsCache[o.id]:{issued:0,redeemed:0};
     const exp=expiryInfo(o);
@@ -227,16 +249,14 @@ const Shared = (function(){
     el.className='card';
     el.dataset.offerId = String(o.id);
 
-    // HERO WRAPPER: padding lives on wrapper; image fills without shrinking
+    // HERO
     const hero=document.createElement('div');
-    hero.className='hero hero--zoom';              // remove hero--zoom if you dislike global gentle zoom
+    hero.className='hero hero--zoom';
     if (o.hero_nozoom === true) hero.classList.remove('hero--zoom');
-
     const img=document.createElement('img');
     img.className='img';
     img.src=o.hero_image||'';
     img.alt=o.title||'';
-
     hero.appendChild(img);
     el.appendChild(hero);
 
@@ -244,6 +264,7 @@ const Shared = (function(){
     body.className='body';
     el.appendChild(body);
 
+    // Title row: h3 + logo stack (logo + distance)
     const titleRow = document.createElement('div');
     titleRow.className = 'title-row';
 
@@ -252,24 +273,82 @@ const Shared = (function(){
     titleRow.appendChild(h3);
 
     if (o.logo){
+      const stack = document.createElement('div');
+      stack.className = 'brand-logo-stack';
+
       const logo = document.createElement('img');
       logo.className = 'brand-logo-inline';
       logo.src = o.logo;
       logo.alt = (o.restaurant || 'Brand') + ' logo';
-      titleRow.appendChild(logo);
-    }
+      stack.appendChild(logo);
 
+      // Distance text under the logo
+      const distEl = document.createElement('div');
+      distEl.className = 'brand-distance';
+
+      let distText = '';
+      const near = nearestAddress(o);
+      if (near && isFinite(near.distanceKm)) {
+        distText = `${formatMiles(near.distanceKm)} away`;
+      } else if(_nearby.brandDist && _nearby.brandDist.size){
+        const d = _nearby.brandDist.get((o.restaurant||'').toLowerCase());
+        if (isFinite(d)) distText = `${formatMiles(d)} away`;
+      }
+      distEl.textContent = distText;
+      if (distText) stack.appendChild(distEl);
+
+      titleRow.appendChild(stack);
+    }
     body.appendChild(titleRow);
 
+    // Brand row (name)
     const brandRow = document.createElement('div');
     brandRow.className = 'brand-row';
-
     const brand = document.createElement('div');
     brand.className = 'brand';
     brand.textContent = o.restaurant || '';
     brandRow.appendChild(brand);
-
     body.appendChild(brandRow);
+
+    // Address block (nearest + toggle for all)
+    (function renderAddress(){
+      const info = nearestAddress(o);
+      const addrs = normalizeAddresses(o);
+      if (!addrs.length) return;
+
+      const addr = document.createElement('div');
+      addr.className = 'addr';
+
+      if (info){
+        addr.innerHTML = `${info.address.label} <span class="addr-dist">• ${formatMiles(info.distanceKm)} away</span>` +
+                         (addrs.length>1 ? ` <small class="toggle" role="button" tabindex="0">(view all)</small>` : '');
+      } else {
+        addr.textContent = addrs[0].label + (addrs.length>1 ? ` (+${addrs.length-1} more)` : '');
+      }
+      body.appendChild(addr);
+
+      if (addrs.length>1){
+        const list = document.createElement('div');
+        list.className = 'addr-list';
+        addrs.forEach(a=>{
+          let line = a.label;
+          if (isFinite(a.lat) && isFinite(a.lng) && _nearby.lat!=null){
+            const km = haversineKm(_nearby.lat,_nearby.lng,a.lat,a.lng);
+            line += ` — ${formatMiles(km)}`;
+          }
+          const item = document.createElement('div');
+          item.textContent = line;
+          list.appendChild(item);
+        });
+        body.appendChild(list);
+
+        const toggle = addr.querySelector('.toggle');
+        if (toggle){
+          toggle.addEventListener('click', ()=> list.classList.toggle('show'));
+          toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); list.classList.toggle('show'); }});
+        }
+      }
+    })();
 
     if(o.description){
       const p=document.createElement('p');
@@ -278,6 +357,7 @@ const Shared = (function(){
       body.appendChild(p);
     }
 
+    // Meta badges
     const meta=document.createElement('div');
     meta.className='meta';
 
@@ -291,62 +371,46 @@ const Shared = (function(){
     redb.textContent=`${(stats.redeemed||0)} redeemed`;
     meta.appendChild(redb);
 
-    if(_nearby.brandDist && _nearby.brandDist.size){
-      const dist=_nearby.brandDist.get((o.restaurant||'').toLowerCase());
-      if(isFinite(dist)){
-        const xb=document.createElement('span');
-        xb.className='badge ok';
-        xb.textContent=formatMiles(dist);
-        meta.appendChild(xb);
-      }
-    }
-
     body.appendChild(meta);
 
+    // Buttons
     const row=document.createElement('div');
     row.className='btnrow';
     body.appendChild(row);
 
-    // UNIVERSAL RED CTA (no brand override)
     const cta=document.createElement('a');
     cta.className='btn btn-cta';
     cta.textContent=opts.wallet ? 'Use Now' : 'Tap to Redeem';
     cta.href=`/coupon?offer=${encodeURIComponent(o.id)}`;
-    // removed: any brand-based inline styles
     if (exp.expired){
       cta.setAttribute('disabled','');
       cta.href='javascript:void(0)';
     }
     row.appendChild(cta);
 
-    // Favorite button (independent)
     const fav=document.createElement('button');
     fav.className='btn btn-fav';
     fav.setAttribute('data-action','fav');
     fav.setAttribute('data-offer-id', String(o.id));
     row.appendChild(fav);
 
-    // Wallet button (independent)
     const wal=document.createElement('button');
     wal.className='btn btn-wallet';
     wal.setAttribute('data-action','wallet');
     wal.setAttribute('data-offer-id', String(o.id));
     row.appendChild(wal);
 
-    // Print
     const print=document.createElement('a');
     print.className='btn btn-outline';
     print.textContent='Print';
     print.href=`/coupon-print.html?offer=${encodeURIComponent(o.id)}&src=card`;
     row.appendChild(print);
 
-    // Initial button state
     updateButtonsFor(o.id);
-
     return el;
   }
 
-  // Button state updater — updates *all* matching buttons for an id
+  // Button state updater
   function updateButtonsFor(id){
     id = String(id);
     const favBtns = document.querySelectorAll(`.btn-fav[data-offer-id="${id}"]`);
@@ -373,7 +437,7 @@ const Shared = (function(){
     });
   }
 
-  // Event delegation: keep actions separate
+  // Event delegation
   document.addEventListener('click', (e)=>{
     const btn = e.target.closest('[data-action]');
     if(!btn) return;
@@ -391,11 +455,9 @@ const Shared = (function(){
       const wasIn = isInWallet(id);
       toggleWallet(id);
       updateButtonsFor(id);
-      // If we're on the wallet page and the user removed it, remove the card from DOM
       if (wasIn && !isInWallet(id) && location.pathname.includes('wallet')) {
         const card = btn.closest('.card');
         if(card) card.remove();
-        // also update the count if present
         const countEl = document.querySelector('#count');
         if(countEl){
           const current = Number(countEl.textContent||'0');
