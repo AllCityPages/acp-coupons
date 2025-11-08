@@ -233,7 +233,7 @@ app.post('/api/redeem', async (req, res) => {
 });
 
 // ======================================================================
-//  PUBLIC OFFERS API (includes logo)
+//  PUBLIC OFFERS API (includes logo + addresses + hero_nozoom)
 // ======================================================================
 app.get('/api/offers', async (_req, res) => {
   const { offers } = await loadCatalog();
@@ -244,14 +244,22 @@ app.get('/api/offers', async (_req, res) => {
     description: o.description || '',
     category: o.category || '',
     hero_image: o.hero_image || o.logo || '',
+    hero_nozoom: !!o.hero_nozoom,
+
     logo: o.logo || '',
     brand_color: o.brand_color || '#111827',
     accent_color: o.accent_color || '#2563eb',
     expires_days: o.expires_days || 90,
-    client_slug: o.client_slug || 'general'
+    client_slug: o.client_slug || 'general',
+
+    // NEW: pass through address fields for the UI
+    // Accepts: address (string) OR addresses: [string | {label,lat,lng}]
+    address: o.address || '',
+    addresses: Array.isArray(o.addresses) ? o.addresses : undefined
   }));
   res.json({ offers: rows });
 });
+
 
 // ======================================================================
 //  EVENTS
