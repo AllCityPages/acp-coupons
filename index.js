@@ -83,6 +83,14 @@ async function geocodeLabel(label){
   return null;
 }
 
+// Small utilities
+const toSlug = (s) => (s || '')
+  .toLowerCase()
+  .normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-')
+  .replace(/(^-|-$)/g,'')
+  .slice(0, 48);
+
 // kill cache for APIs + offers.json
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') || req.path === '/offers.json') {
@@ -318,7 +326,7 @@ app.get('/api/stores', async (_req, res) => {
       return {
         code,
         brand: meta.brand || '',
-        label: meta.brand || code,
+        label: meta.label || meta.brand || code,
         lat: meta.lat || null,
         lng: meta.lng || null
       };
@@ -355,7 +363,7 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 // ======================================================================
-//  ADMIN (Hub, CSV, PDF)
+//  ADMIN (Hub, CSV, PDF) + Geocode + Sync Stores
 // ======================================================================
 function requireKey(req, res, next) {
   const k = req.header('x-api-key') || req.query.key || '';
@@ -432,6 +440,83 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
   }
 });
 
+// ADMIN: Sync stores.json from offers.json (protected)
+// - Reads offers.json addresses[] and merges into stores.json
+// - De-dupes by (brand|label). Keeps/updates lat/lng if present.
+// GET /admin/sync-stores?key=API_KEY[&dry=1]
+app.get('/admin/sync-stores', requireKey, async (req, res) => {
+  try{
+    const dry = String(req.query.dry || '') === '1';
+    const offers = await jread(OFFERS_FILE, {});
+    const existingStores = await jread(STORES_FILE, {}); // object map
+
+    // Build index for quick duplicate checks
+    const indexKey = (brand, label) => `${(brand||'').trim()}|${(label||'').trim()}`.toLowerCase();
+    const existingByKey = new Map();
+    Object.entries(existingStores).forEach(([code, meta]) => {
+      const brand = (typeof meta === 'string') ? meta : (meta.brand || '');
+      const label = (typeof meta === 'string') ? meta : (meta.label || meta.brand || code);
+      existingByKey.set(indexKey(brand, label), { code, meta: (typeof meta === 'string' ? { brand, label } : meta) });
+    });
+
+    const upserts = []; // actions for summary
+    const storesOut = { ...existingStores }; // mutate a copy
+
+    // Walk all offers/addresses
+    for (const [offerId, o] of Object.entries(offers)) {
+      const brand = o.restaurant || o.brand || '';
+      const arr = Array.isArray(o.addresses) ? o.addresses.map(normalizeAddrEntry) : [];
+      arr.forEach((a, i) => {
+        if (!a.label) return;
+        const key = indexKey(brand, a.label);
+        if (existingByKey.has(key)) {
+          // update lat/lng if available and changed
+          const { code, meta } = existingByKey.get(key);
+          const oldLat = meta.lat, oldLng = meta.lng;
+          const newLat = isFiniteNum(a.lat) ? a.lat : oldLat;
+          const newLng = isFiniteNum(a.lng) ? a.lng : oldLng;
+          const updatedMeta = { ...meta, brand: brand || meta.brand, label: a.label, lat: newLat, lng: newLng };
+          if (JSON.stringify({lat:oldLat,lng:oldLng}) !== JSON.stringify({lat:newLat,lng:newLng})) {
+            upserts.push({ action:'update', code, brand, label:a.label, lat:newLat, lng:newLng });
+          }
+          storesOut[code] = updatedMeta;
+        } else {
+          // create new code: <brand-slug>-<short-hash-of-label> or sequence
+          const code = `${toSlug(brand)||'store'}-${sha12(a.label).slice(0,6)}`;
+          const meta = { brand, label: a.label };
+          if (isFiniteNum(a.lat) && isFiniteNum(a.lng)) { meta.lat = a.lat; meta.lng = a.lng; }
+          storesOut[code] = meta;
+          existingByKey.set(key, { code, meta });
+          upserts.push({ action:'insert', code, brand, label:a.label, lat: meta.lat ?? null, lng: meta.lng ?? null });
+        }
+      });
+    }
+
+    // Backup and write
+    let backupName = null;
+    if (!dry) {
+      const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
+      const backupPath = STORES_FILE.replace(/\.json$/i, `.backup-${stamp}.json`);
+      if (fs.existsSync(STORES_FILE)) fs.copyFileSync(STORES_FILE, backupPath);
+      backupName = path.basename(backupPath);
+      await jwrite(STORES_FILE, storesOut);
+    }
+
+    const total = Object.keys(storesOut).length;
+    res.json({
+      ok:true,
+      dry_run: dry,
+      total_stores_after: total,
+      changes: upserts.length,
+      backup: dry ? null : backupName,
+      sample_changes: upserts.slice(0, 20) // preview first 20
+    });
+  }catch(e){
+    console.error('sync-stores error', e);
+    res.status(500).json({ ok:false, error: 'sync-stores-failed' });
+  }
+});
+
 app.get('/hub', requireKey, async (req, res) => {
   const db = await jread(DB_FILE, { passes: [] });
   const rows = db.passes.slice().reverse().map(p => `
@@ -452,7 +537,9 @@ app.get('/hub', requireKey, async (req, res) => {
   <a href="/hub/dashboard/report-analytics.csv?key=${keyParam}">Download CSV</a> ·
   <a href="/hub/dashboard.pdf?key=${keyParam}">Download PDF</a> ·
   <a href="/admin/geocode?key=${keyParam}">Geocode now</a> ·
-  <a href="/admin/geocode?dry=1&key=${keyParam}" title="Preview only, no write">Preview geocode (dry run)</a>
+  <a href="/admin/geocode?dry=1&key=${keyParam}" title="Preview only, no write">Preview geocode (dry run)</a> ·
+  <a href="/admin/sync-stores?key=${keyParam}">Sync stores now</a> ·
+  <a href="/admin/sync-stores?dry=1&key=${keyParam}" title="Preview only, no write">Preview sync (dry run)</a>
 </p>
 <div style="overflow:auto">
 <table>
@@ -611,11 +698,11 @@ app.get('/events.csv', requireKey, async (_req, res) => {
       e.offer_id || '',
       e.restaurant || '',
       e.client_slug || '',
-      JSON.stringify(e.meta || ''),
-      '', ''
+      JSON.stringify(e.meta || {}),
+      '', '',
     ].map(csvEsc).join(','))
   ).join('\n') + '\n';
-  return sendCsv(res, 'events.csv');
+  return sendCsv(res, 'events.csv', csv);
 });
 
 // ---------- PDF ----------
