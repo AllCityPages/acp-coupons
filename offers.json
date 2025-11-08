@@ -10,7 +10,10 @@
     "logo": "/tacobell/tacobell-logo.png",
     "brand_color": "#702082",
     "accent_color": "#8A2BE2",
-    "fine_print": "At participating locations. Not valid with other offers."
+    "fine_print": "At participating locations. Not valid with other offers.",
+    "addresses": [
+      { "label": "340 E Bethany Dr, Allen, TX 75002", "lat": null, "lng": null }
+    ]
   },
 
   "popeyes-2pc": {
@@ -24,7 +27,14 @@
     "logo": "/popeyes/popeyes-logo.png",
     "brand_color": "#F26C2A",
     "accent_color": "#FF6A00",
-    "fine_print": "Valid at participating locations. Not combinable."
+    "fine_print": "Valid at participating locations. Not combinable.",
+    "addresses": [
+      { "label": "6520 State Highway 121, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "6611 W Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "5420 FM 423 Rd, Frisco, TX 75036", "lat": null, "lng": null },
+      { "label": "2601 Preston Rd, Frisco, TX 75034", "lat": null, "lng": null },
+      { "label": "3945 W Spring Creek Pkwy, Plano, TX 75023", "lat": null, "lng": null }
+    ]
   },
 
   "mcd-bogo": {
@@ -38,7 +48,19 @@
     "logo": "/mcdonalds/mcdonalds-logo.png",
     "brand_color": "#DA291C",
     "accent_color": "#FF0000",
-    "fine_print": "Not valid with any other offers. Valid only at participating McDonald's."
+    "fine_print": "Not valid with any other offers. Valid only at participating McDonald's.",
+    "addresses": [
+      { "label": "1810 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
+      { "label": "240 W Eldorado Pkwy, McKinney, TX 75069", "lat": null, "lng": null },
+      { "label": "12299 E University Dr, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "3200 Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "402 N Central Expy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "4360 Legacy Dr, Frisco, TX 75034", "lat": null, "lng": null },
+      { "label": "5555 FM 423, Frisco, TX 75035", "lat": null, "lng": null },
+      { "label": "370 E Stacy Rd, Allen, TX 75002", "lat": null, "lng": null },
+      { "label": "4925 W Park Blvd, Plano, TX 75093", "lat": null, "lng": null },
+      { "label": "6220 W Park Blvd, Plano, TX 75093", "lat": null, "lng": null }
+    ]
   },
 
   "bk-bogo-whopper": {
@@ -52,7 +74,15 @@
     "logo": "/burgerking/burgerking-logo.png",
     "brand_color": "#A64A29",
     "accent_color": "#C4622D",
-    "fine_print": "Limit one per customer."
+    "fine_print": "Limit one per customer.",
+    "addresses": [
+      { "label": "6510 State Highway 121, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "1700 W University Dr, McKinney, TX 75069", "lat": null, "lng": null },
+      { "label": "604 W McDermott Dr, Allen, TX 75013", "lat": null, "lng": null },
+      { "label": "3332 K Ave, Plano, TX 75074", "lat": null, "lng": null },
+      { "label": "8720 Ohio Dr, Plano, TX 75024", "lat": null, "lng": null },
+      { "label": "2009 Coit Rd, Plano, TX 75075", "lat": null, "lng": null }
+    ]
   },
 
   "wendys-free-side": {
@@ -60,13 +90,23 @@
     "restaurant": "Wendy's",
     "client_slug": "wendys-frisco",
     "category": "Burgers",
-    "description": "Get a free sandwich combo with any sanweich combo purchase.",
+    "description": "Get a free sandwich combo with any sandwich combo purchase.",
     "expires_days": 40,
     "hero_image": "/wendys/wendys-hero-bogo.png",
     "logo": "/wendys/wendys-logo.png",
     "brand_color": "#C8102E",
     "accent_color": "#E2231A",
-    "fine_print": "One redemption per customer. Not redeemable for cash."
+    "fine_print": "One redemption per customer. Not redeemable for cash.",
+    "addresses": [
+      { "label": "1951 W Eldorado Pkwy, McKinney, TX 75069", "lat": null, "lng": null },
+      { "label": "8904 State Highway 121, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "5175 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
+      { "label": "1714 W University Dr, McKinney, TX 75069", "lat": null, "lng": null },
+      { "label": "601 W McDermott Dr, Allen, TX 75013", "lat": null, "lng": null },
+      { "label": "3200 Custer Rd, Plano, TX 75075", "lat": null, "lng": null },
+      { "label": "6912 Coit Rd, Plano, TX 75025", "lat": null, "lng": null },
+      { "label": "6108 W Park Blvd, Plano, TX 75093", "lat": null, "lng": null }
+    ]
   },
 
   "kfc-tender-combo": {
@@ -80,7 +120,15 @@
     "logo": "/kfc/kfc-logo.png",
     "brand_color": "#E4002B",
     "accent_color": "#E4002B",
-    "fine_print": "Offer available at participating locations."
+    "fine_print": "Offer available at participating locations.",
+    "addresses": [
+      { "label": "2030 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
+      { "label": "2920 W Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "7560 Preston Rd, Frisco, TX 75034", "lat": null, "lng": null },
+      { "label": "2801 Eldorado Pkwy E, Frisco, TX 75034", "lat": null, "lng": null },
+      { "label": "200 N Greenville Ave, Allen, TX 75002", "lat": null, "lng": null },
+      { "label": "6301 Coit Rd, Plano, TX 75024", "lat": null, "lng": null }
+    ]
   },
 
   "pizzahut-large-5": {
@@ -94,7 +142,17 @@
     "logo": "/pizzahut/pizzahut-logo.png",
     "brand_color": "#EE232C",
     "accent_color": "#EB0029",
-    "fine_print": "Must present coupon at time of order."
+    "fine_print": "Must present coupon at time of order.",
+    "addresses": [
+      { "label": "4987 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
+      { "label": "230 S Hardin Blvd, McKinney, TX 75069", "lat": null, "lng": null },
+      { "label": "1720 N Central Expy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "8408 Stacy Rd, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "11445 Dallas Pkwy, Frisco, TX 75033", "lat": null, "lng": null },
+      { "label": "801 S Greenville Ave, Allen, TX 75002", "lat": null, "lng": null },
+      { "label": "300 Rivercrest Blvd, Allen, TX 75013", "lat": null, "lng": null },
+      { "label": "7201 Central Expy #100, Plano, TX 75025", "lat": null, "lng": null }
+    ]
   },
 
   "chipotle-bogo-bowl": {
@@ -108,7 +166,13 @@
     "logo": "/chipotle/chipotle-logo.png",
     "brand_color": "#7F2D1F",
     "accent_color": "#A83F2C",
-    "fine_print": "Valid at participating locations only."
+    "fine_print": "Valid at participating locations only.",
+    "addresses": [
+      { "label": "8751 W University Dr #130, McKinney, TX 75071", "lat": null, "lng": null },
+      { "label": "5151 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
+      { "label": "2811 Craig Dr, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "9625 Coit Rd, Plano, TX 75025", "lat": null, "lng": null }
+    ]
   },
 
   "subway-free-sub": {
@@ -122,7 +186,18 @@
     "logo": "/subway/subway-logo.png",
     "brand_color": "#00543D",
     "accent_color": "#009E5A",
-    "fine_print": "One per customer. While supplies last."
+    "fine_print": "One per customer. While supplies last.",
+    "addresses": [
+      { "label": "1705 W University Dr #114, McKinney, TX 75069", "lat": null, "lng": null },
+      { "label": "4900 Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "4991 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
+      { "label": "12220 FM 423, Frisco, TX 75035", "lat": null, "lng": null },
+      { "label": "4710 Preston Rd #316, Frisco, TX 75034", "lat": null, "lng": null },
+      { "label": "6700 Stonebrook Pkwy, Frisco, TX 75034", "lat": null, "lng": null },
+      { "label": "204 N Greenville Ave #210, Allen, TX 75002", "lat": null, "lng": null },
+      { "label": "1201 E Spring Creek Pkwy #160, Plano, TX 75074", "lat": null, "lng": null },
+      { "label": "2400 K Ave, Plano, TX 75074", "lat": null, "lng": null }
+    ]
   },
 
   "whataburger-bogo": {
@@ -136,7 +211,16 @@
     "logo": "/whataburger/whataburger-logo.png",
     "brand_color": "#FF5A00",
     "accent_color": "#FF6A00",
-    "fine_print": "Valid only at participating Whataburger."
+    "fine_print": "Valid only at participating Whataburger.",
+    "addresses": [
+      { "label": "445 S Central Expy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "9053 W University Dr, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "6151 Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "11650 Dallas Pkwy, Frisco, TX 75033", "lat": null, "lng": null },
+      { "label": "705 University Dr, Frisco, TX 75036", "lat": null, "lng": null },
+      { "label": "3521 N Central Expy, Plano, TX 75023", "lat": null, "lng": null },
+      { "label": "6401 Coit Rd, Plano, TX 75024", "lat": null, "lng": null }
+    ]
   },
 
   "sonic-bogo-coney": {
@@ -150,7 +234,18 @@
     "logo": "/sonic/sonic-logo.png",
     "brand_color": "#005CB4",
     "accent_color": "#FF0C00",
-    "fine_print": "Valid at participating Sonic Drive-In locations."
+    "fine_print": "Valid at participating Sonic Drive-In locations.",
+    "addresses": [
+      { "label": "6481 Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "420 N Custer Rd, McKinney, TX 75070", "lat": null, "lng": null },
+      { "label": "11665 Frisco St, Frisco, TX 75033", "lat": null, "lng": null },
+      { "label": "315 Main St, Frisco, TX 75034", "lat": null, "lng": null },
+      { "label": "707 E Main St, Allen, TX 75002", "lat": null, "lng": null },
+      { "label": "1310 W McDermott Dr, Allen, TX 75013", "lat": null, "lng": null },
+      { "label": "6104 Chase Oaks Blvd, Plano, TX 75023", "lat": null, "lng": null },
+      { "label": "7925 Coit Rd, Plano, TX 75024", "lat": null, "lng": null },
+      { "label": "3404 Coit Rd, Plano, TX 75023", "lat": null, "lng": null }
+    ]
   },
 
   "dq-finger-basket": {
@@ -158,12 +253,15 @@
     "restaurant": "Dairy Queen",
     "client_slug": "dq-allen",
     "category": "Sandwiches",
-    "description": "Buy one Steak or Chicken Finger Basket Combo, Get one of Free.",
+    "description": "Buy one Steak or Chicken Finger Basket Combo, get one free.",
     "expires_days": 30,
     "hero_image": "/dairyqueen/dairyqueen-hero-fingerbsk.png",
     "logo": "/dairyqueen/dairyqueen-logo.png",
     "brand_color": "#156DBF",
     "accent_color": "#EF3E42",
-    "fine_print": "At participating DQ® stores. Not valid with other offers."
+    "fine_print": "At participating DQ® stores. Not valid with other offers.",
+    "addresses": [
+      { "label": "1835 W Louisiana St, McKinney, TX 75069", "lat": null, "lng": null }
+    ]
   }
 }
