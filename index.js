@@ -59,6 +59,30 @@ function sendCsv(res, filename, csvString) {
   res.status(200).send('\uFEFF' + csvString);
 }
 
+// ---------- Geocode helpers ----------
+const NOM_USER_AGENT = 'ACP-Coupons/1.0 (contact: info@AllCityPages.com)';
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+function isFiniteNum(v){ return typeof v === 'number' && Number.isFinite(v); }
+function normalizeAddrEntry(entry){
+  if (typeof entry === 'string') return { label: entry };
+  return {
+    label: (entry && entry.label) ? String(entry.label).trim() : '',
+    lat: isFiniteNum(entry?.lat) ? Number(entry.lat) : undefined,
+    lng: isFiniteNum(entry?.lng) ? Number(entry.lng) : undefined
+  };
+}
+async function geocodeLabel(label){
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=1&q=${encodeURIComponent(label)}`;
+  try{
+    const r = await fetch(url, { headers: { 'User-Agent': NOM_USER_AGENT, 'Accept': 'application/json' } });
+    const arr = await r.json();
+    if (Array.isArray(arr) && arr[0]?.lat && arr[0]?.lon){
+      return { lat: Number(arr[0].lat), lng: Number(arr[0].lon) };
+    }
+  }catch(e){ /* ignore */ }
+  return null;
+}
+
 // kill cache for APIs + offers.json
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') || req.path === '/offers.json') {
@@ -245,21 +269,17 @@ app.get('/api/offers', async (_req, res) => {
     category: o.category || '',
     hero_image: o.hero_image || o.logo || '',
     hero_nozoom: !!o.hero_nozoom,
-
     logo: o.logo || '',
     brand_color: o.brand_color || '#111827',
     accent_color: o.accent_color || '#2563eb',
     expires_days: o.expires_days || 90,
     client_slug: o.client_slug || 'general',
-
-    // NEW: pass through address fields for the UI
-    // Accepts: address (string) OR addresses: [string | {label,lat,lng}]
+    // pass through address fields
     address: o.address || '',
     addresses: Array.isArray(o.addresses) ? o.addresses : undefined
   }));
   res.json({ offers: rows });
 });
-
 
 // ======================================================================
 //  EVENTS
@@ -344,21 +364,95 @@ function requireKey(req, res, next) {
   next();
 }
 
+// ADMIN: Geocode offers.json addresses (protected)
+// GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
+app.get('/admin/geocode', requireKey, async (req, res) => {
+  try{
+    const dry = String(req.query.dry || '') === '1';
+    const onlyId = (req.query.id || '').toString();
+
+    // Load + backup
+    const offers = await jread(OFFERS_FILE, {});
+    const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
+    const backupPath = OFFERS_FILE.replace(/\.json$/i, `.backup-${stamp}.json`);
+    if (!dry) fs.copyFileSync(OFFERS_FILE, backupPath);
+
+    const ids = Object.keys(offers).filter(id => !onlyId || id === onlyId);
+    let requests = 0, hits = 0, misses = 0, touchedOffers = 0;
+
+    for (const id of ids){
+      const o = offers[id];
+
+      // Normalize to array "addresses"
+      let list = [];
+      if (Array.isArray(o.addresses)) list = o.addresses.map(normalizeAddrEntry);
+      else if (o.address) { list = [ normalizeAddrEntry(o.address) ]; delete o.address; }
+
+      let updated = false;
+
+      for (let i=0;i<list.length;i++){
+        const a = list[i];
+        if (!a?.label) continue;
+        const needsGeo = !(isFiniteNum(a.lat) && isFiniteNum(a.lng));
+        if (!needsGeo) continue;
+
+        requests++;
+        const geo = await geocodeLabel(a.label);
+        if (geo){
+          a.lat = geo.lat;
+          a.lng = geo.lng;
+          hits++;
+          updated = true;
+        }else{
+          misses++;
+        }
+        // Nominatim: 1 req/sec
+        await sleep(1100);
+      }
+
+      if (list.length) o.addresses = list;
+      if (updated) touchedOffers++;
+    }
+
+    if (!dry){
+      await jwrite(OFFERS_FILE, offers);
+    }
+
+    res.json({
+      ok: true,
+      dry_run: dry,
+      offers_processed: ids.length,
+      offers_updated: touchedOffers,
+      requests, hits, misses,
+      backup: dry ? null : path.basename(backupPath)
+    });
+  }catch(e){
+    console.error('geocode error', e);
+    res.status(500).json({ ok:false, error: 'geocode-failed' });
+  }
+});
+
 app.get('/hub', requireKey, async (req, res) => {
   const db = await jread(DB_FILE, { passes: [] });
   const rows = db.passes.slice().reverse().map(p => `
     <tr><td><code>${p.token_hash}</code></td><td>${p.offer}</td><td>${p.restaurant}</td>
     <td>${p.client_slug}</td><td>${p.status}</td><td>${p.issued_at}</td><td>${p.redeemed_at || ''}</td></tr>`).join('');
+  const keyParam = encodeURIComponent(req.query.key || '');
   res.send(`<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Admin Hub</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-<style>body{padding:18px;max-width:1100px;margin:auto} table{font-size:13px}</style>
+<style>
+  body{padding:18px;max-width:1100px;margin:auto} table{font-size:13px}
+  .admin-actions a{margin-right:.6rem}
+</style>
 </head><body>
 <h2>Admin Hub</h2>
-<p>
-  <a href="/hub/dashboard?key=${encodeURIComponent(req.query.key || '')}">Analytics</a> ·
-  <a href="/hub/dashboard/report-analytics.csv?key=${encodeURIComponent(req.query.key || '')}">Download CSV</a> ·
-  <a href="/hub/dashboard.pdf?key=${encodeURIComponent(req.query.key || '')}">Download PDF</a>
+<p class="admin-actions">
+  <a href="/hub/dashboard?key=${keyParam}">Analytics</a> ·
+  <a href="/hub/dashboard/report-analytics.csv?key=${keyParam}">Download CSV</a> ·
+  <a href="/hub/dashboard.pdf?key=${keyParam}">Download PDF</a> ·
+  <a href="/admin/geocode?key=${keyParam}">Geocode now</a> ·
+  <a href="/admin/geocode?dry=1&key=${keyParam}" title="Preview only, no write">Preview geocode (dry run)</a>
 </p>
 <div style="overflow:auto">
 <table>
@@ -517,11 +611,11 @@ app.get('/events.csv', requireKey, async (_req, res) => {
       e.offer_id || '',
       e.restaurant || '',
       e.client_slug || '',
-      JSON.stringify(e.meta || {}),
-      '', '',
+      JSON.stringify(e.meta || ''),
+      '', ''
     ].map(csvEsc).join(','))
   ).join('\n') + '\n';
-  return sendCsv(res, 'events.csv', csv);
+  return sendCsv(res, 'events.csv');
 });
 
 // ---------- PDF ----------
