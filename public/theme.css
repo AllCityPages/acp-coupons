@@ -1,8 +1,7 @@
 /* =========================================================
-   theme.css — v27
-   - Hero wrapper (.hero) with padding; <img> fills it
-   - Auto center + optional subtle zoom to counter transparent PNG margins
-   - Universal RED CTA for "Tap to Redeem"
+   theme.css — v28
+   - Distance text under logo
+   - Address block styles
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -20,22 +19,21 @@
   --bar-ink:#111827;
 
   /* Universal CTA — RED */
-  --cta:#e60023;         /* main CTA red */
-  --cta-ink:#ffffff;     /* text color on CTA */
-  --cta-hover:#c4001f;   /* hover */
-  --cta-active:#a7001b;  /* active/pressed */
-  --cta-border:#900017;  /* border on CTA */
-  --focus:#1d4ed8;       /* accessible focus ring */
+  --cta:#e60023;
+  --cta-ink:#ffffff;
+  --cta-hover:#c4001f;
+  --cta-active:#a7001b;
+  --cta-border:#900017;
+  --focus:#1d4ed8;
 
   /* Image area vars */
   --img-bg:#fff;
-  --img-pad:10px;        /* gutter inside hero frame */
-  --img-zoom:1.08;       /* gentle compensation for transparent margins */
+  --img-pad:10px;
+  --img-zoom:1.08;
 }
 
 body{
-  font-family:"Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Helvetica Neue", Arial, sans-serif;
+  font-family:"Roboto",-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
   background:var(--bg);
   color:var(--ink);
   margin:0;
@@ -59,7 +57,7 @@ body{
 .title h1{font-size:18px;margin:0;line-height:1}
 .title p{margin:2px 0 0;color:var(--muted);font-size:13px}
 
-/* ACTION BAR (offers page) */
+/* ACTION BAR */
 .actionbar{
   background:var(--bar);color:var(--bar-ink);border-radius:12px;
   padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
@@ -102,51 +100,48 @@ a.btn-compact{text-decoration:none}
   overflow:hidden;display:flex;flex-direction:column;
 }
 
-/* NEW hero wrapper (padding lives here, not on <img>) */
+/* Hero */
 .card .hero{
   width:100%;
-  aspect-ratio:4/3;           /* tight frame */
+  aspect-ratio:4/3;
   background:var(--img-bg);
   padding:var(--img-pad);
   border-bottom:1px solid var(--border);
   overflow:hidden;
   position:relative;
 }
-
-/* The actual hero image fills the hero box */
 .card .hero > img{
-  width:100%;
-  height:100%;
-  display:block;
-  object-fit:contain;          /* no crop */
-  object-position:center;
+  width:100%;height:100%;display:block;object-fit:contain;object-position:center;
   transform-origin:center;
 }
-
-/* Subtle global zoom to counter transparent PNG margins */
-.card .hero.hero--zoom > img{
-  transform:scale(var(--img-zoom));
-}
-
-/* legacy guard: if some cards still have .img directly on the <img> */
+.card .hero.hero--zoom > img{ transform:scale(var(--img-zoom)); }
 .card .img{ width:100%; height:100%; display:block; object-fit:contain; object-position:center; }
 
 /* Body */
 .card .body{padding:12px 14px}
 
-/* Title row: title (left) + logo (right) */
+/* Title row */
 .title-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:4px; }
 .title-row h3{ margin:0; font-size:18px; line-height:1.05; }
 
-/* brand text */
-.card .brand, .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
-.brand-row{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
-
-/* inline brand logos on cards */
+/* Inline brand logo + distance stack */
 .brand-logo-inline{
   width:42px; height:auto; flex:0 0 auto; object-fit:contain;
   background:#fff; border-radius:7px; padding:3px; box-shadow:0 1px 3px rgba(15,23,42,.12);
 }
+.brand-logo-stack{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; }
+.brand-distance{ color:var(--muted); font-size:13px; line-height:1; }
+
+/* Brand name line */
+.card .brand, .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
+.brand-row{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+
+/* Address block */
+.addr{ margin:-2px 0 8px; color:#374151; font-size:13px; }
+.addr .addr-dist{ color:var(--muted); }
+.addr .toggle{ color:#1d4ed8; cursor:pointer; text-decoration:underline; }
+.addr-list{ display:none; margin:6px 0 10px; padding-left:16px; color:#374151; font-size:13px; }
+.addr-list.show{ display:block; }
 
 /* description */
 .card .desc{ color:#374151; font-size:13px; margin:0 0 12px; }
@@ -163,42 +158,26 @@ a.btn-compact{text-decoration:none}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
 .meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 
-/* BUTTONS (24px system) */
+/* BUTTONS */
 .btn, .btn-cta, .btn-outline{
   -webkit-appearance:none;appearance:none;
   display:inline-flex;align-items:center;justify-content:center;
   height:24px;min-height:24px;
-  padding:0 10px;
-  border-radius:8px;
-  font-size:12px;
-  line-height:1;
-  font-weight:400;
-  gap:6px;
+  padding:0 10px;border-radius:8px;
+  font-size:12px;line-height:1;font-weight:400;gap:6px;
   border:1px solid var(--border);
-  background:#fff;
-  color:#111827;
-  text-decoration:none;
-  cursor:pointer;
-  font-family:inherit;
+  background:#fff;color:#111827;text-decoration:none;cursor:pointer;font-family:inherit;
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
-
 .btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 
-/* primary / Tap to Redeem — UNIVERSAL RED */
-.btn-cta{
-  background:var(--cta);
-  color:var(--cta-ink);
-  border:1px solid var(--cta-border);
-}
+/* primary CTA */
+.btn-cta{ background:var(--cta); color:var(--cta-ink); border:1px solid var(--cta-border); }
 .btn-cta:hover{ background:var(--cta-hover); }
 .btn-cta:active{ background:var(--cta-active); }
-.btn-cta:focus{
-  outline:2px solid transparent;
-  box-shadow:0 0 0 3px rgba(29,78,216,.35);
-}
+.btn-cta:focus{ outline:2px solid transparent; box-shadow:0 0 0 3px rgba(29,78,216,.35); }
 
-/* Independent buttons on cards */
+/* Independent buttons */
 .btn-fav{ background:#ffd400 !important; color:#111827 !important; border:1px solid #e5c200 !important; }
 .btn-wallet{ background:#000 !important; color:#fff !important; border:1px solid #000 !important; }
 
@@ -211,7 +190,7 @@ a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
 /* FOOTER */
 .footer{ text-align:center; color:#767f92; font-size:13px; padding:22px 0 30px; }
 
-/* Guards (old cached styles) */
+/* Guards */
 button.btn, a.btn, button.btn-cta, a.btn-cta, button.btn-outline, a.btn-outline{
   height:24px !important; padding:0 10px !important; font-size:12px !important;
   border-radius:8px !important; font-weight:400 !important; font-family:inherit !important;
@@ -222,7 +201,7 @@ button.btn, a.btn, button.btn-cta, a.btn-cta, button.btn-outline, a.btn-outline{
 .header .logo.has-img img { width:100%; height:100%; object-fit:contain; display:block; border-radius:12px; }
 .header { gap:14px; }
 
-/* ===== Tabs (Wallet page) ===== */
+/* Tabs (Wallet) */
 .tabs{
   display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   background:var(--bar);
