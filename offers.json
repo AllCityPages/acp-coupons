@@ -1,5 +1,6 @@
 {
   "tacobell-freeitem": {
+    "active": true,
     "title": "Buy 1 Get 1 Free — Any Crispy or Soft Taco",
     "restaurant": "Taco Bell",
     "client_slug": "taco-bell-allen",
@@ -17,13 +18,14 @@
   },
 
   "popeyes-2pc": {
+    "active": true,
     "title": "Buy 1 Get 1 Free — 2pc Meal",
     "restaurant": "Popeyes",
     "client_slug": "popeyes-mckinney",
     "category": "Chicken",
     "description": "Buy One 2pc Meal get One Free. One redemption per customer.",
     "expires_days": 45,
-    "hero_image": "/popeyes/popeyes-hero-2pcc.png",
+    "hero_image": "/popeyes/popeyes-hero-2pc.png",
     "logo": "/popeyes/popeyes-logo.png",
     "brand_color": "#F26C2A",
     "accent_color": "#FF6A00",
@@ -38,6 +40,7 @@
   },
 
   "mcd-bogo": {
+    "active": true,
     "title": "Buy 1 Get 1 Free — Any Sandwich Combo",
     "restaurant": "McDonald's",
     "client_slug": "mcdonalds-allen",
@@ -64,6 +67,7 @@
   },
 
   "bk-bogo-whopper": {
+    "active": true,
     "title": "Buy 1 Get 1 Free - Whopper®",
     "restaurant": "Burger King",
     "client_slug": "bk-frisco",
@@ -86,6 +90,7 @@
   },
 
   "wendys-free-side": {
+    "active": true,
     "title": "Buy 1 Get 1 Free - Sandwich Combo",
     "restaurant": "Wendy's",
     "client_slug": "wendys-frisco",
@@ -110,6 +115,7 @@
   },
 
   "kfc-tender-combo": {
+    "active": true,
     "title": "Buy one Get one 1/2 off - 6pc Tender Combo",
     "restaurant": "KFC",
     "client_slug": "kfc-mckinney",
@@ -132,6 +138,7 @@
   },
 
   "pizzahut-large-5": {
+    "active": true,
     "title": "$5 Off Any Large Pizza",
     "restaurant": "Pizza Hut",
     "client_slug": "pizzahut-mckinney",
@@ -156,6 +163,7 @@
   },
 
   "chipotle-bogo-bowl": {
+    "active": true,
     "title": "Buy 1 Get 1 Free - Burrito Bowl",
     "restaurant": "Chipotle",
     "client_slug": "chipotle-mckinney",
@@ -176,6 +184,7 @@
   },
 
   "subway-free-sub": {
+    "active": true,
     "title": "Buy 1 Get 1 Free - Footlong Sub",
     "restaurant": "Subway",
     "client_slug": "subway-allen",
@@ -201,6 +210,7 @@
   },
 
   "whataburger-bogo": {
+    "active": true,
     "title": "BOGO Whataburger®",
     "restaurant": "Whataburger",
     "client_slug": "whataburger-frisco",
@@ -224,6 +234,7 @@
   },
 
   "sonic-bogo-coney": {
+    "active": true,
     "title": "Buy 1 Coney Combo, Get 1 Free",
     "restaurant": "Sonic Drive-In",
     "client_slug": "sonic-mckinney",
@@ -249,6 +260,7 @@
   },
 
   "dq-finger-basket": {
+    "active": true,
     "title": "Buy 1 Get one Free - Basket Combo",
     "restaurant": "Dairy Queen",
     "client_slug": "dq-allen",
