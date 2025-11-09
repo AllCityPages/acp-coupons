@@ -1,17 +1,17 @@
 {
   "tacobell-freeitem": {
     "active": true,
-    "title": "Buy 1 Get 1 Free — Any Crispy or Soft Taco",
+    "title": "FREE Taco!!!.",
     "restaurant": "Taco Bell",
     "client_slug": "taco-bell-allen",
     "category": "Mexican",
-    "description": "Buy one Taco, get one of equal or lesser value free. One redemption per customer.",
+    "description": "Buy 1 Soft or Crispy Taco, get 1 free — no catch, just tacos.",
     "expires_days": 30,
     "hero_image": "/tacobell/tacobell-hero-freetaco.png",
     "logo": "/tacobell/tacobell-logo.png",
     "brand_color": "#702082",
     "accent_color": "#8A2BE2",
-    "fine_print": "At participating locations. Not valid with other offers.",
+    "fine_print": "Valid for one free taco per purchase @ participating locations. Not valid with other offers.",
     "addresses": [
       { "label": "340 E Bethany Dr, Allen, TX 75002", "lat": null, "lng": null }
     ]
@@ -19,17 +19,17 @@
 
   "popeyes-2pc": {
     "active": true,
-    "title": "Buy 1 Get 1 Free — 2pc Meal",
+    "title": "FREE 2pc Combo Meal",
     "restaurant": "Popeyes",
     "client_slug": "popeyes-mckinney",
     "category": "Chicken",
-    "description": "Buy One 2pc Meal get One Free. One redemption per customer.",
+    "description": "Buy 1 two-piece combo meal, get another one free — double the crunch.",
     "expires_days": 45,
     "hero_image": "/popeyes/popeyes-hero-2pcc.png",
     "logo": "/popeyes/popeyes-logo.png",
     "brand_color": "#F26C2A",
     "accent_color": "#FF6A00",
-    "fine_print": "Valid at participating locations. Not combinable.",
+    "fine_print": "One free combo per purchase; valid for same-day dine-in or carryout. Valid at participating locations.",
     "addresses": [
       { "label": "6520 State Highway 121, McKinney, TX 75070", "lat": null, "lng": null },
       { "label": "6611 W Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
@@ -41,17 +41,17 @@
 
   "mcd-bogo": {
     "active": true,
-    "title": "Buy 1 Get 1 Free — Any Sandwich Combo",
+    "title": "FREE Breakfast Combo",
     "restaurant": "McDonald's",
     "client_slug": "mcdonalds-allen",
     "category": "Burgers",
-    "description": "Buy one Sandwich Combo, get one of equal or lesser value free. One redemption per customer.",
+    "description": "Buy one breakfast sandwich combo, get another of equal or lesser value free.",
     "expires_days": 30,
     "hero_image": "/mcdonalds/mcdonalds-hero-mcmuffin.png",
     "logo": "/mcdonalds/mcdonalds-logo.png",
     "brand_color": "#DA291C",
     "accent_color": "#FF0000",
-    "fine_print": "Not valid with any other offers. Valid only at participating McDonald's.",
+    "fine_print": "One free combo per purchase; morning hours only; valid only at participating locations.",
     "addresses": [
       { "label": "1810 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
       { "label": "240 W Eldorado Pkwy, McKinney, TX 75069", "lat": null, "lng": null },
@@ -68,17 +68,17 @@
 
   "bk-bogo-whopper": {
     "active": true,
-    "title": "Buy 1 Get 1 Free - Whopper®",
+    "title": "FREE Whopper®",
     "restaurant": "Burger King",
     "client_slug": "bk-frisco",
     "category": "Burgers",
-    "description": "Buy one Whopper®, get one of equal or lesser value free.",
+    "description": "Buy 1 Whopper®, get 1 free — big flavor times two.",
     "expires_days": 35,
     "hero_image": "/burgerking/burgerking-hero-bogo.png",
     "logo": "/burgerking/burgerking-logo.png",
     "brand_color": "#A64A29",
     "accent_color": "#C4622D",
-    "fine_print": "Limit one per customer.",
+    "fine_print": "One free Whopper® per purchase; same visit only; valid only at participating locations.",
     "addresses": [
       { "label": "6510 State Highway 121, McKinney, TX 75070", "lat": null, "lng": null },
       { "label": "1700 W University Dr, McKinney, TX 75069", "lat": null, "lng": null },
@@ -91,17 +91,17 @@
 
   "wendys-free-side": {
     "active": true,
-    "title": "Buy 1 Get 1 Free - Sandwich Combo",
+    "title": "FREE Sandwich Combo",
     "restaurant": "Wendy's",
     "client_slug": "wendys-frisco",
     "category": "Burgers",
-    "description": "Get a free sandwich combo with any sandwich combo purchase.",
+    "description": "Buy any sandwich combo and score a second combo totally free.",
     "expires_days": 40,
     "hero_image": "/wendys/wendys-hero-bogo.png",
     "logo": "/wendys/wendys-logo.png",
     "brand_color": "#C8102E",
     "accent_color": "#E2231A",
-    "fine_print": "One redemption per customer. Not redeemable for cash.",
+    "fine_print": "Limit 1 free combo per order; valid only at participating locations.",
     "addresses": [
       { "label": "1951 W Eldorado Pkwy, McKinney, TX 75069", "lat": null, "lng": null },
       { "label": "8904 State Highway 121, McKinney, TX 75070", "lat": null, "lng": null },
@@ -116,17 +116,17 @@
 
   "kfc-tender-combo": {
     "active": true,
-    "title": "Buy one Get one 1/2 off - 6pc Tender Combo",
+    "title": "BOGO 1/2 Off Tenders",
     "restaurant": "KFC",
     "client_slug": "kfc-mckinney",
     "category": "Chicken",
-    "description": "Buy one 6pc Tender Combo get one 1/2 off. One redemption per customer.",
+    "description": "Buy one 6pc Tender Combo, get the second for half price.",
     "expires_days": 30,
     "hero_image": "/kfc/kfc-hero-tenders.png",
     "logo": "/kfc/kfc-logo.png",
     "brand_color": "#E4002B",
     "accent_color": "#E4002B",
-    "fine_print": "Offer available at participating locations.",
+    "fine_print": "Half-off combo must be equal or lesser value; limit 1 at participating locations.",
     "addresses": [
       { "label": "2030 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
       { "label": "2920 W Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
@@ -139,17 +139,17 @@
 
   "pizzahut-large-5": {
     "active": true,
-    "title": "$5 Off Any Large Pizza",
+    "title": "FREE Large Pizza",
     "restaurant": "Pizza Hut",
     "client_slug": "pizzahut-mckinney",
     "category": "Pizza",
-    "description": "Take $5 off any large pizza. One redemption per customer.",
+    "description": "Buy 1 Large 1-Topping Pizza, get another Large 1-Topping Pizza free.",
     "expires_days": 50,
     "hero_image": "/pizzahut/pizzahut-hero-2pizzas.png",
     "logo": "/pizzahut/pizzahut-logo.png",
     "brand_color": "#EE232C",
     "accent_color": "#EB0029",
-    "fine_print": "Must present coupon at time of order.",
+    "fine_print": "One free pizza per purchase; valid only at participating locations.",
     "addresses": [
       { "label": "4987 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
       { "label": "230 S Hardin Blvd, McKinney, TX 75069", "lat": null, "lng": null },
@@ -164,17 +164,17 @@
 
   "chipotle-bogo-bowl": {
     "active": true,
-    "title": "Buy 1 Get 1 Free - Burrito Bowl",
+    "title": "FREE Burrito Bowl",
     "restaurant": "Chipotle",
     "client_slug": "chipotle-mckinney",
     "category": "Mexican",
-    "description": "Buy one Burrito Bowl, get one free of equal or lesser value.",
+    "description": "Purchase one Burrito Bowl and enjoy a second one free — twice the flavor.",
     "expires_days": 30,
     "hero_image": "/chipotle/chipotle-hero-bbowl.png",
     "logo": "/chipotle/chipotle-logo.png",
     "brand_color": "#7F2D1F",
     "accent_color": "#A83F2C",
-    "fine_print": "Valid at participating locations only.",
+    "fine_print": "Free burrito bowl of equal or lesser value; participating locations only.",
     "addresses": [
       { "label": "8751 W University Dr #130, McKinney, TX 75071", "lat": null, "lng": null },
       { "label": "5151 W University Dr, McKinney, TX 75071", "lat": null, "lng": null },
@@ -185,11 +185,11 @@
 
   "subway-free-sub": {
     "active": true,
-    "title": "Buy 1 Get 1 Free - Footlong Sub",
+    "title": "Free - Footlong Sub",
     "restaurant": "Subway",
     "client_slug": "subway-allen",
     "category": "Sandwiches",
-    "description": "Enjoy a free Footlong Sub with any Footlong purchase of equal or lesser value.",
+    "description": "Free 12" Sub with any 12" Sub purchase of equal or lesser value; participating locations only.",
     "expires_days": 20,
     "hero_image": "/subway/subway-hero-bogo1.png",
     "logo": "/subway/subway-logo.png",
@@ -211,11 +211,11 @@
 
   "whataburger-bogo": {
     "active": true,
-    "title": "BOGO Whataburger®",
+    "title": "FREE Whataburger®",
     "restaurant": "Whataburger",
     "client_slug": "whataburger-frisco",
     "category": "Burgers",
-    "description": "Buy one Whataburger®, get one free of equal or lesser value.",
+    "description": "Buy one Whataburger®, get one free of equal or lesser value; participating locations only.",
     "expires_days": 30,
     "hero_image": "/whataburger/whataburger-hero-meal.png",
     "logo": "/whataburger/whataburger-logo.png",
@@ -235,17 +235,17 @@
 
   "sonic-bogo-coney": {
     "active": true,
-    "title": "Buy 1 Coney Combo, Get 1 Free",
+    "title": "FREE - Coney Combo",
     "restaurant": "Sonic Drive-In",
     "client_slug": "sonic-mckinney",
     "category": "Burgers",
-    "description": "Double up on Coney combos—pay for one, get one free.",
+    "description": "Buy 1 Coney Combo and get a second one free — simple as that.",
     "expires_days": 25,
     "hero_image": "/sonic/sonic-hero-2cony.png",
     "logo": "/sonic/sonic-logo.png",
     "brand_color": "#005CB4",
     "accent_color": "#FF0C00",
-    "fine_print": "Valid at participating Sonic Drive-In locations.",
+    "fine_print": "One free combo per purchase; participating locations only.",
     "addresses": [
       { "label": "6481 Eldorado Pkwy, McKinney, TX 75070", "lat": null, "lng": null },
       { "label": "420 N Custer Rd, McKinney, TX 75070", "lat": null, "lng": null },
@@ -261,17 +261,17 @@
 
   "dq-finger-basket": {
     "active": true,
-    "title": "Buy 1 Get one Free - Basket Combo",
+    "title": "Free - Basket Combo",
     "restaurant": "Dairy Queen",
     "client_slug": "dq-allen",
-    "category": "Sandwiches",
-    "description": "Buy one Steak or Chicken Finger Basket Combo, get one free.",
+    "category": "Chicken",
+    "description": "Buy one Chicken or Steak Finger Basket Combo, get one free.",
     "expires_days": 30,
     "hero_image": "/dairyqueen/dairyqueen-hero-fingerbsk.png",
     "logo": "/dairyqueen/dairyqueen-logo.png",
     "brand_color": "#156DBF",
     "accent_color": "#EF3E42",
-    "fine_print": "At participating DQ® stores. Not valid with other offers.",
+    "fine_print": "One free combo per purchase; participating locations only.",
     "addresses": [
       { "label": "1835 W Louisiana St, McKinney, TX 75069", "lat": null, "lng": null }
     ]
