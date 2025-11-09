@@ -189,7 +189,7 @@
     "restaurant": "Subway",
     "client_slug": "subway-allen",
     "category": "Sandwiches",
-    "description": "Free 12" Sub with any 12" Sub purchase of equal or lesser value",
+    "description": "Free Footlong Sub with any Footlong purchase of equal or lesser value.",
     "expires_days": 20,
     "hero_image": "/subway/subway-hero-bogo1.png",
     "logo": "/subway/subway-logo.png",
