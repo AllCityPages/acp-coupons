@@ -5,7 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <link rel="stylesheet" href="/theme.css?v=29">
+  <link rel="stylesheet" href="/theme.css?v=29a">
 </head>
 <body>
   <div class="site">
@@ -74,6 +74,21 @@
         state.category = document.getElementById('category').value;
       }
 
+      function injectIncludes(cardEl, offer){
+        // Only add if offer provides an "includes" string (universal support)
+        const txt = (offer.includes || offer.Includes || offer.bundle || '').trim();
+        if(!txt) return;
+
+        // Find the existing title row and add a line that aligns to mileage
+        const row = cardEl.querySelector('.title-row');
+        if(!row) return;
+
+        const inc = document.createElement('div');
+        inc.className = 'includes-row';
+        inc.textContent = `Includes: ${txt}`;
+        row.appendChild(inc); // CSS places it in column 1, aligned with mileage baseline
+      }
+
       function render(){
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
@@ -86,6 +101,7 @@
         rows.forEach(o => {
           const card = Shared.makeCard(o);
           grid.appendChild(card);
+          injectIncludes(card, o);
           if (typeof Shared.updateButtonsFor === 'function') {
             Shared.updateButtonsFor(o.id);
           }
