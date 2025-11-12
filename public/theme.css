@@ -1,8 +1,7 @@
 /* =========================================================
-   theme.css — v29
+   theme.css — v28
    - Distance text under logo
    - Address block styles
-   - NEW: Single-line title w/ ellipsis + desktop size tweak
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -121,32 +120,16 @@ a.btn-compact{text-decoration:none}
 /* Body */
 .card .body{padding:12px 14px}
 
-/* Title row --------------------------------------------------------- */
-/* UPDATED: keep title on a single line with ellipsis, prevent logo from flexing */
-.title-row{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-bottom:4px;
-}
-.title-row h3{
-  margin:0;
-  font-size:18px;
-  line-height:1.1;
-  flex:1 1 auto;     /* take remaining space */
-  min-width:0;       /* allow text-overflow inside flex */
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-/* Logo stack should not steal flexible width */
-.brand-logo-stack{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; flex:0 0 auto; }
+/* Title row */
+.title-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.title-row h3{ margin:0; font-size:18px; line-height:1.05; }
 
 /* Inline brand logo + distance stack */
 .brand-logo-inline{
   width:42px; height:auto; flex:0 0 auto; object-fit:contain;
   background:#fff; border-radius:7px; padding:3px; box-shadow:0 1px 3px rgba(15,23,42,.12);
 }
+.brand-logo-stack{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; }
 .brand-distance{ color:var(--muted); font-size:13px; line-height:1; }
 
 /* Brand name line */
@@ -239,9 +222,4 @@ button.btn, a.btn, button.btn-cta, a.btn-cta, button.btn-outline, a.btn-outline{
 }
 .tab.active{
   background:#111827; color:#ffffff; border-color:#111827;
-}
-
-/* NEW: slightly smaller title on wider screens to reduce truncation */
-@media (min-width: 900px){
-  .title-row h3{ font-size:20px; }
 }
