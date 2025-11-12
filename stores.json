@@ -3,7 +3,7 @@
   "TB-FRISCO-123": {
     "brand": "Taco Bell",
     "pos": "local-bridge",
-    "bridge_url": "http://127.0.0.1:1969/apply-discount",
+    "bridge_url": "http://127.0.0.1:1969/apply-discount"},
   
   "POPE-001": { "brand": "Popeye's", "lat": 33.201, "lng": -96.638, "pos": "local-bridge", "bridge_url": "http://127.0.0.1:1969/apply-discount" },
 }
