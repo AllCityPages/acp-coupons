@@ -1,5 +1,8 @@
 /* =========================================================
-   theme.css — v28
+   theme.css — v29a
+   - Title centered between logo top & mileage bottom
+   - Brand name moved above title
+   - New "includes" line aligns with mileage
    - Distance text under logo
    - Address block styles
    ========================================================= */
@@ -117,34 +120,60 @@ a.btn-compact{text-decoration:none}
 .card .hero.hero--zoom > img{ transform:scale(var(--img-zoom)); }
 .card .img{ width:100%; height:100%; display:block; object-fit:contain; object-position:center; }
 
-/* Body */
-.card .body{padding:12px 14px}
+/* Body becomes a flex column so we can reorder sections */
+.card .body{padding:12px 14px; display:flex; flex-direction:column}
 
-/* Title row */
-.title-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin-bottom:4px; }
-.title-row h3{ margin:0; font-size:18px; line-height:1.05; }
+/* —— TITLE AREA LAYOUT —— */
+/* Put brand (restaurant name) ABOVE the title */
+.brand-row{ order:1; display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+.card .brand, .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
 
-/* Inline brand logo + distance stack */
-.brand-logo-inline{
-  width:42px; height:auto; flex:0 0 auto; object-fit:contain;
+/* Title row grid with two columns:
+   [left: title + includes]  [right: logo stack with mileage] */
+.title-row{
+  order:2;
+  display:grid;
+  grid-template-columns: 1fr auto;
+  grid-column-gap:8px;
+  align-items:stretch;         /* let right column set the row height */
+  margin-bottom:6px;
+}
+
+/* Right column (logo + distance) already lives inside .title-row */
+.brand-logo-inline{ width:42px; height:auto; flex:0 0 auto; object-fit:contain;
   background:#fff; border-radius:7px; padding:3px; box-shadow:0 1px 3px rgba(15,23,42,.12);
 }
 .brand-logo-stack{ display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; }
 .brand-distance{ color:var(--muted); font-size:13px; line-height:1; }
 
-/* Brand name line */
-.card .brand, .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
-.brand-row{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+/* Positioning within the grid */
+.title-row h3{ 
+  grid-column:1;
+  margin:0; 
+  font-size:18px; 
+  line-height:1.05; 
+  align-self:center;          /* centers between logo top & mileage bottom */
+}
+.title-row .brand-logo-stack{ grid-column:2; align-self:stretch; }
+
+/* New includes line under title, baseline aligned to mileage */
+.includes-row{
+  grid-column:1;
+  align-self:end;             /* aligns to the same baseline as mileage */
+  color:#374151;
+  font-size:13px;
+  line-height:1.1;
+}
 
 /* Address block */
-.addr{ margin:-2px 0 8px; color:#374151; font-size:13px; }
+.addr{ margin:6px 0 8px; color:#374151; font-size:13px; order:3; }
 .addr .addr-dist{ color:var(--muted); }
 .addr .toggle{ color:#1d4ed8; cursor:pointer; text-decoration:underline; }
 .addr-list{ display:none; margin:6px 0 10px; padding-left:16px; color:#374151; font-size:13px; }
 .addr-list.show{ display:block; }
 
 /* description */
-.card .desc{ color:#374151; font-size:13px; margin:0 0 12px; }
+.card .desc{ color:#374151; font-size:13px; margin:6px 0 12px; order:4; }
 
 /* BADGES */
 .badge{
@@ -156,7 +185,7 @@ a.btn-compact{text-decoration:none}
 .badge.warn{background:#fff7ed;border-color:#ffedd5;color:#b45309}
 .badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
-.meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px; order:5; }
 
 /* BUTTONS */
 .btn, .btn-cta, .btn-outline{
@@ -169,7 +198,7 @@ a.btn-compact{text-decoration:none}
   background:#fff;color:#111827;text-decoration:none;cursor:pointer;font-family:inherit;
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
-.btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+.btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; order:6; }
 
 /* primary CTA */
 .btn-cta{ background:var(--cta); color:var(--cta-ink); border:1px solid var(--cta-border); }
