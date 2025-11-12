@@ -1,22 +1,30 @@
-// shared.js — v29
-// - Fix: add safe renderNotifyCTA to prevent ReferenceError
-// - (All features same as v28)
+// shared.js — v30
+// - Fix: ignore bogus (0,0) positions; hide absurd distances
+// - Distance UI now prefers per-address geocoded miles, falls back to brand
+// - Safe no-op renderNotifyCTA remains
+// - All other features same as v29
 
 const BRAND = {
   name: 'Local Deals Hub',
+  // change this to wherever you actually put the file (e.g. '/img/acp-logo.png')
   logo: '/logo.png',
   home: '/offers.html'
 };
 
 const Shared = (function(){
+  // ====== LocalStorage keys ======
   const LS_FAV = 'acp_favorites_v1';
   const LS_WAL = 'acp_wallet_v1';
+
+  // Query-string keys we read/write
   const QKEYS = ['q','brand','category','sortNearby'];
 
+  // Caches
   let _statsCache = null;
   let _nearby = { lat:null, lng:null, brandDist: new Map() };
   let _categories = ['All','Burgers','Chicken','Pizza','Mexican','Sandwiches'];
 
+  /* ---------- utils ---------- */
   const debounce=(fn,ms=300)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
 
   function readQuery(){
@@ -26,6 +34,7 @@ const Shared = (function(){
     if(st.sortNearby!=null) st.sortNearby = st.sortNearby === 'true';
     return st;
   }
+
   function writeQuery(state){
     const u=new URL(location.href);
     QKEYS.forEach(k=>{
@@ -53,15 +62,22 @@ const Shared = (function(){
   }
 
   function loadSet(key){
-    try { const raw = localStorage.getItem(key); if(!raw) return new Set();
-      const arr = JSON.parse(raw); return new Set(Array.isArray(arr) ? arr : []);
+    try {
+      const raw = localStorage.getItem(key);
+      if(!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr : []);
     } catch(_) { return new Set(); }
   }
-  function saveSet(key, set){ localStorage.setItem(key, JSON.stringify(Array.from(set))); }
+  function saveSet(key, set){
+    localStorage.setItem(key, JSON.stringify(Array.from(set)));
+  }
 
+  // favorites/wallet storage
   let _fav = loadSet(LS_FAV);
   let _wal = loadSet(LS_WAL);
 
+  // migrate from old single-key format if present
   (function migrateOld(){
     try{
       const raw = localStorage.getItem('acp_saved_offers');
@@ -70,8 +86,9 @@ const Shared = (function(){
       if(old && typeof old === 'object'){
         if(Array.isArray(old.favorites)) _fav = new Set(old.favorites);
         if(Array.isArray(old.wallet)) _wal = new Set(old.wallet);
-        if(Array.isArray(old)) _wal = new Set(old);
-        saveSet(LS_FAV, _fav); saveSet(LS_WAL, _wal);
+        if(Array.isArray(old)) _wal = new Set(old); // very old format (array = wallet)
+        saveSet(LS_FAV, _fav);
+        saveSet(LS_WAL, _wal);
       }
       localStorage.removeItem('acp_saved_offers');
     }catch(_){}
@@ -86,7 +103,11 @@ const Shared = (function(){
 
   function populateBrandFilter(rows, selectEl){
     const brands=[...new Set(rows.map(r=>r.restaurant).filter(Boolean))].sort();
-    brands.forEach(b=>{ const o=document.createElement('option'); o.value=b; o.textContent=b; selectEl.appendChild(o); });
+    brands.forEach(b=>{
+      const o=document.createElement('option');
+      o.value=b; o.textContent=b;
+      selectEl.appendChild(o);
+    });
   }
 
   function applyFilter(rows, state){
@@ -107,7 +128,11 @@ const Shared = (function(){
       const pill=document.createElement('button');
       pill.className='pill'+(((state.category||'All').toLowerCase()===name.toLowerCase())?' active':'');
       pill.textContent=name;
-      pill.onclick=()=>{ state.category=(name==='All')?'':name; renderCategoryChips(host,state,onChange); onChange(); };
+      pill.onclick=()=>{
+        state.category=(name==='All')?'':name;
+        renderCategoryChips(host,state,onChange);
+        onChange();
+      };
       host.appendChild(pill);
     });
   }
@@ -123,33 +148,58 @@ const Shared = (function(){
 
   async function getStats(){
     if(_statsCache) return _statsCache;
-    try{ _statsCache = await fetch('/api/offer-stats').then(r=>r.json()).then(x=>x.stats||{}); }
-    catch{ _statsCache = {}; }
+    try{
+      _statsCache = await fetch('/api/offer-stats').then(r=>r.json()).then(x=>x.stats||{});
+    }catch{
+      _statsCache = {};
+    }
     return _statsCache;
   }
 
+  // distance helpers
   function haversineKm(lat1,lng1,lat2,lng2){
     const toRad=d=>d*Math.PI/180, R=6371;
     const dLat=toRad(lat2-lat1), dLng=toRad(lng2-lng1);
     const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
     return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   }
-  function formatMiles(km){ if(!isFinite(km)) return ''; const mi=km*0.621371; return (mi<10?mi.toFixed(1):Math.round(mi))+' mi'; }
+  function formatMiles(km){
+    if(!isFinite(km)) return '';
+    const mi=km*0.621371;
+    return (mi<10?mi.toFixed(1):Math.round(mi))+' mi';
+  }
+  // NEW: guard for bogus coords like (0,0)
+  function goodCoord(lat, lng){
+    if (lat == null || lng == null) return false;
+    if (!isFinite(lat) || !isFinite(lng)) return false;
+    if (Math.abs(lat) < 0.1 && Math.abs(lng) < 0.1) return false; // near (0,0)
+    return true;
+  }
+  // NEW: hide absurdly far values (e.g., when fallback misfires)
+  function safeMiles(km, maxMiles=200){
+    if (!isFinite(km)) return '';
+    const mi = km * 0.621371;
+    if (mi > maxMiles) return '';
+    return (mi < 10 ? mi.toFixed(1) : Math.round(mi)) + ' mi';
+  }
 
   function normalizeAddresses(o){
-    let list=[]; if (Array.isArray(o.addresses)) list=[...o.addresses]; else if (o.address) list=[o.address];
+    let list=[];
+    if (Array.isArray(o.addresses)) list=[...o.addresses];
+    else if (o.address) list=[o.address];
     return list.map(entry=>{
       if (typeof entry==='string') return { label: entry };
       const label = entry.label || [entry.street, entry.city, entry.state].filter(Boolean).join(', ');
       return { label, lat: entry.lat, lng: entry.lng };
     }).filter(a => a && a.label);
   }
+
   function nearestAddress(o){
     const addrs = normalizeAddresses(o);
-    if (!addrs.length || _nearby.lat==null || _nearby.lng==null) return null;
+    if (!addrs.length || !goodCoord(_nearby.lat,_nearby.lng)) return null;
     let bestIdx=-1, bestKm=Infinity;
     addrs.forEach((a,i)=>{
-      if (isFinite(a.lat) && isFinite(a.lng)){
+      if (isFinite(a.lat) && isFinite(a.lng) && goodCoord(a.lat,a.lng)){
         const km = haversineKm(_nearby.lat,_nearby.lng,a.lat,a.lng);
         if (km<bestKm){ bestKm=km; bestIdx=i; }
       }
@@ -158,19 +208,28 @@ const Shared = (function(){
     return { index: bestIdx, distanceKm: bestKm, address: addrs[bestIdx], all:addrs };
   }
 
+  // NEW: guarded geolocation & brand-distance seeding
   async function computeNearbySort(){
     if(!navigator.geolocation) return;
+
     const pos = await new Promise((res,rej)=>
       navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:10000})
     ).catch(()=>null);
     if(!pos) return;
-    _nearby.lat = pos.coords.latitude;
-    _nearby.lng = pos.coords.longitude;
+
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    if (!goodCoord(lat, lng)) return; // ignore (0,0) etc.
+
+    _nearby.lat = lat;
+    _nearby.lng = lng;
 
     const list = await fetch(`/api/nearby?lat=${_nearby.lat}&lng=${_nearby.lng}&radiusKm=50`)
       .then(r=>r.json()).then(x=>x.stores||[]).catch(()=>[]);
     _nearby.brandDist = new Map();
-    list.forEach(s=>{ if(isFinite(s.distanceKm)) _nearby.brandDist.set((s.brand||'').toLowerCase(), s.distanceKm); });
+    list.forEach(s=>{
+      if(isFinite(s.distanceKm)) _nearby.brandDist.set((s.brand||'').toLowerCase(), s.distanceKm);
+    });
   }
 
   function sortByNearby(rows){
@@ -186,41 +245,77 @@ const Shared = (function(){
     const stats=(_statsCache&&_statsCache[o.id])?_statsCache[o.id]:{issued:0,redeemed:0};
     const exp=expiryInfo(o);
 
-    const el=document.createElement('article'); el.className='card'; el.dataset.offerId=String(o.id);
+    const el=document.createElement('article');
+    el.className='card';
+    el.dataset.offerId=String(o.id);
 
-    const hero=document.createElement('div'); hero.className='hero hero--zoom'; if (o.hero_nozoom === true) hero.classList.remove('hero--zoom');
-    const img=document.createElement('img'); img.className='img'; img.src=o.hero_image||''; img.alt=o.title||''; hero.appendChild(img);
+    // hero
+    const hero=document.createElement('div');
+    hero.className='hero hero--zoom';
+    if (o.hero_nozoom === true) hero.classList.remove('hero--zoom');
+    const img=document.createElement('img');
+    img.className='img'; img.src=o.hero_image||''; img.alt=o.title||'';
+    hero.appendChild(img);
     el.appendChild(hero);
 
-    const body=document.createElement('div'); body.className='body'; el.appendChild(body);
+    const body=document.createElement('div');
+    body.className='body';
+    el.appendChild(body);
 
-    const titleRow=document.createElement('div'); titleRow.className='title-row';
-    const h3=document.createElement('h3'); h3.textContent=o.title||o.id; titleRow.appendChild(h3);
+    const titleRow=document.createElement('div');
+    titleRow.className='title-row';
+    const h3=document.createElement('h3');
+    h3.textContent=o.title||o.id;
+    titleRow.appendChild(h3);
 
     if (o.logo){
-      const stack=document.createElement('div'); stack.className='brand-logo-stack';
-      const logo=document.createElement('img'); logo.className='brand-logo-inline'; logo.src=o.logo; logo.alt=(o.restaurant||'Brand')+' logo';
+      const stack=document.createElement('div');
+      stack.className='brand-logo-stack';
+      const logo=document.createElement('img');
+      logo.className='brand-logo-inline';
+      logo.src=o.logo;
+      logo.alt=(o.restaurant||'Brand')+' logo';
       stack.appendChild(logo);
-      const distEl=document.createElement('div'); distEl.className='brand-distance';
-      let distText=''; const near=nearestAddress(o);
-      if (near && isFinite(near.distanceKm)) distText = `${formatMiles(near.distanceKm)} away`;
-      else if(_nearby.brandDist && _nearby.brandDist.size){
-        const d=_nearby.brandDist.get((o.restaurant||'').toLowerCase()); if (isFinite(d)) distText = `${formatMiles(d)} away`;
+
+      const distEl=document.createElement('div');
+      distEl.className='brand-distance';
+
+      let distText='';
+      const near=nearestAddress(o);
+      if (near && isFinite(near.distanceKm)){
+        distText = safeMiles(near.distanceKm); // NEW safe miles
+      } else if(_nearby.brandDist && _nearby.brandDist.size){
+        const d=_nearby.brandDist.get((o.restaurant||'').toLowerCase());
+        if (isFinite(d)) distText = safeMiles(d); // NEW safe miles
       }
-      distEl.textContent = distText; if (distText) stack.appendChild(distEl);
+      distEl.textContent = distText;
+      if (distText) stack.appendChild(distEl); // only append if meaningful
+
       titleRow.appendChild(stack);
     }
     body.appendChild(titleRow);
 
-    const brandRow=document.createElement('div'); brandRow.className='brand-row';
-    const brand=document.createElement('div'); brand.className='brand'; brand.textContent=o.restaurant||''; brandRow.appendChild(brand);
+    // brand line
+    const brandRow=document.createElement('div');
+    brandRow.className='brand-row';
+    const brand=document.createElement('div');
+    brand.className='brand';
+    brand.textContent=o.restaurant||'';
+    brandRow.appendChild(brand);
     body.appendChild(brandRow);
 
+    // address block
     (function renderAddress(){
-      const info=nearestAddress(o); const addrs=normalizeAddresses(o); if (!addrs.length) return;
-      const addr=document.createElement('div'); addr.className='addr';
+      const info=nearestAddress(o);
+      const addrs=normalizeAddresses(o);
+      if (!addrs.length) return;
+
+      const addr=document.createElement('div');
+      addr.className='addr';
+
       if (info){
-        addr.innerHTML = `${info.address.label} <span class="addr-dist">• ${formatMiles(info.distanceKm)} away</span>` +
+        const sm = safeMiles(info.distanceKm); // NEW safe miles
+        addr.innerHTML = `${info.address.label}` + (sm ? ` <span class="addr-dist">• ${sm} away</span>` : '') +
                          (addrs.length>1 ? ` <small class="toggle" role="button" tabindex="0">(view all)</small>` : '');
       } else {
         addr.textContent = addrs[0].label + (addrs.length>1 ? ` (+${addrs.length-1} more)` : '');
@@ -228,37 +323,78 @@ const Shared = (function(){
       body.appendChild(addr);
 
       if (addrs.length>1){
-        const list=document.createElement('div'); list.className='addr-list';
+        const list=document.createElement('div');
+        list.className='addr-list';
         addrs.forEach(a=>{
           let line=a.label;
-          if (isFinite(a.lat) && isFinite(a.lng) && _nearby.lat!=null){
-            const km=haversineKm(_nearby.lat,_nearby.lng,a.lat,a.lng); line += ` — ${formatMiles(km)}`;
+          if (isFinite(a.lat) && isFinite(a.lng) && goodCoord(_nearby.lat,_nearby.lng)){
+            const km=haversineKm(_nearby.lat,_nearby.lng,a.lat,a.lng);
+            const sm = safeMiles(km);            // NEW safe miles
+            if (sm) line += ` — ${sm}`;
           }
-          const item=document.createElement('div'); item.textContent=line; list.appendChild(item);
+          const item=document.createElement('div');
+          item.textContent=line;
+          list.appendChild(item);
         });
         body.appendChild(list);
+
         const toggle=addr.querySelector('.toggle');
         if (toggle){
           toggle.addEventListener('click', ()=> list.classList.toggle('show'));
-          toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); list.classList.toggle('show'); }});
+          toggle.addEventListener('keydown', (e)=>{
+            if(e.key==='Enter'||e.key===' '){ e.preventDefault(); list.classList.toggle('show'); }
+          });
         }
       }
     })();
 
-    if(o.description){ const p=document.createElement('p'); p.className='desc'; p.textContent=o.description; body.appendChild(p); }
+    if(o.description){
+      const p=document.createElement('p');
+      p.className='desc';
+      p.textContent=o.description;
+      body.appendChild(p);
+    }
 
-    const meta=document.createElement('div'); meta.className='meta';
-    const expb=document.createElement('span'); expb.className=`badge ${exp.cls}`; expb.textContent=exp.label; meta.appendChild(expb);
-    const redb=document.createElement('span'); redb.className='badge ok'; redb.textContent=`${(stats.redeemed||0)} redeemed`; meta.appendChild(redb);
+    const meta=document.createElement('div');
+    meta.className='meta';
+    const expb=document.createElement('span');
+    expb.className=`badge ${exp.cls}`;
+    expb.textContent=exp.label;
+    meta.appendChild(expb);
+    const redb=document.createElement('span');
+    redb.className='badge ok';
+    redb.textContent=`${(stats.redeemed||0)} redeemed`;
+    meta.appendChild(redb);
     body.appendChild(meta);
 
-    const row=document.createElement('div'); row.className='btnrow'; body.appendChild(row);
-    const cta=document.createElement('a'); cta.className='btn btn-cta'; cta.textContent=opts.wallet?'Use Now':'Tap to Redeem';
-    cta.href=`/coupon?offer=${encodeURIComponent(o.id)}`; if (exp.expired){ cta.setAttribute('disabled',''); cta.href='javascript:void(0)'; } row.appendChild(cta);
-    const fav=document.createElement('button'); fav.className='btn btn-fav'; fav.dataset.action='fav'; fav.dataset.offerId=String(o.id); row.appendChild(fav);
-    const wal=document.createElement('button'); wal.className='btn btn-wallet'; wal.dataset.action='wallet'; wal.dataset.offerId=String(o.id); row.appendChild(wal);
-    const print=document.createElement('a'); print.className='btn btn-outline'; print.textContent='Print';
-    print.href=`/coupon-print.html?offer=${encodeURIComponent(o.id)}&src=card`; row.appendChild(print);
+    const row=document.createElement('div');
+    row.className='btnrow';
+    body.appendChild(row);
+
+    const cta=document.createElement('a');
+    cta.className='btn btn-cta';
+    cta.textContent=opts.wallet?'Use Now':'Tap to Redeem';
+    cta.href=`/coupon?offer=${encodeURIComponent(o.id)}`;
+    if (exp.expired){ cta.setAttribute('disabled',''); cta.href='javascript:void(0)'; }
+    row.appendChild(cta);
+
+    const fav=document.createElement('button');
+    fav.className='btn btn-fav';
+    fav.dataset.action='fav';
+    fav.dataset.offerId=String(o.id);
+    row.appendChild(fav);
+
+    const wal=document.createElement('button');
+    wal.className='btn btn-wallet';
+    wal.dataset.action='wallet';
+    wal.dataset.offerId=String(o.id);
+    row.appendChild(wal);
+
+    const print=document.createElement('a');
+    print.className='btn btn-outline';
+    print.textContent='Print';
+    print.href=`/coupon-print.html?offer=${encodeURIComponent(o.id)}&src=card`;
+    row.appendChild(print);
 
     updateButtonsFor(o.id);
     return el;
@@ -268,20 +404,36 @@ const Shared = (function(){
     id=String(id);
     const favBtns=document.querySelectorAll(`.btn-fav[data-offer-id="${id}"]`);
     const walBtns=document.querySelectorAll(`.btn-wallet[data-offer-id="${id}"]`);
-    favBtns.forEach(b=>{ if(isFavorite(id)){ b.classList.add('btn-on'); b.textContent='Saved ✓'; } else { b.classList.remove('btn-on'); b.textContent='⭐ Favorite'; } });
-    walBtns.forEach(b=>{ if(isInWallet(id)){ b.classList.add('btn-on'); b.textContent='Saved ✓'; } else { b.classList.remove('btn-on'); b.textContent='Add to Wallet'; } });
+    favBtns.forEach(b=>{
+      if(isFavorite(id)){
+        b.classList.add('btn-on'); b.textContent='Saved ✓';
+      }else{
+        b.classList.remove('btn-on'); b.textContent='⭐ Favorite';
+      }
+    });
+    walBtns.forEach(b=>{
+      if(isInWallet(id)){
+        b.classList.add('btn-on'); b.textContent='Saved ✓';
+      }else{
+        b.classList.remove('btn-on'); b.textContent='Add to Wallet';
+      }
+    });
   }
 
   function suggest(all, state, n=8){
-    const inWallet=new Set(getWalletIds()); const pool=all.filter(o=>!inWallet.has(String(o.id)));
-    const cat=(state.category||'').toLowerCase(); const brand=(state.brand||'').toLowerCase();
+    const inWallet=new Set(getWalletIds());
+    const pool=all.filter(o=>!inWallet.has(String(o.id)));
+    const cat=(state.category||'').toLowerCase();
+    const brand=(state.brand||'').toLowerCase();
+
     const byCat=pool.filter(o=>(o.category||'').toLowerCase()===cat && cat);
     const byBrand=pool.filter(o=>(o.restaurant||'').toLowerCase()===brand && brand);
     const rest=pool.filter(o=>!byCat.includes(o) && !byBrand.includes(o));
+
     return [...byCat,...byBrand,...rest].slice(0,n);
   }
 
-  // NEW: safe no-op (or place small CTA UI here if you want later)
+  // Safe no-op (placeholder for future in-app notifications CTA)
   function renderNotifyCTA(){ /* intentionally empty */ }
 
   async function enableNearbyAlerts(){
@@ -299,24 +451,34 @@ const Shared = (function(){
   }
 
   return {
+    // state/query
     readQuery, writeQuery, debounce,
+    // storage/buttons
     getFavoriteIds, getWalletIds, isFavorite, isInWallet, toggleFavorite, toggleWallet, updateButtonsFor,
+    // filters/UI
     populateBrandFilter, applyFilter, renderCategoryChips,
+    // cards/suggestions
     makeCard, suggest,
+    // notify & nearby
     renderNotifyCTA, enableNearbyAlerts,
     computeNearbySort, sortByNearby,
+    // diagnostics
     get __nearbyReady(){ return Boolean(_nearby.brandDist && _nearby.brandDist.size); },
     set __nearbyReady(_v){},
+    // stats/branding
     getStats, initBranding
   };
 })();
 
+// prime stats early (non-blocking)
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
 
+// Branding on load
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof Shared.initBranding === 'function') Shared.initBranding();
 });
 
+// tiny helpers for quick console pokes
 window.ACP = Object.assign(window.ACP || {}, {
   favs: () => JSON.parse(localStorage.getItem('acp_favorites_v1')||'[]'),
   wals: () => JSON.parse(localStorage.getItem('acp_wallet_v1')||'[]')
