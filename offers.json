@@ -1,7 +1,7 @@
 {
   "tacobell-freeitem": {
     "active": true,
-    "title": "FREE Taco!!!",
+    "title": "Free Taco!!!",
     "restaurant": "Taco Bell",
     "client_slug": "taco-bell-allen",
     "category": "Mexican",
@@ -19,7 +19,7 @@
 
   "popeyes-2pc": {
     "active": true,
-    "title": "FREE 2pc Combo",
+    "title": "Free 2pc Combo",
     "restaurant": "Popeyes",
     "client_slug": "popeyes-mckinney",
     "category": "Chicken",
@@ -41,7 +41,7 @@
 
   "mcd-bogo": {
     "active": true,
-    "title": "FREE Breakfast Combo",
+    "title": "Free Morning Combo",
     "restaurant": "McDonald's",
     "client_slug": "mcdonalds-allen",
     "category": "Burgers",
@@ -68,7 +68,7 @@
 
   "bk-bogo-whopper": {
     "active": true,
-    "title": "FREE Whopper®",
+    "title": "Free Whopper®",
     "restaurant": "Burger King",
     "client_slug": "bk-frisco",
     "category": "Burgers",
@@ -91,7 +91,7 @@
 
   "wendys-free-side": {
     "active": true,
-    "title": "FREE Sandwich Combo",
+    "title": "Free Combo Meal",
     "restaurant": "Wendy's",
     "client_slug": "wendys-frisco",
     "category": "Burgers",
@@ -139,7 +139,7 @@
 
   "pizzahut-large-5": {
     "active": true,
-    "title": "FREE Large Pizza",
+    "title": "Free Large Pizza",
     "restaurant": "Pizza Hut",
     "client_slug": "pizzahut-mckinney",
     "category": "Pizza",
@@ -164,7 +164,7 @@
 
   "chipotle-bogo-bowl": {
     "active": true,
-    "title": "FREE Burrito Bowl",
+    "title": "Free Burrito Bowl",
     "restaurant": "Chipotle",
     "client_slug": "chipotle-mckinney",
     "category": "Mexican",
@@ -211,7 +211,7 @@
 
   "whataburger-bogo": {
     "active": true,
-    "title": "FREE Whataburger®",
+    "title": "Free Whataburger®",
     "restaurant": "Whataburger",
     "client_slug": "whataburger-frisco",
     "category": "Burgers",
@@ -235,7 +235,7 @@
 
   "sonic-bogo-coney": {
     "active": true,
-    "title": "FREE - Coney Combo",
+    "title": "Free - Coney Combo",
     "restaurant": "Sonic Drive-In",
     "client_slug": "sonic-mckinney",
     "category": "Burgers",
