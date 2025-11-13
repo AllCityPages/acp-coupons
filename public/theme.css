@@ -1,8 +1,8 @@
 /* =========================================================
-   theme.css — v29d
-   - Brand above title
-   - Title + Includes on left
-   - Logo + mileage on right (per card, not page!)
+   theme.css — v29e
+   - Brand on its own line
+   - Title block on left
+   - Logo + mileage pinned to top-right of each card body
    - Address block styles
    ========================================================= */
 
@@ -119,16 +119,18 @@ a.btn-compact{text-decoration:none}
 .card .hero.hero--zoom > img{ transform:scale(var(--img-zoom)); }
 .card .img{ width:100%; height:100%; display:block; object-fit:contain; object-position:center; }
 
-/* Body becomes a flex column so we can reorder sections */
-.card .body{padding:12px 14px; display:flex; flex-direction:column}
+/* Body becomes positioning container for logo */
+.card .body{
+  padding:12px 14px;
+  padding-right:76px;           /* space reserved for logo stack */
+  display:flex;
+  flex-direction:column;
+  position:relative;            /* key: logo stack is anchored to this */
+}
 
-/* —— TITLE AREA LAYOUT —— */
-/* Brand row stays above the title */
+/* Brand row above title */
 .brand-row{
   order:1;
-  display:flex;
-  align-items:center;
-  gap:6px;
   margin-bottom:6px;
 }
 .card .brand, .brand{
@@ -137,40 +139,30 @@ a.btn-compact{text-decoration:none}
   line-height:1.1;
 }
 
-/* Title row: flex, left = title+includes, right = logo+miles */
+/* Title row is simple block; logo floats separately */
 .title-row{
   order:2;
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:8px;
-  margin-bottom:6px;
+  margin-bottom:4px;
 }
-
-/* Left stack contains title + includes */
-.title-main{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-}
-
-/* Fallback if JS hasn’t wrapped into .title-main */
-.title-main h3,
-.title-row > h3{
+.title-row h3{
   margin:0;
   font-size:18px;
   line-height:1.05;
 }
 
-/* Includes line under title (left column) */
+/* Optional includes line (when JS adds it) */
 .includes-row{
+  margin-top:2px;
   color:#374151;
   font-size:13px;
   line-height:1.2;
 }
 
-/* Right stack (logo + distance) */
+/* Logo + mileage pinned to top-right of body */
 .brand-logo-stack{
+  position:absolute;
+  top:12px;
+  right:14px;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -196,7 +188,7 @@ a.btn-compact{text-decoration:none}
 }
 
 /* Address block */
-.addr{ margin:6px 0 8px; color:#374151; font-size:13px; order:3; }
+.addr{ margin:8px 0 8px; color:#374151; font-size:13px; order:3; }
 .addr .addr-dist{ color:#5b6577; }
 .addr .toggle{ color:#1d4ed8; cursor:pointer; text-decoration:underline; }
 .addr-list{ display:none; margin:6px 0 10px; padding-left:16px; color:#374151; font-size:13px; }
