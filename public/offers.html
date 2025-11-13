@@ -5,9 +5,18 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
+  <!-- Use the CSS you uploaded. If you used v29a keep v=29a. -->
   <link rel="stylesheet" href="/theme.css?v=29b">
+  <style>
+    /* Tiny crash overlay so we never “go blank” */
+    #crash{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);color:#fff;z-index:99999;padding:14px;overflow:auto;font:12px/1.4 ui-monospace,monospace}
+    #crash b{color:#ffd400}
+    #crash pre{white-space:pre-wrap;word-break:break-word;margin:8px 0 0}
+  </style>
 </head>
 <body>
+  <div id="crash"><b>App error</b><pre id="crashmsg"></pre></div>
+
   <div class="site">
     <header class="header">
       <div class="logo" data-logo>LD</div>
@@ -38,93 +47,112 @@
     <footer class="footer">AllCityPages.com | info@AllCityPages.com</footer>
   </div>
 
-  <!-- Load the exact JS you just uploaded -->
-  <script src="/shared.js?v=31.1"></script>
   <script>
-    (async function init(){
+    // ---- NEVER-BLANK overlay helpers ----
+    function showCrash(e){
+      const box = document.getElementById('crash');
+      const msg = document.getElementById('crashmsg');
+      box.style.display='block';
+      msg.textContent = (e && (e.stack || e.message)) ? (e.stack || e.message) : String(e);
+    }
+    window.addEventListener('error', ev => showCrash(ev.error || ev.message));
+    window.addEventListener('unhandledrejection', ev => showCrash(ev.reason));
+
+    // ---- 1) Wipe old Service Workers + caches that may be serving stale/blank pages ----
+    (async function purgeSW(){
       try{
-        const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
-        const offers = data.offers || [];
+        if('serviceWorker' in navigator){
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r=>r.unregister()));
+        }
+        if('caches' in window){
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k=>caches.delete(k)));
+        }
+      }catch(_){} // non-fatal
+    })();
 
-        // Populate Brand dropdown
-        Shared.populateBrandFilter(offers, document.getElementById('brand'));
-
-        // Populate Category dropdown
-        (function populateCategoryFilter(rows, selectEl){
-          const cats = [...new Set(
-            rows.map(r => (r.category || '').trim()).filter(Boolean)
-          )].sort((a,b)=>a.localeCompare(b));
-          cats.forEach(c=>{
-            const o=document.createElement('option');
-            o.value=c;
-            o.textContent=c;
-            selectEl.appendChild(o);
+    // ---- 2) Load shared.js robustly: try a few URL variants until one loads ----
+    async function loadScriptSequential(urls){
+      for (const url of urls){
+        try{
+          await new Promise((resolve, reject)=>{
+            const s=document.createElement('script');
+            s.src=url;
+            s.async=false;
+            s.onload=()=>resolve();
+            s.onerror=()=>reject(new Error('Failed to load '+url));
+            document.head.appendChild(s);
           });
-        })(offers, document.getElementById('category'));
-
-        const state = { q:'', brand:'', category:'', sortNearby:false };
-
-        function readControlsIntoState(){
-          state.q = document.getElementById('q').value.trim();
-          state.brand = document.getElementById('brand').value;
-          state.category = document.getElementById('category').value;
+          return url; // success
+        }catch(e){
+          // keep trying
         }
+      }
+      throw new Error('shared.js not found at: ' + urls.join(', '));
+    }
 
-        // Safety: ensure Includes exists even if JS/CSS mix happens
-        function ensureIncludes(cardEl, offer){
-          const txt=(offer.includes||offer.Includes||offer.bundle||'').trim();
-          if(!txt) return;
-          const head=cardEl.querySelector('.head-grid') || cardEl.querySelector('.title-row');
-          if(!head) return;
-          let inc=head.querySelector('.includes-row');
-          if(!inc){ inc=document.createElement('div'); inc.className='includes-row'; head.appendChild(inc); }
-          inc.textContent='Includes: '+txt;
-          inc.style.display='';
-        }
+    (async function boot(){
+      try{
+        // Put the version you actually uploaded to the server FIRST.
+        const tried = await loadScriptSequential([
+          '/shared.js?v=31.1',  // new file I sent
+          '/shared.js?v=31',    // fallback
+          '/shared.js?v=30',    // your existing one
+          '/shared.js'          // last resort
+        ]);
 
-        function render(){
-          const grid = document.getElementById('grid');
-          grid.innerHTML = '';
+        if(!window.Shared) throw new Error('Shared is not defined after loading '+tried);
 
-          let rows = Shared.applyFilter(offers, state);
-          if (state.sortNearby && Shared.__nearbyReady) {
-            rows = Shared.sortByNearby(rows);
+        // ---- 3) Your normal init, with Includes safety ----
+        (async function init(){
+          const data = await fetch('/api/offers').then(r=>r.json()).catch(()=>({offers:[]}));
+          const offers = data.offers || [];
+
+          Shared.populateBrandFilter(offers, document.getElementById('brand'));
+          (function(rows, selectEl){
+            const cats=[...new Set(rows.map(r=>(r.category||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+            cats.forEach(c=>{
+              const o=document.createElement('option'); o.value=c; o.textContent=c; selectEl.appendChild(o);
+            });
+          })(offers, document.getElementById('category'));
+
+          const state = { q:'', brand:'', category:'', sortNearby:false };
+          function readControlsIntoState(){ state.q=document.getElementById('q').value.trim(); state.brand=document.getElementById('brand').value; state.category=document.getElementById('category').value; }
+
+          function ensureIncludes(cardEl, offer){
+            const txt=(offer.includes||offer.Includes||offer.bundle||'').trim();
+            if(!txt) return;
+            const head=cardEl.querySelector('.head-grid') || cardEl.querySelector('.title-row');
+            if(!head) return;
+            let inc=head.querySelector('.includes-row');
+            if(!inc){ inc=document.createElement('div'); inc.className='includes-row'; head.appendChild(inc); }
+            inc.textContent='Includes: '+txt;
+            inc.style.display='';
           }
 
-          rows.forEach(o => {
-            const card = Shared.makeCard(o);
-            grid.appendChild(card);
-            ensureIncludes(card,o);
-            if (typeof Shared.updateButtonsFor === 'function') {
-              Shared.updateButtonsFor(o.id);
-            }
-          });
-        }
+          function render(){
+            const grid=document.getElementById('grid'); grid.innerHTML='';
+            let rows=Shared.applyFilter(offers,state);
+            if(state.sortNearby && Shared.__nearbyReady){ rows=Shared.sortByNearby(rows); }
+            rows.forEach(o=>{
+              const card=Shared.makeCard(o);
+              grid.appendChild(card);
+              ensureIncludes(card,o);
+              if(typeof Shared.updateButtonsFor==='function') Shared.updateButtonsFor(o.id);
+            });
+          }
 
-        document.getElementById('apply').onclick = () => { readControlsIntoState(); render(); };
-        document.getElementById('clear').onclick = () => {
-          document.getElementById('q').value = '';
-          document.getElementById('brand').value = '';
-          document.getElementById('category').value = '';
-          state.q = ''; state.brand = ''; state.category = '';
+          document.getElementById('apply').onclick=()=>{ readControlsIntoState(); render(); };
+          document.getElementById('clear').onclick=()=>{ document.getElementById('q').value=''; document.getElementById('brand').value=''; document.getElementById('category').value=''; state.q=''; state.brand=''; state.category=''; render(); };
+          document.getElementById('btn-near').onclick=async()=>{ await Shared.enableNearbyAlerts(); try{ await Shared.computeNearbySort(); Shared.__nearbyReady=true; state.sortNearby=true; render(); }catch(e){} };
+
+          try{ await Shared.computeNearbySort(); Shared.__nearbyReady=true; }catch(e){}
           render();
-        };
+        })().catch(showCrash);
 
-        document.getElementById('btn-near').onclick = async () => {
-          await Shared.enableNearbyAlerts();
-          try {
-            await Shared.computeNearbySort();
-            Shared.__nearbyReady = true;
-            state.sortNearby = true;
-            render();
-          } catch(e) {}
-        };
-
-        try { await Shared.computeNearbySort(); Shared.__nearbyReady = true; } catch(e) {}
-        render();
-
-      }catch(err){
-        alert('App error: ' + (err && err.message || err));
+      }catch(e){
+        showCrash(e);
       }
     })();
   </script>
