@@ -1,6 +1,7 @@
 /* =========================================================
    theme.css — v29b
-   - Head grid (brand top, title under, includes vs logo+miles)
+   - Title + Includes on left, logo + mileage on right
+   - Brand name above title
    - Distance text under logo
    - Address block styles
    ========================================================= */
@@ -39,6 +40,7 @@ body{
   color:var(--ink);
   margin:0;
 }
+
 *{box-sizing:border-box}
 
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
@@ -117,32 +119,80 @@ a.btn-compact{text-decoration:none}
 .card .hero.hero--zoom > img{ transform:scale(var(--img-zoom)); }
 .card .img{ width:100%; height:100%; display:block; object-fit:contain; object-position:center; }
 
-/* Body: flex column so header/addr/desc order is stable */
+/* Body becomes a flex column so we can reorder sections */
 .card .body{padding:12px 14px; display:flex; flex-direction:column}
 
-/* ===== HEAD GRID (brand/title/includes vs logo+miles) ===== */
-.head-grid{
-  display:grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto auto; /* brand, title, includes */
-  column-gap:8px;
-  row-gap:6px;
+/* —— TITLE AREA LAYOUT —— */
+/* Brand row stays above the title */
+.brand-row{
+  order:1;
+  display:flex;
+  align-items:center;
+  gap:6px;
   margin-bottom:6px;
 }
-.head-grid .brand-row{ grid-column:1; grid-row:1; display:flex; align-items:center; gap:6px; }
-.head-grid .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
-.head-grid h3{ grid-column:1; grid-row:2; margin:0; font-size:18px; line-height:1.05; }
-.head-grid .includes-row{
-  grid-column:1; grid-row:3;
-  color:#374151; font-size:13px; line-height:1.1; align-self:end;
+.card .brand, .brand{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.1;
 }
-.head-grid .brand-logo-stack{ grid-column:2; grid-row:1 / span 3; align-self:start; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; }
+
+/* Title row: left (title + includes) vs right (logo + miles) */
+.title-row{
+  order:2;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;   /* includes baseline ~ mileage baseline */
+  gap:8px;
+  margin-bottom:6px;
+}
+
+/* Left stack */
+.title-main{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.title-main h3,
+.title-row h3{
+  margin:0;
+  font-size:18px;
+  line-height:1.05;
+}
+
+/* Right stack (logo + distance) */
+.brand-logo-stack{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:4px;
+  min-width:48px;
+}
+
 .brand-logo-inline{
-  width:42px; height:auto; flex:0 0 auto; object-fit:contain;
-  background:#fff; border-radius:7px; padding:3px; box-shadow:0 1px 3px rgba(15,23,42,.12);
+  width:42px;
+  height:auto;
+  flex:0 0 auto;
+  object-fit:contain;
+  background:#fff;
+  border-radius:7px;
+  padding:3px;
+  box-shadow:0 1px 3px rgba(15,23,42,.12);
 }
-.brand-distance{ color:var(--muted); font-size:13px; line-height:1; }
-/* ===== /HEAD GRID ===== */
+
+.brand-distance{
+  color:var(--muted);
+  font-size:13px;
+  line-height:1;
+}
+
+/* Includes line under title (left column) */
+.includes-row{
+  color:#374151;
+  font-size:13px;
+  line-height:1.2;
+}
 
 /* Address block */
 .addr{ margin:6px 0 8px; color:#374151; font-size:13px; order:3; }
