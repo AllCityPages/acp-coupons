@@ -1,10 +1,8 @@
 /* =========================================================
    theme.css — v29b
-   - New head-grid (Brand/Title/Includes vs Logo+Mileage)
-   - Logo top aligns with Brand top
-   - Title sits just below Brand
-   - "Includes" aligns with mileage row
-   - Rest unchanged
+   - Head grid (brand top, title under, includes vs logo+miles)
+   - Distance text under logo
+   - Address block styles
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -41,7 +39,6 @@ body{
   color:var(--ink);
   margin:0;
 }
-
 *{box-sizing:border-box}
 
 .site{max-width:1200px;margin:0 auto;padding:16px 20px}
@@ -120,56 +117,42 @@ a.btn-compact{text-decoration:none}
 .card .hero.hero--zoom > img{ transform:scale(var(--img-zoom)); }
 .card .img{ width:100%; height:100%; display:block; object-fit:contain; object-position:center; }
 
-/* Body as column */
+/* Body: flex column so header/addr/desc order is stable */
 .card .body{padding:12px 14px; display:flex; flex-direction:column}
 
-/* ===== HEAD GRID (brand + title + includes vs logo + mileage) ===== */
+/* ===== HEAD GRID (brand/title/includes vs logo+miles) ===== */
 .head-grid{
-  order:1;
   display:grid;
-  grid-template-columns: 1fr auto;      /* left (text) | right (logo stack) */
-  grid-template-rows: auto auto auto;   /* brand | title | includes/mileage */
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto auto; /* brand, title, includes */
   column-gap:8px;
-  row-gap:4px;
-  align-items:start;                    /* top-align logo with brand */
-  margin-bottom:8px;
+  row-gap:6px;
+  margin-bottom:6px;
 }
-
-/* Left column pieces */
-.head-grid .brand-row{ grid-column:1; grid-row:1; margin:0; display:flex; align-items:center; gap:6px; }
-.card .brand, .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
-
-.head-grid h3{
-  grid-column:1; grid-row:2;
-  margin:0; font-size:18px; line-height:1.1;
-}
-
+.head-grid .brand-row{ grid-column:1; grid-row:1; display:flex; align-items:center; gap:6px; }
+.head-grid .brand{ color:var(--muted); font-size:13px; line-height:1.1; }
+.head-grid h3{ grid-column:1; grid-row:2; margin:0; font-size:18px; line-height:1.05; }
 .head-grid .includes-row{
   grid-column:1; grid-row:3;
-  color:#374151; font-size:13px; line-height:1.1;
+  color:#374151; font-size:13px; line-height:1.1; align-self:end;
 }
-
-/* Right column (logo+distance spans all rows, top aligned with brand) */
+.head-grid .brand-logo-stack{ grid-column:2; grid-row:1 / span 3; align-self:start; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; }
 .brand-logo-inline{
-  width:42px; height:auto; object-fit:contain;
+  width:42px; height:auto; flex:0 0 auto; object-fit:contain;
   background:#fff; border-radius:7px; padding:3px; box-shadow:0 1px 3px rgba(15,23,42,.12);
 }
-.head-grid .brand-logo-stack{
-  grid-column:2; grid-row:1 / 4;       /* span brand+title+includes rows */
-  display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px;
-  align-self:start;
-}
 .brand-distance{ color:var(--muted); font-size:13px; line-height:1; }
+/* ===== /HEAD GRID ===== */
 
 /* Address block */
-.addr{ margin:6px 0 8px; color:#374151; font-size:13px; order:2; }
+.addr{ margin:6px 0 8px; color:#374151; font-size:13px; order:3; }
 .addr .addr-dist{ color:var(--muted); }
 .addr .toggle{ color:#1d4ed8; cursor:pointer; text-decoration:underline; }
 .addr-list{ display:none; margin:6px 0 10px; padding-left:16px; color:#374151; font-size:13px; }
 .addr-list.show{ display:block; }
 
 /* description */
-.card .desc{ color:#374151; font-size:13px; margin:6px 0 12px; order:3; }
+.card .desc{ color:#374151; font-size:13px; margin:6px 0 12px; order:4; }
 
 /* BADGES */
 .badge{
@@ -181,7 +164,7 @@ a.btn-compact{text-decoration:none}
 .badge.warn{background:#fff7ed;border-color:#ffedd5;color:#b45309}
 .badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
-.meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px; order:4; }
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px; order:5; }
 
 /* BUTTONS */
 .btn, .btn-cta, .btn-outline{
@@ -194,7 +177,7 @@ a.btn-compact{text-decoration:none}
   background:#fff;color:#111827;text-decoration:none;cursor:pointer;font-family:inherit;
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
-.btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; order:5; }
+.btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; order:6; }
 
 /* primary CTA */
 .btn-cta{ background:var(--cta); color:var(--cta-ink); border:1px solid var(--cta-border); }
@@ -247,16 +230,4 @@ button.btn, a.btn, button.btn-cta, a.btn-cta, button.btn-outline, a.btn-outline{
 }
 .tab.active{
   background:#111827; color:#ffffff; border-color:#111827;
-}
-/* --- PATCH: ensure Includes is visible & aligned in v29a --- */
-.title-row{
-  grid-template-rows: auto auto;        /* title row + includes row */
-}
-.includes-row{
-  grid-column: 1;                        /* left column under the title */
-  grid-row: 2;                           /* occupy the second row */
-  color:#374151;
-  font-size:13px;
-  line-height:1.1;
-  align-self:end;                        /* baseline align with mileage */
 }
