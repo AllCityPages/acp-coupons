@@ -1,8 +1,8 @@
 /* =========================================================
-   theme.css — v29b
-   - Title + Includes on left, logo + mileage on right
-   - Brand name above title
-   - Distance text under logo
+   theme.css — v29c
+   - Brand above title
+   - Title + Includes on left
+   - Logo + mileage locked to top-right
    - Address block styles
    ========================================================= */
 
@@ -137,32 +137,41 @@ a.btn-compact{text-decoration:none}
   line-height:1.1;
 }
 
-/* Title row: left (title + includes) vs right (logo + miles) */
+/* Title row: left (title + includes) with pinned logo on right */
 .title-row{
   order:2;
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;   /* includes baseline ~ mileage baseline */
-  gap:8px;
+  position:relative;
+  padding-right:64px;      /* reserve space for logo + mileage */
   margin-bottom:6px;
 }
 
-/* Left stack */
+/* Left stack contains title + includes */
 .title-main{
   display:flex;
   flex-direction:column;
   gap:2px;
 }
 
+/* Fallback if JS hasn't wrapped into .title-main */
 .title-main h3,
-.title-row h3{
+.title-row > h3{
   margin:0;
   font-size:18px;
   line-height:1.05;
 }
 
-/* Right stack (logo + distance) */
+/* Includes line under title (left column) */
+.includes-row{
+  color:#374151;
+  font-size:13px;
+  line-height:1.2;
+}
+
+/* Right stack (logo + distance), pinned to top-right */
 .brand-logo-stack{
+  position:absolute;
+  top:0;
+  right:0;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -187,16 +196,9 @@ a.btn-compact{text-decoration:none}
   line-height:1;
 }
 
-/* Includes line under title (left column) */
-.includes-row{
-  color:#374151;
-  font-size:13px;
-  line-height:1.2;
-}
-
 /* Address block */
 .addr{ margin:6px 0 8px; color:#374151; font-size:13px; order:3; }
-.addr .addr-dist{ color:var(--muted); }
+.addr .addr-dist{ color:#5b6577; }
 .addr .toggle{ color:#1d4ed8; cursor:pointer; text-decoration:underline; }
 .addr-list{ display:none; margin:6px 0 10px; padding-left:16px; color:#374151; font-size:13px; }
 .addr-list.show{ display:block; }
