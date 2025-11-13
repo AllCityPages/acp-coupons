@@ -1,8 +1,8 @@
 /* =========================================================
-   theme.css — v29c
+   theme.css — v29d
    - Brand above title
    - Title + Includes on left
-   - Logo + mileage locked to top-right
+   - Logo + mileage on right (per card, not page!)
    - Address block styles
    ========================================================= */
 
@@ -137,11 +137,13 @@ a.btn-compact{text-decoration:none}
   line-height:1.1;
 }
 
-/* Title row: left (title + includes) with pinned logo on right */
+/* Title row: flex, left = title+includes, right = logo+miles */
 .title-row{
   order:2;
-  position:relative;
-  padding-right:64px;      /* reserve space for logo + mileage */
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:8px;
   margin-bottom:6px;
 }
 
@@ -152,7 +154,7 @@ a.btn-compact{text-decoration:none}
   gap:2px;
 }
 
-/* Fallback if JS hasn't wrapped into .title-main */
+/* Fallback if JS hasn’t wrapped into .title-main */
 .title-main h3,
 .title-row > h3{
   margin:0;
@@ -167,11 +169,8 @@ a.btn-compact{text-decoration:none}
   line-height:1.2;
 }
 
-/* Right stack (logo + distance), pinned to top-right */
+/* Right stack (logo + distance) */
 .brand-logo-stack{
-  position:absolute;
-  top:0;
-  right:0;
   display:flex;
   flex-direction:column;
   align-items:center;
@@ -191,7 +190,7 @@ a.btn-compact{text-decoration:none}
 }
 
 .brand-distance{
-  color:var(--muted);
+  color:#5b6577;
   font-size:13px;
   line-height:1;
 }
