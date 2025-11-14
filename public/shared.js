@@ -1,8 +1,7 @@
-// shared.js — v31.1 (FULL)
-// - Preserves all v30 behavior
-// - Head grid layout: Brand (row1), Title (row2), Includes (row3 left)
-//   vs Logo+Mileage (right spanning all rows)
-// - Always creates .includes-row; hides it if empty
+// shared.js — v31.2
+// - 2-column header layout per theme.css v30
+//   Left column (3 rows): Restaurant, Title, Includes
+//   Right column: Logo (top), Mileage (bottom)
 
 const BRAND = {
   name: 'Local Deals Hub',
@@ -214,6 +213,7 @@ const Shared = (function(){
     });
   }
 
+  // ===== CARD BUILDER ==================================================
   function makeCard(o, opts={}){
     const stats=(_statsCache&&_statsCache[o.id])?_statsCache[o.id]:{issued:0,redeemed:0};
     const exp=expiryInfo(o);
@@ -222,6 +222,7 @@ const Shared = (function(){
     el.className='card';
     el.dataset.offerId=String(o.id);
 
+    // Hero image
     const hero=document.createElement('div');
     hero.className='hero hero--zoom';
     if (o.hero_nozoom === true) hero.classList.remove('hero--zoom');
@@ -234,32 +235,50 @@ const Shared = (function(){
     body.className='body';
     el.appendChild(body);
 
-    // ===== HEAD GRID =====
-    const head=document.createElement('div');
-    head.className='head-grid';
+    // ---------- Header: left (brand/title/includes) + right (logo+miles) ----------
+    const headerRow = document.createElement('div');
+    headerRow.className = 'body-header-row';
 
-    const brandRow=document.createElement('div');
-    brandRow.className='brand-row';
-    const brand=document.createElement('div');
-    brand.className='brand';
-    brand.textContent=o.restaurant||'';
+    // Left column
+    const leftCol = document.createElement('div');
+    leftCol.className = 'body-header-left';
+
+    // Row 1: Restaurant / brand
+    const brandRow = document.createElement('div');
+    brandRow.className = 'brand-row';
+    const brand = document.createElement('div');
+    brand.className = 'brand';
+    brand.textContent = o.restaurant || '';
     brandRow.appendChild(brand);
-    head.appendChild(brandRow);
+    leftCol.appendChild(brandRow);
 
-    const h3=document.createElement('h3');
-    h3.textContent=o.title||o.id;
-    head.appendChild(h3);
+    // Row 2: Title
+    const titleRow = document.createElement('div');
+    titleRow.className = 'title-row';
+    const h3 = document.createElement('h3');
+    h3.textContent = o.title || o.id;
+    titleRow.appendChild(h3);
+    leftCol.appendChild(titleRow);
 
-    const incText=(o.includes || o.Includes || o.bundle || '').trim();
-    const inc=document.createElement('div');
-    inc.className='includes-row';
-    if(incText){ inc.textContent=`Includes: ${incText}`; inc.style.display=''; }
-    else { inc.style.display='none'; }
-    head.appendChild(inc);
+    // Row 3: Includes
+    const incText = (o.includes || o.Includes || o.bundle || '').trim();
+    const inc = document.createElement('div');
+    inc.className = 'includes-row';
+    if (incText) {
+      inc.textContent = 'Includes: ' + incText;
+      inc.style.display = '';
+    } else {
+      inc.style.display = 'none';
+    }
+    leftCol.appendChild(inc);
 
+    headerRow.appendChild(leftCol);
+
+    // Right column: logo + distance
     if (o.logo){
       const stack=document.createElement('div');
       stack.className='brand-logo-stack';
+
       const logo=document.createElement('img');
       logo.className='brand-logo-inline';
       logo.src=o.logo;
@@ -279,11 +298,13 @@ const Shared = (function(){
       distEl.textContent = distText;
       if (distText) stack.appendChild(distEl);
 
-      head.appendChild(stack);
+      headerRow.appendChild(stack);
     }
-    body.appendChild(head);
-    // ===== /HEAD GRID =====
 
+    body.appendChild(headerRow);
+    // ---------- /Header -------------------------------------------------
+
+    // Address block (uses nearest address + view all)
     (function renderAddress(){
       const info=nearestAddress(o);
       const addrs=normalizeAddresses(o);
@@ -378,6 +399,7 @@ const Shared = (function(){
     updateButtonsFor(o.id);
     return el;
   }
+  // ===== END CARD BUILDER ==============================================
 
   function updateButtonsFor(id){
     id=String(id);
@@ -391,7 +413,7 @@ const Shared = (function(){
     });
   }
 
-  function renderNotifyCTA(){ /* no-op */ }
+  function renderNotifyCTA(){ /* no-op for now */ }
 
   async function enableNearbyAlerts(){
     try{
@@ -411,7 +433,8 @@ const Shared = (function(){
     readQuery, writeQuery, debounce,
     getFavoriteIds, getWalletIds, isFavorite, isInWallet, toggleFavorite, toggleWallet, updateButtonsFor,
     populateBrandFilter, applyFilter, renderCategoryChips,
-    makeCard, suggest: function(all, state, n=8){
+    makeCard,
+    suggest: function(all, state, n=8){
       const inWallet=new Set(getWalletIds());
       const pool=all.filter(o=>!inWallet.has(String(o.id)));
       const cat=(state.category||'').toLowerCase();
@@ -427,10 +450,15 @@ const Shared = (function(){
   };
 })();
 
+// Preload stats
 (async ()=>{ try{ await Shared.getStats(); }catch{} })();
+
+// Branding on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof Shared.initBranding === 'function') Shared.initBranding();
 });
+
+// Tiny debug helpers
 window.ACP = Object.assign(window.ACP || {}, {
   favs: () => JSON.parse(localStorage.getItem('acp_favorites_v1')||'[]'),
   wals: () => JSON.parse(localStorage.getItem('acp_wallet_v1')||'[]')
