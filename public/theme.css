@@ -1,9 +1,10 @@
 /* =========================================================
-   theme.css — v29e
+   theme.css — v29f
    - Brand on its own line
    - Title block on left
    - Logo + mileage pinned to top-right of each card body
    - Address block styles
+   - Title baseline nudged up to align with logo bottom
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -131,18 +132,19 @@ a.btn-compact{text-decoration:none}
 /* Brand row above title */
 .brand-row{
   order:1;
-  margin-bottom:6px;
+  margin-bottom:2px;            /* tightened to pull title closer to brand */
 }
 .card .brand, .brand{
   color:var(--muted);
   font-size:13px;
-  line-height:1.1;
+  line-height:1.05;             /* slight tighten so block is shorter */
 }
 
 /* Title row is simple block; logo floats separately */
 .title-row{
   order:2;
   margin-bottom:4px;
+  margin-top:-2px;              /* nudge entire title line upward */
 }
 .title-row h3{
   margin:0;
