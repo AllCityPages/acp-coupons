@@ -1,5 +1,5 @@
 /* =========================================================
-   theme.css — v30.3
+   theme.css — v30.4
    - 2-column header: left (brand/title/includes), right (logo+miles)
    - More spacious desktop padding so it feels like mobile
    ========================================================= */
@@ -176,7 +176,7 @@ a.btn-compact{text-decoration:none}
   display:flex;
   flex-direction:column;
   align-items:flex-end;
-  justify-content:space-between; /* logo top, mileage bottom-ish */
+  justify-content:flex-start;  /* FIX: keep mileage under logo, ignore header height */
   min-width:56px;
   margin-left:6px; /* balances left/right padding visually */
 }
@@ -196,7 +196,7 @@ a.btn-compact{text-decoration:none}
   color:#5b6577;
   font-size:13px;
   line-height:1;
-  margin-top:6px;       /* breathing room under logo */
+  margin-top:6px;       /* fixed gap under logo */
   text-align:right;     /* align digits toward the right */
   width:100%;
 }
