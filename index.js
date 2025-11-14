@@ -267,26 +267,36 @@ app.post('/api/redeem', async (req, res) => {
 // ======================================================================
 //  PUBLIC OFFERS API (includes logo + addresses + hero_nozoom)
 // ======================================================================
-app.get('/api/offers', async (_req, res) => {
-  const { offers } = await loadCatalog();
-  const rows = Object.entries(offers).map(([id, o]) => ({
-    id,
-    title: o.title || id,
-    restaurant: o.restaurant || '',
-    description: o.description || '',
-    category: o.category || '',
-    hero_image: o.hero_image || o.logo || '',
-    hero_nozoom: !!o.hero_nozoom,
-    logo: o.logo || '',
-    brand_color: o.brand_color || '#111827',
-    accent_color: o.accent_color || '#2563eb',
-    expires_days: o.expires_days || 90,
-    client_slug: o.client_slug || 'general',
-    // pass through address fields
-    address: o.address || '',
-    addresses: Array.isArray(o.addresses) ? o.addresses : undefined
-  }));
-  res.json({ offers: rows });
+// List all active offers for the gallery
+app.get('/api/offers', async (req, res) => {
+  try {
+    const raw = await fsp.readFile(path.join(__dirname, 'data', 'offers.json'), 'utf8');
+    const map = JSON.parse(raw);
+
+    const offers = Object.entries(map)
+      .filter(([id, o]) => o && o.active !== false)
+      .map(([id, o]) => ({
+        id,
+        title: o.title,
+        restaurant: o.restaurant,
+        description: o.description,
+        category: o.category,
+        expires_days: o.expires_days,
+        hero_image: o.hero_image,
+        logo: o.logo,
+        brand_color: o.brand_color,
+        accent_color: o.accent_color,
+        addresses: o.addresses || [],
+
+        // ⭐ NEW: forward includes information from offers.json
+        includes: (o.includes || o.Includes || o.bundle || '').trim()
+      }));
+
+    res.json({ offers });
+  } catch (err) {
+    console.error('Error loading offers.json', err);
+    res.status(500).json({ error: 'Failed to load offers' });
+  }
 });
 
 // ======================================================================
