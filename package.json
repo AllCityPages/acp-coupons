@@ -11,11 +11,10 @@
   "dependencies": {
     "express": "^4.19.2",
     "qrcode": "^1.5.3",
-    "get-intrinsic": "^1.2.4"
+    "get-intrinsic": "^1.2.4",
     "puppeteer": "^22.13.1"
   },
   "engines": {
     "node": "20.x"
   }
 }
-
