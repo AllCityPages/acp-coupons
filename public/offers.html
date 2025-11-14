@@ -5,7 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- Updated to match the new layout CSS -->
+  <!-- Uses v30 layout CSS -->
   <link rel="stylesheet" href="/theme.css?v=30">
 </head>
 <body>
@@ -48,7 +48,7 @@
   </div>
 
   <!-- shared bundle -->
-  <script src="/shared.js?v=30"></script>
+  <script src="/shared.js?v=31b"></script>
 
   <script>
     (async function init(){
@@ -79,73 +79,6 @@
         state.category = document.getElementById('category').value;
       }
 
-      // NEW: 2-column / 3-row header layout inside each card body:
-      // Left: Restaurant (top), Title (middle), Includes (bottom)
-      // Right: Logo box (top), mileage (bottom)
-      function injectIncludesAndLayout(cardEl, offer){
-        const body = cardEl.querySelector('.body');
-        if (!body) return;
-
-        const brandRow = body.querySelector('.brand-row');
-        const titleRow = body.querySelector('.title-row');
-        const logoStack = body.querySelector('.brand-logo-stack');
-
-        if (!titleRow || !logoStack) return;
-
-        // Create / find header row container
-        let headerRow = body.querySelector('.body-header-row');
-        if (!headerRow){
-          headerRow = document.createElement('div');
-          headerRow.className = 'body-header-row';
-
-          // Insert headerRow before addr/desc/meta/buttons; otherwise at top
-          const before = body.querySelector('.addr, .desc, .meta, .btnrow, .offer-actions');
-          if (before) {
-            body.insertBefore(headerRow, before);
-          } else {
-            body.insertBefore(headerRow, body.firstChild);
-          }
-        }
-
-        // Create / find left column (Restaurant / Title / Includes)
-        let leftCol = headerRow.querySelector('.body-header-left');
-        if (!leftCol){
-          leftCol = document.createElement('div');
-          leftCol.className = 'body-header-left';
-          headerRow.appendChild(leftCol);
-        }
-
-        // Move brand row into left column (top row)
-        if (brandRow && brandRow.parentElement !== leftCol){
-          leftCol.appendChild(brandRow);
-        }
-
-        // Move title row into left column (middle row)
-        if (titleRow && titleRow.parentElement !== leftCol){
-          leftCol.appendChild(titleRow);
-        }
-
-        // Build / update Includes row (bottom row on left)
-        const incText = (offer.includes || offer.Includes || offer.bundle || '').trim();
-        let inc = leftCol.querySelector('.includes-row');
-        if (incText){
-          if (!inc){
-            inc = document.createElement('div');
-            inc.className = 'includes-row';
-            leftCol.appendChild(inc);
-          }
-          inc.textContent = 'Includes: ' + incText;
-          inc.style.display = '';
-        } else if (inc){
-          inc.style.display = 'none';
-        }
-
-        // Move logo stack into header row on the right
-        if (logoStack && logoStack.parentElement !== headerRow){
-          headerRow.appendChild(logoStack);
-        }
-      }
-
       function render(){
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
@@ -157,7 +90,6 @@
 
         rows.forEach(o => {
           const card = Shared.makeCard(o);
-          injectIncludesAndLayout(card, o);
           grid.appendChild(card);
           if (typeof Shared.updateButtonsFor === 'function') {
             Shared.updateButtonsFor(o.id);
@@ -165,7 +97,10 @@
         });
       }
 
-      document.getElementById('apply').onclick = () => { readControlsIntoState(); render(); };
+      document.getElementById('apply').onclick = () => {
+        readControlsIntoState();
+        render();
+      };
 
       document.getElementById('clear').onclick = () => {
         document.getElementById('q').value = '';
@@ -187,6 +122,7 @@
         } catch(e) {}
       };
 
+      // Try computing nearby on load so distances can show immediately
       try {
         await Shared.computeNearbySort();
         Shared.__nearbyReady = true;
