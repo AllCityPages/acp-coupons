@@ -3,7 +3,7 @@
     "active": true,
     "title": "Free Taco!!!",
     "restaurant": "Taco Bell",
-    "includes": "1 Soft or Crispy Taco",
+    "includes": "1 Taco",
     "client_slug": "taco-bell-allen",
     "category": "Mexican",
     "description": "Buy 1 Soft or Crispy Taco, get 1 free — no catch, just tacos.",
@@ -22,7 +22,7 @@
     "active": true,
     "title": "Free 2pc Combo",
     "restaurant": "Popeyes",
-    "includes": "2pc Chicken, 1 Biscuit, 1 Side & 1 Med Drink",
+    "includes": "2pc Chicken, 1 Biscuit, 1 Side & 1 M. Drink",
     "client_slug": "popeyes-mckinney",
     "category": "Chicken",
     "description": "Buy 1 two-piece combo meal, get another one free — double the crunch.",
@@ -43,7 +43,7 @@
 
   "mcd-bogo": {
     "active": true,
-    "title": "Free Breakfast Combo",
+    "title": "Free A.M. Combo",
     "restaurant": "McDonald's",
     "includes": "1 Sandwich, 1 Hashbrown & Med Drink",
     "client_slug": "mcdonalds-allen",
@@ -121,7 +121,7 @@
 
   "kfc-tender-combo": {
     "active": true,
-    "title": "BOGO 1/2 Off Tenders",
+    "title": "1/2 Off Tenders",
     "restaurant": "KFC",
     "includes": "6pc Tenders, 1 Fries & 1 Med Drink",
     "client_slug": "kfc-mckinney",
@@ -193,7 +193,7 @@
 
   "subway-free-sub": {
     "active": true,
-    "title": "Free - Footlong Sub",
+    "title": "Free Footlong Sub",
     "restaurant": "Subway",
     "includes": "1 Footlong Sub",
     "client_slug": "subway-allen",
@@ -245,7 +245,7 @@
 
   "sonic-bogo-coney": {
     "active": true,
-    "title": "Free - Coney Combo",
+    "title": "Free Coney Combo",
     "restaurant": "Sonic Drive-In",
     "includes": "1 Footlong Coney, 1 Side & 1 Med Drink",
     "client_slug": "sonic-mckinney",
@@ -272,7 +272,7 @@
 
   "dq-finger-basket": {
     "active": true,
-    "title": "Free - Basket Combo",
+    "title": "Free Basket Combo",
     "restaurant": "Dairy Queen",
     "includes": "6pc Tenders, 1 Side & 1 Med Drink",
     "client_slug": "dq-allen",
