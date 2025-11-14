@@ -5,8 +5,7 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- keep using your v29a styles -->
-  <link rel="stylesheet" href="/theme.css?v=29e">
+  <link rel="stylesheet" href="/theme.css?v=29f">
 </head>
 <body>
   <div class="site">
@@ -47,7 +46,7 @@
     </footer>
   </div>
 
-  <!-- your existing shared bundle -->
+  <!-- shared bundle -->
   <script src="/shared.js?v=30"></script>
 
   <script>
@@ -79,28 +78,23 @@
         state.category = document.getElementById('category').value;
       }
 
-      // ---- NEW: ensure title + Includes left, logo + miles right ----
       function injectIncludesAndLayout(cardEl, offer){
         const row = cardEl.querySelector('.title-row');
         if (!row) return;
 
-        // Find existing title and logo stack
         const titleEl = row.querySelector('h3');
         const logoStack = row.querySelector('.brand-logo-stack');
 
         if (!titleEl || !logoStack) return;
 
-        // Wrap title (and later Includes) into a left column
         let left = row.querySelector('.title-main');
         if (!left){
           left = document.createElement('div');
           left.className = 'title-main';
-          // insert left before logo stack and move title inside it
           row.insertBefore(left, logoStack);
           left.appendChild(titleEl);
         }
 
-        // Build / update Includes line
         const incText = (offer.includes || offer.Includes || offer.bundle || '').trim();
         let inc = left.querySelector('.includes-row');
         if (incText){
@@ -115,10 +109,9 @@
           inc.style.display = 'none';
         }
 
-        // Make sure logo stack is the right-side column
         if (logoStack.parentElement === row &&
             logoStack !== row.lastElementChild){
-          row.appendChild(logoStack); // move to the end (right)
+          row.appendChild(logoStack);
         }
       }
 
@@ -133,7 +126,7 @@
 
         rows.forEach(o => {
           const card = Shared.makeCard(o);
-          injectIncludesAndLayout(card, o);   // <- our new layout hook
+          injectIncludesAndLayout(card, o);
           grid.appendChild(card);
           if (typeof Shared.updateButtonsFor === 'function') {
             Shared.updateButtonsFor(o.id);
