@@ -1,7 +1,7 @@
 /* =========================================================
-   theme.css — v30.2
+   theme.css — v30.3
    - 2-column header: left (brand/title/includes), right (logo+miles)
-   - Right column aligned to match left-side padding visually
+   - More spacious desktop padding so it feels like mobile
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -119,7 +119,8 @@ a.btn-compact{text-decoration:none}
 
 /* Body */
 .card .body{
-  padding:12px 14px;
+  /* more generous padding like mobile */
+  padding:18px 22px;
   display:flex;
   flex-direction:column;
 }
@@ -130,8 +131,8 @@ a.btn-compact{text-decoration:none}
 .body-header-row{
   display:flex;
   align-items:stretch;
-  gap:12px;
-  margin-bottom:8px;
+  gap:14px;
+  margin-bottom:12px;  /* more breathing room under header */
 }
 
 .body-header-left{
@@ -143,7 +144,7 @@ a.btn-compact{text-decoration:none}
 
 /* Brand row (Restaurant name) */
 .brand-row{
-  margin:0 0 2px;
+  margin:0 0 4px;
 }
 .card .brand, .brand{
   color:var(--muted);
@@ -153,7 +154,7 @@ a.btn-compact{text-decoration:none}
 
 /* Title row (center) */
 .title-row{
-  margin:2px 0;
+  margin:0 0 4px;
 }
 .title-row h3{
   margin:0;
@@ -174,9 +175,10 @@ a.btn-compact{text-decoration:none}
   position:static;
   display:flex;
   flex-direction:column;
-  align-items:flex-end;          /* push logo + miles toward right edge */
+  align-items:flex-end;
   justify-content:space-between; /* logo top, mileage bottom-ish */
   min-width:56px;
+  margin-left:6px; /* balances left/right padding visually */
 }
 
 .brand-logo-inline{
@@ -194,20 +196,20 @@ a.btn-compact{text-decoration:none}
   color:#5b6577;
   font-size:13px;
   line-height:1;
-  margin-top:4px;       /* breathing room under logo */
+  margin-top:6px;       /* breathing room under logo */
   text-align:right;     /* align digits toward the right */
   width:100%;
 }
 
 /* Address block */
-.addr{ margin:4px 0 8px; color:#374151; font-size:13px; }
+.addr{ margin:10px 0 8px; color:#374151; font-size:13px; }
 .addr .addr-dist{ color:#5b6577; }
 .addr .toggle{ color:#1d4ed8; cursor:pointer; text-decoration:underline; }
 .addr-list{ display:none; margin:6px 0 10px; padding-left:16px; color:#374151; font-size:13px; }
 .addr-list.show{ display:block; }
 
 /* description */
-.card .desc{ color:#374151; font-size:13px; margin:4px 0 10px; }
+.card .desc{ color:#374151; font-size:13px; margin:6px 0 12px; }
 
 /* BADGES */
 .badge{
@@ -219,7 +221,7 @@ a.btn-compact{text-decoration:none}
 .badge.warn{background:#fff7ed;border-color:#ffedd5;color:#b45309}
 .badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
-.meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px; }
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px; }
 
 /* BUTTONS */
 .btn, .btn-cta, .btn-outline{
@@ -228,7 +230,7 @@ a.btn-compact{text-decoration:none}
   height:24px;min-height:24px;
   padding:0 10px;border-radius:8px;
   font-size:12px;line-height:1;font-weight:400;gap:6px;
-  border:1px solid(var(--border));
+  border:1px solid var(--border);
   background:#fff;color:#111827;text-decoration:none;cursor:pointer;font-family:inherit;
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
