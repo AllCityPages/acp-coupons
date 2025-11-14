@@ -1,7 +1,7 @@
 /* =========================================================
-   theme.css — v30.1
+   theme.css — v30.2
    - 2-column header: left (brand/title/includes), right (logo+miles)
-   - Mileage sits just below logo with a small gap
+   - Right column aligned to match left-side padding visually
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -174,8 +174,8 @@ a.btn-compact{text-decoration:none}
   position:static;
   display:flex;
   flex-direction:column;
-  align-items:center;
-  justify-content:flex-start;   /* logo top, miles just below */
+  align-items:flex-end;          /* push logo + miles toward right edge */
+  justify-content:space-between; /* logo top, mileage bottom-ish */
   min-width:56px;
 }
 
@@ -191,10 +191,12 @@ a.btn-compact{text-decoration:none}
 }
 
 .brand-distance{
-  margin-top:4px;       /* small gap under logo box */
   color:#5b6577;
   font-size:13px;
   line-height:1;
+  margin-top:4px;       /* breathing room under logo */
+  text-align:right;     /* align digits toward the right */
+  width:100%;
 }
 
 /* Address block */
@@ -226,7 +228,7 @@ a.btn-compact{text-decoration:none}
   height:24px;min-height:24px;
   padding:0 10px;border-radius:8px;
   font-size:12px;line-height:1;font-weight:400;gap:6px;
-  border:1px solid var(--border);
+  border:1px solid(var(--border));
   background:#fff;color:#111827;text-decoration:none;cursor:pointer;font-family:inherit;
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
