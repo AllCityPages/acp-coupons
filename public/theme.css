@@ -1,7 +1,7 @@
 /* =========================================================
-   theme.css — v30
+   theme.css — v30.1
    - 2-column header: left (brand/title/includes), right (logo+miles)
-   - 3 rows on left vertically distributed within logo+miles height
+   - Mileage sits just below logo with a small gap
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -125,11 +125,11 @@ a.btn-compact{text-decoration:none}
 }
 
 /* =========================
-   NEW: header row (left+right)
+   Header row (left+right)
    ========================= */
 .body-header-row{
   display:flex;
-  align-items:stretch;      /* left and right share same height */
+  align-items:stretch;
   gap:12px;
   margin-bottom:8px;
 }
@@ -143,7 +143,6 @@ a.btn-compact{text-decoration:none}
 
 /* Brand row (Restaurant name) */
 .brand-row{
-  /* order isn't important once it's inside header-left */
   margin:0 0 2px;
 }
 .card .brand, .brand{
@@ -172,12 +171,11 @@ a.btn-compact{text-decoration:none}
 
 /* Logo + mileage column on right */
 .brand-logo-stack{
-  /* no more absolute positioning */
   position:static;
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:space-between;   /* logo top, mileage bottom */
+  justify-content:flex-start;   /* logo top, miles just below */
   min-width:56px;
 }
 
@@ -193,6 +191,7 @@ a.btn-compact{text-decoration:none}
 }
 
 .brand-distance{
+  margin-top:4px;       /* small gap under logo box */
   color:#5b6577;
   font-size:13px;
   line-height:1;
