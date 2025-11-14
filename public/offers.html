@@ -5,8 +5,8 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
-  <!-- Uses v30 layout CSS -->
-  <link rel="stylesheet" href="/theme.css?v=30.3">
+  <!-- Uses v30.4 layout CSS -->
+  <link rel="stylesheet" href="/theme.css?v=30.4">
 </head>
 <body>
   <div class="site">
@@ -21,8 +21,8 @@
 
     <div class="actionbar">
       <button id="btn-near" class="chip chip--white">📍 Show deals near me</button>
-      <a class="chip chip--white" href="/wallet.html?v=28">💰 My Wallet</a>
-      <a class="chip chip--white" href="/wallet.html?v=28&tab=favorites">⭐ My Favorites</a>
+      <a class="chip chip--white" href="/wallet.html?v=30.4">💰 My Wallet</a>
+      <a class="chip chip--white" href="/wallet.html?v=30.4&tab=favorites">⭐ My Favorites</a>
     </div>
 
     <!-- Filters: Search | Brand | Category | Apply | Clear -->
@@ -53,10 +53,10 @@
   <script>
     (async function init(){
       const data = await fetch('/api/offers')
-  .then(r => r.json())
-  .catch(() => ({ offers: [] }));
+        .then(r => r.json())
+        .catch(() => ({ offers: [] }));
 
-const offers = Array.isArray(data.offers) ? data.offers : [];
+      const offers = Array.isArray(data.offers) ? data.offers : [];
 
       // Populate Brand dropdown
       Shared.populateBrandFilter(offers, document.getElementById('brand'));
