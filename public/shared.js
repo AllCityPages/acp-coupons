@@ -1,5 +1,5 @@
-// shared.js — v31.2
-// - 2-column header layout per theme.css v30
+// shared.js — v32
+// - 2-column header layout per theme.css v30.1
 //   Left column (3 rows): Restaurant, Title, Includes
 //   Right column: Logo (top), Mileage (bottom)
 
@@ -260,7 +260,7 @@ const Shared = (function(){
     titleRow.appendChild(h3);
     leftCol.appendChild(titleRow);
 
-    // Row 3: Includes
+    // Row 3: Includes (from offers.json)
     const incText = (o.includes || o.Includes || o.bundle || '').trim();
     const inc = document.createElement('div');
     inc.className = 'includes-row';
