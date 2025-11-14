@@ -1,10 +1,10 @@
 /* =========================================================
-   theme.css — v29f
+   theme.css — v29g
    - Brand on its own line
    - Title block on left
    - Logo + mileage pinned to top-right of each card body
    - Address block styles
-   - Title baseline nudged up to align with logo bottom
+   - Title baseline pulled up to align with bottom of logo box
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -122,7 +122,7 @@ a.btn-compact{text-decoration:none}
 
 /* Body becomes positioning container for logo */
 .card .body{
-  padding:12px 14px;
+  padding:10px 14px;            /* was 12px: pull content closer to top */
   padding-right:76px;           /* space reserved for logo stack */
   display:flex;
   flex-direction:column;
@@ -132,19 +132,19 @@ a.btn-compact{text-decoration:none}
 /* Brand row above title */
 .brand-row{
   order:1;
-  margin-bottom:2px;            /* tightened to pull title closer to brand */
+  margin-bottom:0;              /* was 6px: reduce gap to lift title */
 }
 .card .brand, .brand{
   color:var(--muted);
   font-size:13px;
-  line-height:1.05;             /* slight tighten so block is shorter */
+  line-height:1.05;
 }
 
-/* Title row is simple block; logo floats separately */
+/* Title row: main adjustment to align bottom with logo box */
 .title-row{
   order:2;
   margin-bottom:4px;
-  margin-top:-2px;              /* nudge entire title line upward */
+  margin-top:-10px;             /* big nudge upward to meet logo bottom */
 }
 .title-row h3{
   margin:0;
@@ -163,7 +163,7 @@ a.btn-compact{text-decoration:none}
 /* Logo + mileage pinned to top-right of body */
 .brand-logo-stack{
   position:absolute;
-  top:12px;
+  top:10px;                     /* match body padding so reference line is clear */
   right:14px;
   display:flex;
   flex-direction:column;
