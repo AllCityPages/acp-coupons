@@ -267,11 +267,13 @@ app.post('/api/redeem', async (req, res) => {
 // ======================================================================
 //  PUBLIC OFFERS API (includes logo + addresses + hero_nozoom)
 // ======================================================================
-// List all active offers for the gallery
+// ======================================================================
+//  PUBLIC OFFERS API (includes logo + addresses + hero_nozoom + includes)
+// ======================================================================
 app.get('/api/offers', async (req, res) => {
   try {
-    const raw = await fsp.readFile(path.join(__dirname, 'data', 'offers.json'), 'utf8');
-    const map = JSON.parse(raw);
+    // Use the same OFFERS_FILE you defined at the top (root/offers.json)
+    const map = await jread(OFFERS_FILE, {});  // { "id": { ...offer... }, ... }
 
     const offers = Object.entries(map)
       .filter(([id, o]) => o && o.active !== false)
@@ -288,14 +290,15 @@ app.get('/api/offers', async (req, res) => {
         accent_color: o.accent_color,
         addresses: o.addresses || [],
 
-        // ⭐ NEW: forward includes information from offers.json
+        // ⭐ pass Includes text through to the front-end
         includes: (o.includes || o.Includes || o.bundle || '').trim()
       }));
 
     res.json({ offers });
   } catch (err) {
-    console.error('Error loading offers.json', err);
-    res.status(500).json({ error: 'Failed to load offers' });
+    console.error('Error in /api/offers:', err);
+    // still respond with a safe shape so the UI doesn't explode
+    res.status(500).json({ offers: [], error: 'Failed to load offers' });
   }
 });
 
