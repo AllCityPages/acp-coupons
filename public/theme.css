@@ -1,10 +1,7 @@
 /* =========================================================
-   theme.css — v29h
-   - Brand on its own line
-   - Title block on left
-   - Logo + mileage pinned to top-right of each card body
-   - Address block styles
-   - Headline text moved up ~50% of its height
+   theme.css — v30
+   - 2-column header: left (brand/title/includes), right (logo+miles)
+   - 3 rows on left vertically distributed within logo+miles height
    ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap');
@@ -120,19 +117,34 @@ a.btn-compact{text-decoration:none}
 .card .hero.hero--zoom > img{ transform:scale(var(--img-zoom)); }
 .card .img{ width:100%; height:100%; display:block; object-fit:contain; object-position:center; }
 
-/* Body becomes positioning container for logo */
+/* Body */
 .card .body{
   padding:12px 14px;
-  padding-right:76px;           /* space reserved for logo stack */
   display:flex;
   flex-direction:column;
-  position:relative;            /* key: logo stack is anchored to this */
 }
 
-/* Brand row above title */
+/* =========================
+   NEW: header row (left+right)
+   ========================= */
+.body-header-row{
+  display:flex;
+  align-items:stretch;      /* left and right share same height */
+  gap:12px;
+  margin-bottom:8px;
+}
+
+.body-header-left{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between; /* Restaurant (top), Title (middle), Includes (bottom) */
+}
+
+/* Brand row (Restaurant name) */
 .brand-row{
-  order:1;
-  margin-bottom:6px;
+  /* order isn't important once it's inside header-left */
+  margin:0 0 2px;
 }
 .card .brand, .brand{
   color:var(--muted);
@@ -140,22 +152,17 @@ a.btn-compact{text-decoration:none}
   line-height:1.1;
 }
 
-/* Title row is simple block; logo floats separately */
+/* Title row (center) */
 .title-row{
-  order:2;
-  margin-bottom:4px;
-  position:relative;            /* allow local offset of headline */
+  margin:2px 0;
 }
 .title-row h3{
   margin:0;
   font-size:18px;
   line-height:1.05;
-  display:inline-block;
-  position:relative;
-  top:-0.5em;                   /* <- move text up by ~50% of its height */
 }
 
-/* Optional includes line (when JS adds it) */
+/* Includes row (bottom) */
 .includes-row{
   margin-top:2px;
   color:#374151;
@@ -163,16 +170,15 @@ a.btn-compact{text-decoration:none}
   line-height:1.2;
 }
 
-/* Logo + mileage pinned to top-right of body */
+/* Logo + mileage column on right */
 .brand-logo-stack{
-  position:absolute;
-  top:12px;
-  right:14px;
+  /* no more absolute positioning */
+  position:static;
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:4px;
-  min-width:48px;
+  justify-content:space-between;   /* logo top, mileage bottom */
+  min-width:56px;
 }
 
 .brand-logo-inline{
@@ -193,26 +199,26 @@ a.btn-compact{text-decoration:none}
 }
 
 /* Address block */
-.addr{ margin:8px 0 8px; color:#374151; font-size:13px; order:3; }
+.addr{ margin:4px 0 8px; color:#374151; font-size:13px; }
 .addr .addr-dist{ color:#5b6577; }
 .addr .toggle{ color:#1d4ed8; cursor:pointer; text-decoration:underline; }
 .addr-list{ display:none; margin:6px 0 10px; padding-left:16px; color:#374151; font-size:13px; }
 .addr-list.show{ display:block; }
 
 /* description */
-.card .desc{ color:#374151; font-size:13px; margin:6px 0 12px; order:4; }
+.card .desc{ color:#374151; font-size:13px; margin:4px 0 10px; }
 
 /* BADGES */
 .badge{
   display:inline-flex;align-items:center;justify-content:center;
-  height:24px;padding:0 10px;border-radius:8px;border:1px solid(var(--border));
+  height:24px;padding:0 10px;border-radius:8px;border:1px solid var(--border);
   background:#f7f7f9;color:#374151;font-size:12px;line-height:1;
 }
 .badge.ok{background:#eef6ff;border-color:#dbeafe;color:#1d4ed8}
 .badge.warn{background:#fff7ed;border-color:#ffedd5;color:#b45309}
 .badge.danger{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
 .badge.neutral{background:#f3f4f6;border-color:#e5e7eb;color:#6b7280}
-.meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px; order:5; }
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px; }
 
 /* BUTTONS */
 .btn, .btn-cta, .btn-outline{
@@ -225,7 +231,7 @@ a.btn-compact{text-decoration:none}
   background:#fff;color:#111827;text-decoration:none;cursor:pointer;font-family:inherit;
 }
 a.btn,a.btn-cta,a.btn-outline{text-decoration:none}
-.btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; order:6; }
+.btnrow, .card .btnrow, .offer-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 
 /* primary CTA */
 .btn-cta{ background:var(--cta); color:var(--cta-ink); border:1px solid var(--cta-border); }
