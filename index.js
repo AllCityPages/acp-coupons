@@ -8,6 +8,7 @@ const fsp = require('fs/promises');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const puppeteer = require('puppeteer');
+const https = require('https'); // <-- NEW: use https instead of fetch for geocode
 
 const app = express();
 app.use(express.json());
@@ -71,15 +72,48 @@ function normalizeAddrEntry(entry){
     lng: isFiniteNum(entry?.lng) ? Number(entry.lng) : undefined
   };
 }
+
+// NEW: plain https JSON fetcher (no global fetch / node-fetch needed)
+function httpGetJson(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    try {
+      const u = new URL(url);
+      const options = {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: 'GET',
+        headers
+      };
+      const req = https.request(options, res => {
+        let data = '';
+        res.on('data', chunk => (data += chunk));
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data || '[]');
+            resolve(json);
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
+      req.on('error', reject);
+      req.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 async function geocodeLabel(label){
   const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=1&q=${encodeURIComponent(label)}`;
   try{
-    const r = await fetch(url, { headers: { 'User-Agent': NOM_USER_AGENT, 'Accept': 'application/json' } });
-    const arr = await r.json();
+    const arr = await httpGetJson(url, { 'User-Agent': NOM_USER_AGENT, 'Accept': 'application/json' });
     if (Array.isArray(arr) && arr[0]?.lat && arr[0]?.lon){
       return { lat: Number(arr[0].lat), lng: Number(arr[0].lon) };
     }
-  }catch(e){ /* ignore */ }
+  }catch(e){
+    console.error('geocodeLabel error for', label, e.message || e);
+  }
   return null;
 }
 
@@ -138,7 +172,7 @@ app.get('/offers.json', (_req, res) => {
 app.get('/manifest.json', (_req, res) => {
   res.type('application/manifest+json; charset=utf-8');
   res.sendFile(path.join(PUBLIC_DIR, 'manifest.json'));
-});
+};
 app.get('/redeem.html', (_req, res) => {
   res.type('text/html; charset=utf-8');
   res.sendFile(path.join(PUBLIC_DIR, 'redeem.html'));
@@ -265,14 +299,10 @@ app.post('/api/redeem', async (req, res) => {
 });
 
 // ======================================================================
-//  PUBLIC OFFERS API (includes logo + addresses + hero_nozoom)
-// ======================================================================
-// ======================================================================
 //  PUBLIC OFFERS API (includes logo + addresses + hero_nozoom + includes)
 // ======================================================================
 app.get('/api/offers', async (req, res) => {
   try {
-    // Use the same OFFERS_FILE you defined at the top (root/offers.json)
     const map = await jread(OFFERS_FILE, {});  // { "id": { ...offer... }, ... }
 
     const offers = Object.entries(map)
@@ -290,14 +320,12 @@ app.get('/api/offers', async (req, res) => {
         accent_color: o.accent_color,
         addresses: o.addresses || [],
         fine_print: o.fine_print,
-        // ⭐ pass Includes text through to the front-end
         includes: (o.includes || o.Includes || o.bundle || '').trim()
       }));
 
     res.json({ offers });
   } catch (err) {
     console.error('Error in /api/offers:', err);
-    // still respond with a safe shape so the UI doesn't explode
     res.status(500).json({ offers: [], error: 'Failed to load offers' });
   }
 });
@@ -392,7 +420,6 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
     const dry = String(req.query.dry || '') === '1';
     const onlyId = (req.query.id || '').toString();
 
-    // Load + backup
     const offers = await jread(OFFERS_FILE, {});
     const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
     const backupPath = OFFERS_FILE.replace(/\.json$/i, `.backup-${stamp}.json`);
@@ -404,7 +431,6 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
     for (const id of ids){
       const o = offers[id];
 
-      // Normalize to array "addresses"
       let list = [];
       if (Array.isArray(o.addresses)) list = o.addresses.map(normalizeAddrEntry);
       else if (o.address) { list = [ normalizeAddrEntry(o.address) ]; delete o.address; }
@@ -427,8 +453,8 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
         }else{
           misses++;
         }
-        // Nominatim: 1 req/sec
-        await sleep(1100);
+
+        await sleep(1100); // Nominatim: ~1 req/sec
       }
 
       if (list.length) o.addresses = list;
@@ -449,13 +475,11 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
     });
   }catch(e){
     console.error('geocode error', e);
-    res.status(500).json({ ok:false, error: 'geocode-failed' });
+    res.status(500).json({ ok:false, error: 'geocode-failed', message: e.message || String(e) });
   }
 });
 
 // ADMIN: Sync stores.json from offers.json (protected)
-// - Reads offers.json addresses[] and merges into stores.json
-// - De-dupes by (brand|label). Keeps/updates lat/lng if present.
 // GET /admin/sync-stores?key=API_KEY[&dry=1]
 app.get('/admin/sync-stores', requireKey, async (req, res) => {
   try{
@@ -463,7 +487,6 @@ app.get('/admin/sync-stores', requireKey, async (req, res) => {
     const offers = await jread(OFFERS_FILE, {});
     const existingStores = await jread(STORES_FILE, {}); // object map
 
-    // Build index for quick duplicate checks
     const indexKey = (brand, label) => `${(brand||'').trim()}|${(label||'').trim()}`.toLowerCase();
     const existingByKey = new Map();
     Object.entries(existingStores).forEach(([code, meta]) => {
@@ -472,10 +495,9 @@ app.get('/admin/sync-stores', requireKey, async (req, res) => {
       existingByKey.set(indexKey(brand, label), { code, meta: (typeof meta === 'string' ? { brand, label } : meta) });
     });
 
-    const upserts = []; // actions for summary
-    const storesOut = { ...existingStores }; // mutate a copy
+    const upserts = [];
+    const storesOut = { ...existingStores };
 
-    // Walk all offers/addresses
     for (const [offerId, o] of Object.entries(offers)) {
       const brand = o.restaurant || o.brand || '';
       const arr = Array.isArray(o.addresses) ? o.addresses.map(normalizeAddrEntry) : [];
@@ -483,7 +505,6 @@ app.get('/admin/sync-stores', requireKey, async (req, res) => {
         if (!a.label) return;
         const key = indexKey(brand, a.label);
         if (existingByKey.has(key)) {
-          // update lat/lng if available and changed
           const { code, meta } = existingByKey.get(key);
           const oldLat = meta.lat, oldLng = meta.lng;
           const newLat = isFiniteNum(a.lat) ? a.lat : oldLat;
@@ -494,7 +515,6 @@ app.get('/admin/sync-stores', requireKey, async (req, res) => {
           }
           storesOut[code] = updatedMeta;
         } else {
-          // create new code: <brand-slug>-<short-hash-of-label> or sequence
           const code = `${toSlug(brand)||'store'}-${sha12(a.label).slice(0,6)}`;
           const meta = { brand, label: a.label };
           if (isFiniteNum(a.lat) && isFiniteNum(a.lng)) { meta.lat = a.lat; meta.lng = a.lng; }
@@ -505,7 +525,6 @@ app.get('/admin/sync-stores', requireKey, async (req, res) => {
       });
     }
 
-    // Backup and write
     let backupName = null;
     if (!dry) {
       const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
@@ -522,11 +541,11 @@ app.get('/admin/sync-stores', requireKey, async (req, res) => {
       total_stores_after: total,
       changes: upserts.length,
       backup: dry ? null : backupName,
-      sample_changes: upserts.slice(0, 20) // preview first 20
+      sample_changes: upserts.slice(0, 20)
     });
   }catch(e){
     console.error('sync-stores error', e);
-    res.status(500).json({ ok:false, error: 'sync-stores-failed' });
+    res.status(500).json({ ok:false, error: 'sync-stores-failed', message: e.message || String(e) });
   }
 });
 
@@ -599,7 +618,6 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
   const lineLabels = Object.keys(byDay).sort();
   const lineData = lineLabels.map(k => byDay[k]);
 
-  // build 7x24 heatmap
   const hm = Array.from({ length: 7 }, () => Array(24).fill(0));
   filtered.forEach(p => {
     if (p.status !== 'redeemed' || !p.redeemed_at) return;
@@ -607,7 +625,6 @@ app.get('/hub/dashboard', requireKey, async (req, res) => {
     hm[d.getDay()][d.getHours()]++;
   });
 
-  // IMPORTANT: safe stringify for embedding into HTML
   const heatJSON = JSON.stringify(hm).replace(/</g, '\\u003c');
 
   res.send(`<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -654,7 +671,7 @@ const lineLabels = ${JSON.stringify(lineLabels)};
 const lineData   = ${JSON.stringify(lineData)};
 const pieLabels  = ${JSON.stringify(pieLabels)};
 const pieData    = ${JSON.stringify(pieData)};
-const heat       = JSON.parse('${heatJSON}'); // 7x24
+const heat       = JSON.parse('${heatJSON}');
 
 new Chart(document.getElementById('line'), {
   type:'line',
@@ -700,7 +717,6 @@ app.get('/hub/dashboard/report-analytics.csv', requireKey, async (_req, res) => 
   return sendCsv(res, 'redeem_report.csv', csv);
 });
 
-// events CSV
 app.get('/events.csv', requireKey, async (_req, res) => {
   const ev = await jread(EVENTS_FILE, { events: [] });
   const headers = ['t', 'type', 'offer_id', 'restaurant', 'client_slug', 'meta', 'ua', 'ip'];
