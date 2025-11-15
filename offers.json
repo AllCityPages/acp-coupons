@@ -1,22 +1,26 @@
 {
-  "tacobell-freeitem": {
-    "active": true,
-    "title": "Free Taco!!!",
-    "restaurant": "Taco Bell",
-    "includes": "1 Taco",
-    "client_slug": "taco-bell-allen",
-    "category": "Mexican",
-    "description": "Buy 1 Soft or Crispy Taco, get 1 free — no catch, just tacos.",
-    "expires_days": 30,
-    "hero_image": "/tacobell/tacobell-hero-freetaco.png",
-    "logo": "/tacobell/tacobell-logo.png",
-    "brand_color": "#702082",
-    "accent_color": "#8A2BE2",
-    "fine_print": "Valid for one free taco per purchase @ participating locations. Not valid with other offers.",
-    "addresses": [
-      { "label": "340 E Bethany Dr, Allen, TX 75002", "lat": null, "lng": null }
-    ]
-  },
+ "tacobell-freeitem": {
+  "active": true,
+  "title": "Free Taco!!!",
+  "restaurant": "Taco Bell",
+  "includes": "1 Taco",
+  "client_slug": "taco-bell-allen",
+  "category": "Mexican",
+  "description": "Buy 1 Soft or Crispy Taco, get 1 free — no catch, just tacos.",
+  "expires_days": 30,
+  "hero_image": "/tacobell/tacobell-hero-freetaco.png",
+  "logo": "/tacobell/tacobell-logo.png",
+  "brand_color": "#702082",
+  "accent_color": "#8A2BE2",
+  "fine_print": "Valid for one free taco per purchase @ participating locations. Not valid with other offers.",
+  "addresses": [
+    {
+      "label": "340 E Bethany Dr, Allen, TX 75002",
+      "lat": 33.1030,
+      "lng": -96.6700
+    }
+  ]
+},
 
   "popeyes-2pc": {
     "active": true,
