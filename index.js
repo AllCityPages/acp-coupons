@@ -417,47 +417,94 @@ function requireKey(req, res, next) {
 // GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
 // ADMIN: Geocode offers.json addresses (protected)
 // GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
+// ADMIN: Geocode offers.json addresses (protected)
+// GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
 app.get('/admin/geocode', requireKey, async (req, res) => {
-  try{
+  try {
     const dry = String(req.query.dry || '') === '1';
     const onlyId = (req.query.id || '').toString();
 
-    // Load + backup
+    // Load catalogs
     const offers = await jread(OFFERS_FILE, {});
-    const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
+    const storesRaw = await jread(STORES_FILE, {});
+
+    // Normalize stores into a simple list so we can "borrow" coords
+    const storeList = Object.entries(storesRaw).map(([code, meta]) => {
+      if (typeof meta === 'string') {
+        return { code, brand: meta, label: meta, lat: null, lng: null };
+      }
+      return {
+        code,
+        brand: meta.brand || '',
+        label: meta.label || meta.brand || code,
+        lat: isFiniteNum(meta.lat) ? Number(meta.lat) : null,
+        lng: isFiniteNum(meta.lng) ? Number(meta.lng) : null
+      };
+    });
+
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
     const backupPath = OFFERS_FILE.replace(/\.json$/i, `.backup-${stamp}.json`);
     if (!dry) fs.copyFileSync(OFFERS_FILE, backupPath);
 
     const ids = Object.keys(offers).filter(id => !onlyId || id === onlyId);
-    let requests = 0, hits = 0, misses = 0, touchedOffers = 0;
+    let requests = 0, hits = 0, misses = 0, touchedOffers = 0, borrowed = 0;
 
-    for (const id of ids){
+    for (const id of ids) {
       const o = offers[id];
 
       // Normalize to array "addresses"
       let list = [];
-      if (Array.isArray(o.addresses)) list = o.addresses.map(normalizeAddrEntry);
-      else if (o.address) { list = [ normalizeAddrEntry(o.address) ]; delete o.address; }
+      if (Array.isArray(o.addresses)) {
+        list = o.addresses.map(normalizeAddrEntry);
+      } else if (o.address) {
+        list = [normalizeAddrEntry(o.address)];
+        delete o.address;
+      }
 
       let updated = false;
+      const brand = (o.restaurant || o.brand || '').trim();
 
-      for (let i=0;i<list.length;i++){
+      for (let i = 0; i < list.length; i++) {
         const a = list[i];
         if (!a?.label) continue;
-        const needsGeo = !(isFiniteNum(a.lat) && isFiniteNum(a.lng));
-        if (!needsGeo) continue;
 
+        const hasGeo = isFiniteNum(a.lat) && isFiniteNum(a.lng);
+        if (hasGeo) continue;
+
+        // 1) Try external geocode
         requests++;
-        const geo = await geocodeLabel(a.label);
-        if (geo){
+        let geo = await geocodeLabel(a.label);
+        if (geo && isFiniteNum(geo.lat) && isFiniteNum(geo.lng)) {
           a.lat = geo.lat;
           a.lng = geo.lng;
           hits++;
           updated = true;
-        }else{
-          misses++;
+        } else {
+          // 2) Fallback: borrow from stores.json if there's a matching label
+          const needle = a.label.trim().toLowerCase();
+          let match = storeList.find(s =>
+            s.label && s.label.trim().toLowerCase().includes(needle)
+          );
+
+          // If we didn't find by label substring, try matching by brand first
+          if (!match && brand) {
+            match = storeList.find(s =>
+              s.brand.trim().toLowerCase() === brand.toLowerCase() &&
+              s.label && s.label.trim().toLowerCase().includes(needle)
+            );
+          }
+
+          if (match && isFiniteNum(match.lat) && isFiniteNum(match.lng)) {
+            a.lat = match.lat;
+            a.lng = match.lng;
+            borrowed++;
+            updated = true;
+          } else {
+            misses++;
+          }
         }
-        // Nominatim: 1 req/sec
+
+        // Nominatim etiquette: 1 req/sec (only for actual external hits)
         await sleep(1100);
       }
 
@@ -465,7 +512,7 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
       if (updated) touchedOffers++;
     }
 
-    if (!dry){
+    if (!dry) {
       await jwrite(OFFERS_FILE, offers);
     }
 
@@ -474,15 +521,17 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
       dry_run: dry,
       offers_processed: ids.length,
       offers_updated: touchedOffers,
-      requests, hits, misses,
+      requests,
+      hits,
+      misses,
+      borrowed_from_stores: borrowed,
       backup: dry ? null : path.basename(backupPath)
     });
-  }catch(e){
+  } catch (e) {
     console.error('geocode error', e);
-    res.status(500).json({ ok:false, error: 'geocode-failed' });
+    res.status(500).json({ ok: false, error: 'geocode-failed' });
   }
 });
-
 
 // ADMIN: Sync stores.json from offers.json (protected)
 // GET /admin/sync-stores?key=API_KEY[&dry=1]
