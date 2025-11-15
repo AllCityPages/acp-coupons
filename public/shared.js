@@ -304,7 +304,15 @@ const Shared = (function(){
     body.appendChild(headerRow);
     // ---------- /Header -------------------------------------------------
 
-    // Address block (uses nearest address + view all)
+    // FIRST: Offer description (swapped order)
+    if(o.description){
+      const p=document.createElement('p');
+      p.className='desc';
+      p.textContent=o.description;
+      body.appendChild(p);
+    }
+
+    // THEN: Address block (uses nearest address + view all)
     (function renderAddress(){
       const info=nearestAddress(o);
       const addrs=normalizeAddresses(o);
@@ -347,13 +355,6 @@ const Shared = (function(){
         }
       }
     })();
-
-    if(o.description){
-      const p=document.createElement('p');
-      p.className='desc';
-      p.textContent=o.description;
-      body.appendChild(p);
-    }
 
     const meta=document.createElement('div');
     meta.className='meta';
