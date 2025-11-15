@@ -415,11 +415,14 @@ function requireKey(req, res, next) {
 
 // ADMIN: Geocode offers.json addresses (protected)
 // GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
+// ADMIN: Geocode offers.json addresses (protected)
+// GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
 app.get('/admin/geocode', requireKey, async (req, res) => {
   try{
     const dry = String(req.query.dry || '') === '1';
     const onlyId = (req.query.id || '').toString();
 
+    // Load + backup
     const offers = await jread(OFFERS_FILE, {});
     const stamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,15);
     const backupPath = OFFERS_FILE.replace(/\.json$/i, `.backup-${stamp}.json`);
@@ -431,6 +434,7 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
     for (const id of ids){
       const o = offers[id];
 
+      // Normalize to array "addresses"
       let list = [];
       if (Array.isArray(o.addresses)) list = o.addresses.map(normalizeAddrEntry);
       else if (o.address) { list = [ normalizeAddrEntry(o.address) ]; delete o.address; }
@@ -453,8 +457,8 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
         }else{
           misses++;
         }
-
-        await sleep(1100); // Nominatim: ~1 req/sec
+        // Nominatim: 1 req/sec
+        await sleep(1100);
       }
 
       if (list.length) o.addresses = list;
@@ -475,9 +479,10 @@ app.get('/admin/geocode', requireKey, async (req, res) => {
     });
   }catch(e){
     console.error('geocode error', e);
-    res.status(500).json({ ok:false, error: 'geocode-failed', message: e.message || String(e) });
+    res.status(500).json({ ok:false, error: 'geocode-failed' });
   }
 });
+
 
 // ADMIN: Sync stores.json from offers.json (protected)
 // GET /admin/sync-stores?key=API_KEY[&dry=1]
