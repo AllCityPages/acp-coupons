@@ -304,7 +304,7 @@ const Shared = (function(){
     body.appendChild(headerRow);
     // ---------- /Header -------------------------------------------------
 
-    // FIRST: Offer description (swapped order)
+    // FIRST: Offer description
     if(o.description){
       const p=document.createElement('p');
       p.className='desc';
@@ -355,6 +355,14 @@ const Shared = (function(){
         }
       }
     })();
+
+    // Fine print (small legal text)
+    if (o.fine_print) {
+      const fp = document.createElement('p');
+      fp.className = 'fineprint';
+      fp.textContent = o.fine_print;
+      body.appendChild(fp);
+    }
 
     const meta=document.createElement('div');
     meta.className='meta';
