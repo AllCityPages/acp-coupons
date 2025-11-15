@@ -289,7 +289,7 @@ app.get('/api/offers', async (req, res) => {
         brand_color: o.brand_color,
         accent_color: o.accent_color,
         addresses: o.addresses || [],
-
+        fine_print: o.fine_print,
         // ⭐ pass Includes text through to the front-end
         includes: (o.includes || o.Includes || o.bundle || '').trim()
       }));
