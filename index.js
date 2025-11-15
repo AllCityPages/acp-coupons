@@ -8,7 +8,7 @@ const fsp = require('fs/promises');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const puppeteer = require('puppeteer');
-const https = require('https'); // <-- NEW: use https instead of fetch for geocode
+const https = require('https'); // NEW: use https instead of fetch for geocode
 
 const app = express();
 app.use(express.json());
@@ -172,7 +172,7 @@ app.get('/offers.json', (_req, res) => {
 app.get('/manifest.json', (_req, res) => {
   res.type('application/manifest+json; charset=utf-8');
   res.sendFile(path.join(PUBLIC_DIR, 'manifest.json'));
-};
+});
 app.get('/redeem.html', (_req, res) => {
   res.type('text/html; charset=utf-8');
   res.sendFile(path.join(PUBLIC_DIR, 'redeem.html'));
