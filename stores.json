@@ -1,10 +1,85 @@
 {
-  "TACB-001": { "brand": "Taco Bell", "lat": 33.103, "lng": -96.670, "pos": "toast", "pos_rest_id": "REST_TACB_001" },
-  "TB-FRISCO-123": {
+  "tacobell-allen-bethany": {
     "brand": "Taco Bell",
-    "pos": "local-bridge",
-    "bridge_url": "http://127.0.0.1:1969/apply-discount"},
-  
-  "POPE-001": { "brand": "Popeye's", "lat": 33.201, "lng": -96.638, "pos": "local-bridge", "bridge_url": "http://127.0.0.1:1969/apply-discount" },
-}
+    "label": "Taco Bell — 340 E Bethany Dr, Allen, TX 75002",
+    "lat": 33.1030,
+    "lng": -96.6700
+  },
 
+  "popeyes-mckinney-121": {
+    "brand": "Popeyes",
+    "label": "Popeyes — 6520 State Highway 121, McKinney, TX 75070",
+    "lat": 33.2010,
+    "lng": -96.6380
+  },
+
+  "mcdonalds-mckinney-university": {
+    "brand": "McDonald's",
+    "label": "McDonald's — 1810 W University Dr, McKinney, TX 75071",
+    "lat": 33.2190,
+    "lng": -96.6400
+  },
+
+  "burgerking-mckinney-121": {
+    "brand": "Burger King",
+    "label": "Burger King — 6510 State Highway 121, McKinney, TX 75070",
+    "lat": 33.2015,
+    "lng": -96.6410
+  },
+
+  "wendys-mckinney-eldorado": {
+    "brand": "Wendy's",
+    "label": "Wendy's — 1951 W Eldorado Pkwy, McKinney, TX 75069",
+    "lat": 33.1950,
+    "lng": -96.6470
+  },
+
+  "kfc-mckinney-university": {
+    "brand": "KFC",
+    "label": "KFC — 2030 W University Dr, McKinney, TX 75071",
+    "lat": 33.2195,
+    "lng": -96.6490
+  },
+
+  "pizzahut-mckinney-university": {
+    "brand": "Pizza Hut",
+    "label": "Pizza Hut — 4987 W University Dr, McKinney, TX 75071",
+    "lat": 33.2260,
+    "lng": -96.6760
+  },
+
+  "chipotle-mckinney-university": {
+    "brand": "Chipotle",
+    "label": "Chipotle — 8751 W University Dr #130, McKinney, TX 75071",
+    "lat": 33.2205,
+    "lng": -96.7330
+  },
+
+  "subway-mckinney-university": {
+    "brand": "Subway",
+    "label": "Subway — 1705 W University Dr #114, McKinney, TX 75069",
+    "lat": 33.2193,
+    "lng": -96.6335
+  },
+
+  "whataburger-mckinney-central": {
+    "brand": "Whataburger",
+    "label": "Whataburger — 445 S Central Expy, McKinney, TX 75070",
+    "lat": 33.1930,
+    "lng": -96.6190
+  },
+
+  "sonic-mckinney-eldorado": {
+    "brand": "Sonic Drive-In",
+    "label": "Sonic — 6481 Eldorado Pkwy, McKinney, TX 75070",
+    "lat": 33.1745,
+    "lng": -96.7090
+  },
+
+  "dairyqueen-mckinney-louisiana": {
+    "brand": "Dairy Queen",
+    "label": "Dairy Queen — 1835 W Louisiana St, McKinney, TX 75069",
+    "lat": 33.1960,
+    "lng": -96.6540
+  }
+}
