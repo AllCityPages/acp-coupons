@@ -1,5 +1,5 @@
-// shared.js — v32
-// - 2-column header layout per theme.css v30.1
+// shared.js — v33
+// - 2-column header layout per theme.css v30.4
 //   Left column (3 rows): Restaurant, Title, Includes
 //   Right column: Logo (top), Mileage (bottom)
 
@@ -288,15 +288,27 @@ const Shared = (function(){
       const distEl=document.createElement('div');
       distEl.className='brand-distance';
       let distText='';
+
+      // 1) Try nearest address distance (per-offer)
       const near=nearestAddress(o);
-      if (near && isFinite(near.distanceKm)){
-        distText = safeMiles(near.distanceKm);
-      } else if(_nearby.brandDist && _nearby.brandDist.size){
-        const d=_nearby.brandDist.get((o.restaurant||'').toLowerCase());
-        if (isFinite(d)) distText = safeMiles(d);
+      if (near){
+        const sm = safeMiles(near.distanceKm); // uses default 200mi cap
+        if (sm) distText = sm;
       }
-      distEl.textContent = distText;
-      if (distText) stack.appendChild(distEl);
+
+      // 2) Fallback to brand-level distance if address distance is missing/too far
+      if (!distText && _nearby.brandDist && _nearby.brandDist.size){
+        const d=_nearby.brandDist.get((o.restaurant||'').toLowerCase());
+        if (isFinite(d)){
+          const smBrand = safeMiles(d, 500); // more generous max for brand
+          if (smBrand) distText = smBrand;
+        }
+      }
+
+      if (distText){
+        distEl.textContent = distText;
+        stack.appendChild(distEl);
+      }
 
       headerRow.appendChild(stack);
     }
