@@ -45,10 +45,15 @@
     <footer class="footer">
       AllCityPages.com | info@AllCityPages.com
     </footer>
+
+    <!-- Visible build/version marker to confirm newest layout -->
+    <div style="text-align:center; padding:8px 0; font-size:12px; color:#666;">
+      🔧 Layout Build: <strong>v-card-2025-11-15-01</strong>
+    </div>
   </div>
 
   <!-- shared bundle -->
-  <script src="/shared.js?v=32"></script>
+  <script src="/shared.js?v=34"></script>
 
   <script>
     (async function init(){
@@ -133,16 +138,16 @@
 
       render();
 
-     /*
-    if ('serviceWorker' in navigator){
-      const SW_VERSION = '15';
-      navigator.serviceWorker
-        .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
-        .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
-        .catch(()=>{});
-    }
-    */
-
+      // Service worker temporarily disabled to bust old mobile cache
+      /*
+      if ('serviceWorker' in navigator){
+        const SW_VERSION = '15';
+        navigator.serviceWorker
+          .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
+          .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
+          .catch(()=>{});
+      }
+      */
     })();
   </script>
 </body>
