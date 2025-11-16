@@ -13,9 +13,12 @@
   <meta name="apple-mobile-web-app-title" content="Local Deals Hub">
 
   <!-- Icons for browsers / iOS (ensure these files exist) -->
+  <!-- Generic icons (Android, browsers, etc.) -->
   <link rel="icon" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="icon" sizes="512x512" href="/icons/icon-512.png">
+
+  <!-- iOS home-screen icon (main one iOS will prefer) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180.png">
 
   <!-- Uses v30.4 layout CSS -->
   <link rel="stylesheet" href="/theme.css?v=30.4">
@@ -61,7 +64,6 @@
 
   <!-- shared bundle -->
   <script src="/shared.js?v=33"></script>
-
   <script>
     (async function init(){
       const data = await fetch('/api/offers')
@@ -78,6 +80,7 @@
         const cats = [...new Set(
           rows.map(r => (r.category || '').trim()).filter(Boolean)
         )].sort((a,b)=>a.localeCompare(b));
+
         cats.forEach(c=>{
           const o=document.createElement('option');
           o.value=c;
@@ -121,6 +124,7 @@
         document.getElementById('q').value = '';
         document.getElementById('brand').value = '';
         document.getElementById('category').value = '';
+
         state.q = '';
         state.brand = '';
         state.category = '';
