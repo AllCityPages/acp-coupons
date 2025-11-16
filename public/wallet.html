@@ -34,9 +34,14 @@
     <footer class="footer">
       AllCityPages.com | info@AllCityPages.com
     </footer>
+
+    <!-- Visible build/version marker -->
+    <div style="text-align:center; padding:8px 0; font-size:12px; color:#666;">
+      🔧 Wallet Build: <strong>v-card-2025-11-15-01</strong>
+    </div>
   </div>
 
-  <script src="/shared.js?v=29"></script>
+  <script src="/shared.js?v=34"></script>
   <script>
     (async function init(){
       const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
@@ -142,13 +147,16 @@
         }
       });
 
+      // Service worker temporarily disabled to bust old mobile cache
+      /*
       if ('serviceWorker' in navigator){
         const SW_VERSION = '15';
         navigator.serviceWorker
-          .register('/service-worker.js?v=15'+SW_VERSION,{updateViaCache:'none'})
+          .register('/service-worker.js?v=' + SW_VERSION,{updateViaCache:'none'})
           .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
           .catch(()=>{});
       }
+      */
     })();
   </script>
 </body>
