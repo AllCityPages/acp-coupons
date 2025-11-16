@@ -5,6 +5,17 @@
   <title>Wallet & Favorites — Deals</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
+
+  <!-- PWA manifest + iOS meta -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Local Deals Hub">
+
+  <link rel="icon" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+
   <link rel="stylesheet" href="/theme.css?v=30.4">
 </head>
 <body>
@@ -34,14 +45,9 @@
     <footer class="footer">
       AllCityPages.com | info@AllCityPages.com
     </footer>
-
-    <!-- Visible build/version marker -->
-    <div style="text-align:center; padding:8px 0; font-size:12px; color:#666;">
-      🔧 Wallet Build: <strong>v-card-2025-11-15-01</strong>
-    </div>
   </div>
 
-  <script src="/shared.js?v=34"></script>
+  <script src="/shared.js?v=33"></script>
   <script>
     (async function init(){
       const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
@@ -147,16 +153,16 @@
         }
       });
 
-      // Service worker temporarily disabled to bust old mobile cache
-      /*
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '15';
+        const SW_VERSION = '16';
         navigator.serviceWorker
-          .register('/service-worker.js?v=' + SW_VERSION,{updateViaCache:'none'})
-          .then(reg=>{ if (reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); reg.update(); })
+          .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
+          .then(reg => {
+            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
+            reg.update();
+          })
           .catch(()=>{});
       }
-      */
     })();
   </script>
 </body>
