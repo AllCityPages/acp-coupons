@@ -12,9 +12,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Local Deals Hub">
 
+  <!-- Icons for browsers / iOS -->
   <link rel="icon" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="icon" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180.png">
 
   <link rel="stylesheet" href="/theme.css?v=30.4">
 </head>
@@ -50,7 +51,9 @@
   <script src="/shared.js?v=33"></script>
   <script>
     (async function init(){
-      const all = await fetch('/api/offers').then(r=>r.json()).then(x=>x.offers || []);
+      const all = await fetch('/api/offers')
+        .then(r=>r.json())
+        .then(x=>x.offers || []);
 
       const url = new URL(location.href);
       let currentTab = (url.searchParams.get('tab') === 'favorites') ? 'favorites' : 'wallet';
@@ -68,7 +71,9 @@
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         (currentTab === 'wallet' ? tabWallet : tabFavorites).classList.add('active');
 
-        if (state.sortNearby) btnNear.classList.add('active'); else btnNear.classList.remove('active');
+        if (state.sortNearby) btnNear.classList.add('active');
+        else btnNear.classList.remove('active');
+
         btnNear.textContent = state.sortNearby ? '📍 Sorted by Nearby' : '📍 Sort by Nearby';
 
         if (currentTab === 'wallet'){
@@ -83,10 +88,19 @@
         history.replaceState(null, '', url.toString());
       }
 
-      tabWallet.onclick = () => { currentTab = 'wallet'; setActiveTabUI(); render(); };
-      tabFavorites.onclick = () => { currentTab = 'favorites'; setActiveTabUI(); render(); };
+      tabWallet.onclick = () => {
+        currentTab = 'wallet';
+        setActiveTabUI();
+        render();
+      };
 
-      btnNear.onclick = async ()=>{
+      tabFavorites.onclick = () => {
+        currentTab = 'favorites';
+        setActiveTabUI();
+        render();
+      };
+
+      btnNear.onclick = async () => {
         state.sortNearby = !state.sortNearby;
         if (state.sortNearby) await Shared.computeNearbySort();
         setActiveTabUI();
@@ -95,6 +109,7 @@
 
       async function render(){
         let subset;
+
         if (currentTab === 'wallet'){
           const walletIds = new Set(Shared.getWalletIds());
           subset = all.filter(o => walletIds.has(String(o.id)));
@@ -102,16 +117,21 @@
           const favIds = new Set(Shared.getFavoriteIds());
           subset = all.filter(o => favIds.has(String(o.id)));
         }
+
         countEl.textContent = subset.length;
 
         let rows = Shared.applyFilter(subset, state);
         if (currentTab === 'wallet' && state.sortNearby) {
-          if (!Shared.__nearbyReady) { await Shared.computeNearbySort(); Shared.__nearbyReady = true; }
+          if (!Shared.__nearbyReady) {
+            await Shared.computeNearbySort();
+            Shared.__nearbyReady = true;
+          }
           rows = Shared.sortByNearby(rows);
         }
 
         const grid = document.getElementById('grid');
         grid.innerHTML = '';
+
         rows.forEach(o => {
           const card = Shared.makeCard(o, {wallet: currentTab==='wallet'});
           grid.appendChild(card);
@@ -122,12 +142,15 @@
 
         const sugWrap = document.getElementById('suggest');
         const moreTitle = document.getElementById('moreTitle');
+
         if (currentTab === 'wallet'){
           const inWallet = new Set(Shared.getWalletIds());
           const pool = all.filter(o => !inWallet.has(String(o.id)));
           const sug = pool.slice(0, 8);
+
           moreTitle.style.display = sug.length ? 'block' : 'none';
           sugWrap.innerHTML = '';
+
           sug.forEach(o => {
             const c = Shared.makeCard(o);
             sugWrap.appendChild(c);
