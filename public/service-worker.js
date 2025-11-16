@@ -1,90 +1,58 @@
-/* service-worker.js — cache v7 (API bypass) */
-const VERSION = 'v7';
-const STATIC_CACHE = `static-${VERSION}`;
-const HTML_CACHE   = `html-${VERSION}`;
-const STATIC_ASSETS = [
-  '/theme.css',
-  '/shared.js',
-  '/offers.html',
-  '/wallet.html',
+// service-worker.js — v15
+// - Do NOT cache HTML pages (offers.html, wallet.html, etc.)
+// - Cache versioned static assets only (CSS/JS/images)
+
+const CACHE_VERSION = 'acp-static-v15';
+const PRECACHE = [
+  '/theme.css?v=30.4',
+  '/shared.js?v=32',
+  '/logo.png'
 ];
 
-/* ---------- Install: pre-cache core assets & take control ---------- */
-self.addEventListener('install', (event) => {
-  self.skipWaiting();
+// Install: pre-cache core static assets
+self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_ASSETS)).catch(()=>{})
+    caches.open(CACHE_VERSION).then(cache => cache.addAll(PRECACHE))
   );
+  self.skipWaiting();
 });
 
-/* ---------- Activate: clean old caches & claim clients ---------- */
-self.addEventListener('activate', (event) => {
-  event.waitUntil((async () => {
-    const keep = new Set([STATIC_CACHE, HTML_CACHE]);
-    const keys = await caches.keys();
-    await Promise.all(keys.filter(k => !keep.has(k)).map(k => caches.delete(k)));
-    await self.clients.claim();
-  })());
+// Activate: clean up old caches
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(
+        keys
+          .filter(k => k !== CACHE_VERSION)
+          .map(k => caches.delete(k))
+      )
+    )
+  );
+  self.clients.claim();
 });
 
-/* ---------- Helpers ---------- */
-async function networkFirstHTML(request) {
-  try {
-    const net = await fetch(request, { cache: 'no-store' });
-    const cache = await caches.open(HTML_CACHE);
-    cache.put(request, net.clone());
-    return net;
-  } catch (err) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    throw err;
-  }
-}
-async function cacheFirstStatic(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const net = await fetch(request);
-  const pathname = new URL(request.url).pathname;
-  if (net.ok && /\.(css|js|mjs|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)) {
-    const cache = await caches.open(STATIC_CACHE);
-    cache.put(request, net.clone());
-  }
-  return net;
-}
-async function networkOnlyNoStore(request) {
-  // Always hit the network; do not cache results
-  return fetch(request, { cache: 'no-store' });
-}
-
-/* ---------- Fetch router ---------- */
-self.addEventListener('fetch', (event) => {
+// Fetch: network for HTML, cache-first for static assets
+self.addEventListener('fetch', event => {
   const req = event.request;
-  if (req.method !== 'GET') return;
 
-  const url = new URL(req.url);
-
-  // ✅ Never cache API/QR/coupon resources (fresh on every request)
-  const isApi = url.pathname.startsWith('/api/');
-  const isOfferJson = url.pathname === '/offers.json';
-  const isQr = url.pathname.startsWith('/qr');
-  const isCoupon = url.pathname.startsWith('/coupon');
-  if (isApi || isOfferJson || isQr || isCoupon) {
-    event.respondWith(networkOnlyNoStore(req));
+  // 1) Never intercept HTML pages – always go to network
+  const accept = req.headers.get('accept') || '';
+  if (accept.includes('text/html')) {
+    // Let the browser handle this (no respondWith) so it hits the server
     return;
   }
 
-  // HTML navigations → network-first (so updates show up), fallback to cache
-  const isHTML = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
-  if (isHTML) {
-    event.respondWith(networkFirstHTML(req));
-    return;
-  }
-
-  // Everything else (css/js/images/fonts) → cache-first
-  event.respondWith(cacheFirstStatic(req));
-});
-
-/* ---------- Allow pages to trigger immediate activation ---------- */
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+  // 2) Cache-first for everything else (CSS, JS, images)
+  event.respondWith(
+    caches.match(req).then(cached => {
+      if (cached) return cached;
+      return fetch(req).then(resp => {
+        if (req.method === 'GET') {
+          const clone = resp.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(req, clone));
+        }
+        return resp;
+      });
+    })
+  );
 });
