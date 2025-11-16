@@ -133,14 +133,15 @@
 
       render();
 
-     if ('serviceWorker' in navigator){
-  const SW_VERSION = '15';   // ⬅ bump this
-  navigator.serviceWorker
-    .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
-    .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
-    .catch(()=>{});
-}
-
+     /*
+    if ('serviceWorker' in navigator){
+      const SW_VERSION = '15';
+      navigator.serviceWorker
+        .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
+        .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
+        .catch(()=>{});
+    }
+    */
 
     })();
   </script>
