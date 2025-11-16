@@ -5,6 +5,18 @@
   <title>Local Deals Hub</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffd400">
+
+  <!-- PWA manifest + iOS meta -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Local Deals Hub">
+
+  <!-- Icons for browsers / iOS (ensure these files exist) -->
+  <link rel="icon" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png">
+
   <!-- Uses v30.4 layout CSS -->
   <link rel="stylesheet" href="/theme.css?v=30.4">
 </head>
@@ -45,15 +57,10 @@
     <footer class="footer">
       AllCityPages.com | info@AllCityPages.com
     </footer>
-
-    <!-- Visible build/version marker to confirm newest layout -->
-    <div style="text-align:center; padding:8px 0; font-size:12px; color:#666;">
-      🔧 Layout Build: <strong>v-card-2025-11-15-01</strong>
-    </div>
   </div>
 
   <!-- shared bundle -->
-  <script src="/shared.js?v=34"></script>
+  <script src="/shared.js?v=33"></script>
 
   <script>
     (async function init(){
@@ -138,16 +145,17 @@
 
       render();
 
-      // Service worker temporarily disabled to bust old mobile cache
-      /*
+      // ✅ Re-enable PWA service worker with clear version
       if ('serviceWorker' in navigator){
-        const SW_VERSION = '15';
+        const SW_VERSION = '16';
         navigator.serviceWorker
           .register('/service-worker.js?v=' + SW_VERSION, { updateViaCache: 'none' })
-          .then(reg => { if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' }); reg.update(); })
+          .then(reg => {
+            if (reg.waiting) reg.waiting.postMessage({ type:'SKIP_WAITING' });
+            reg.update();
+          })
           .catch(()=>{});
       }
-      */
     })();
   </script>
 </body>
