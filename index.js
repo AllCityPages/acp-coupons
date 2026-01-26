@@ -335,7 +335,7 @@ app.get('/api/offers', async (req, res) => {
     const map = await jread(OFFERS_FILE, {});  // { "id": { ...offer... }, ... }
 
     const offers = Object.entries(map)
-      .filter(([id, o]) => o && o.active !== false)
+      .filter(([id, o]) => o && o.active !== false && !isExpiredOffer(o))
       .map(([id, o]) => ({
         id,
         title: o.title,
