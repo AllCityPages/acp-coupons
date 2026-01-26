@@ -60,6 +60,35 @@ function sendCsv(res, filename, csvString) {
   res.status(200).send('\uFEFF' + csvString);
 }
 
+function requireKeyJson(req, res, next) {
+  const k = req.header('x-api-key') || req.query.key || '';
+  if (!API_KEY) return res.status(500).json({ error: 'Server missing API_KEY' });
+  if (k !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
+  next();
+}
+
+function parseDateISO(s){
+  const d = new Date(String(s || ''));
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+function daysUntil(date){
+  const now = new Date();
+  const ms = date.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(ms / (1000*60*60*24)));
+}
+
+function isExpiredOffer(o){
+  // Preferred: expires_on (YYYY-MM-DD or ISO)
+  if (o && o.expires_on){
+    const d = parseDateISO(o.expires_on);
+    if (d) return d.getTime() < Date.now();
+  }
+  // Backcompat: expires_days (treated as remaining days if you keep manually updating it)
+  if (typeof o.expires_days === 'number' && o.expires_days <= 0) return true;
+  return false;
+}
+
 // ---------- Geocode helpers ----------
 const NOM_USER_AGENT = 'ACP-Coupons/1.0 (contact: info@AllCityPages.com)';
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
