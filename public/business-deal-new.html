@@ -1,1 +1,186 @@
-abc
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Create Deal • AllCityPages</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/theme.css?v=30.4">
+  <style>
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media(max-width:900px){.two{grid-template-columns:1fr}}
+    .panel{border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:16px;background:#fff}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+    textarea{min-height:90px;resize:vertical}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .row > *{flex:1}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+    .danger{color:#b91c1c}
+  </style>
+</head>
+<body>
+  <div class="site">
+    <header class="header">
+      <a class="logo logo--back" href="/offers.html" aria-label="Back">←</a>
+      <div class="title">
+        <h1>Create a Deal</h1>
+        <p>1–2–3 done. Your deal will appear on the Deals Hub instantly.</p>
+      </div>
+    </header>
+
+    <div class="two">
+      <div class="panel">
+        <h3 style="margin-top:0">Deal Details</h3>
+
+        <label>Business Name *</label>
+        <input id="restaurant" placeholder="e.g., Taco Bell">
+
+        <label>Deal Title *</label>
+        <input id="title" placeholder="e.g., Free Taco">
+
+        <label>What’s included</label>
+        <input id="includes" placeholder="e.g., 1 Taco">
+
+        <div class="row">
+          <div>
+            <label>Category *</label>
+            <input id="category" placeholder="e.g., Mexican">
+          </div>
+          <div>
+            <label>Expires On *</label>
+            <input id="expires_on" type="date">
+          </div>
+        </div>
+
+        <label>Description *</label>
+        <textarea id="description" placeholder="What’s the offer? What should the customer do?"></textarea>
+
+        <label>Terms / Fine Print</label>
+        <textarea id="fine_print" placeholder="Limit 1 per customer…"></textarea>
+
+        <label>Business Age Classification *</label>
+        <select id="age_gate">
+          <option value="all-ages">All ages (Family-friendly)</option>
+          <option value="18-plus-only">18+ only (No one under 18 allowed)</option>
+          <option value="21-plus-only">21+ only (No one under 21 allowed)</option>
+        </select>
+        <div class="hint">
+          If your venue is adult-only, you must select the correct option. Misclassification can result in takedown.
+        </div>
+
+        <h4 style="margin:18px 0 6px">Images</h4>
+        <label>Logo URL</label>
+        <input id="logo" placeholder="/brand/logo.png or https://...">
+
+        <label>Hero Image URL</label>
+        <input id="hero_image" placeholder="/brand/hero.png or https://...">
+
+        <h4 style="margin:18px 0 6px">Addresses</h4>
+        <div class="hint">Paste one address per line (we’ll geocode later).</div>
+        <textarea id="addresses" placeholder="340 E Bethany Dr, Allen, TX 75002&#10;..."></textarea>
+
+        <div class="row" style="margin-top:14px">
+          <button id="btn-preview" class="btn-compact">Update Preview</button>
+          <button id="btn-publish" class="btn-compact" style="background:#111827;color:#fff;border-color:#111827">Publish Deal</button>
+        </div>
+
+        <div id="msg" class="hint"></div>
+      </div>
+
+      <div class="panel">
+        <h3 style="margin-top:0">Live Preview</h3>
+        <div id="preview"></div>
+        <div class="hint">
+          This preview uses your exact live card renderer (<code>Shared.makeCard()</code>), so what you see here matches the hub.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/shared.js?v=33"></script>
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    const msg = (t, bad=false)=>{ $('msg').innerHTML = bad ? `<span class="danger">${t}</span>` : t; };
+
+    function buildOfferObject(){
+      const addrsRaw = ($('addresses').value || '').split('\n').map(s=>s.trim()).filter(Boolean);
+      const addresses = addrsRaw.map(label => ({ label, lat:null, lng:null }));
+
+      const expires_on = $('expires_on').value;
+      const expDays = expires_on ? Math.max(0, Math.ceil((new Date(expires_on)-new Date())/(1000*60*60*24))) : 0;
+
+      return {
+        id: 'preview',
+        active: true,
+        restaurant: $('restaurant').value.trim(),
+        title: $('title').value.trim(),
+        includes: $('includes').value.trim(),
+        category: $('category').value.trim(),
+        description: $('description').value.trim(),
+        fine_print: $('fine_print').value.trim(),
+        expires_on,
+        expires_days: expDays,
+        logo: $('logo').value.trim(),
+        hero_image: $('hero_image').value.trim(),
+        addresses,
+        age_gate: $('age_gate').value
+      };
+    }
+
+    function renderPreview(){
+      const o = buildOfferObject();
+      const host = $('preview');
+      host.innerHTML = '';
+      // Reuse your existing card system
+      const card = Shared.makeCard(o);
+      host.appendChild(card);
+    }
+
+    $('btn-preview').onclick = renderPreview;
+
+    $('btn-publish').onclick = async () => {
+      const o = buildOfferObject();
+      if (!o.restaurant || !o.title || !o.description || !o.category || !o.expires_on){
+        msg('Please fill Business Name, Deal Title, Category, Description, and Expires On.', true);
+        return;
+      }
+
+      const key = prompt('Enter admin key to publish:');
+      if (!key) return;
+
+      msg('Publishing…');
+
+      const payload = {
+        restaurant:o.restaurant,
+        title:o.title,
+        includes:o.includes,
+        category:o.category,
+        description:o.description,
+        fine_print:o.fine_print,
+        expires_on:o.expires_on,
+        logo:o.logo,
+        hero_image:o.hero_image,
+        addresses:o.addresses,
+        age_gate:o.age_gate
+      };
+
+      const res = await fetch('/api/admin/offers/create', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':key},
+        body:JSON.stringify(payload)
+      }).catch(()=>null);
+
+      if(!res){ msg('Publish failed (network).', true); return; }
+
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok){ msg(data.error || 'Publish failed.', true); return; }
+
+      msg(`✅ Published! Offer ID: ${data.id}. Open /offers.html to confirm.`);
+    };
+
+    // Initial preview
+    renderPreview();
+  </script>
+</body>
+</html>
+
