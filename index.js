@@ -8,7 +8,7 @@ const fsp = require('fs/promises');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const puppeteer = require('puppeteer');
-const https = require('https'); // NEW: use https instead of fetch for geocode
+const https = require('https'); // use https instead of fetch for geocode
 
 const app = express();
 app.use(express.json());
@@ -60,31 +60,23 @@ function sendCsv(res, filename, csvString) {
   res.status(200).send('\uFEFF' + csvString);
 }
 
-function requireKeyJson(req, res, next) {
-  const k = req.header('x-api-key') || req.query.key || '';
-  if (!API_KEY) return res.status(500).json({ error: 'Server missing API_KEY' });
-  if (k !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
-  next();
-}
-
-function parseDateISO(s){
+// NEW: offer expiry helpers (auto-hide expired offers)
+function parseDateISO(s) {
   const d = new Date(String(s || ''));
   return Number.isFinite(d.getTime()) ? d : null;
 }
-
-function daysUntil(date){
+function daysUntil(date) {
   const now = new Date();
   const ms = date.getTime() - now.getTime();
-  return Math.max(0, Math.ceil(ms / (1000*60*60*24)));
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
-
-function isExpiredOffer(o){
+function isExpiredOffer(o) {
   // Preferred: expires_on (YYYY-MM-DD or ISO)
-  if (o && o.expires_on){
+  if (o && o.expires_on) {
     const d = parseDateISO(o.expires_on);
     if (d) return d.getTime() < Date.now();
   }
-  // Backcompat: expires_days (treated as remaining days if you keep manually updating it)
+  // Backcompat: expires_days (if you keep manually managing it)
   if (typeof o.expires_days === 'number' && o.expires_days <= 0) return true;
   return false;
 }
@@ -102,7 +94,7 @@ function normalizeAddrEntry(entry){
   };
 }
 
-// NEW: plain https JSON fetcher (no global fetch / node-fetch needed)
+// plain https JSON fetcher (no global fetch / node-fetch needed)
 function httpGetJson(url, headers = {}) {
   return new Promise((resolve, reject) => {
     try {
@@ -207,6 +199,12 @@ app.get('/redeem.html', (_req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'redeem.html'));
 });
 
+// NEW: Business Deal Creator page (static file in /public)
+app.get('/business/deals/new', (_req, res) => {
+  res.type('text/html; charset=utf-8');
+  res.sendFile(path.join(PUBLIC_DIR, 'business-deal-new.html'));
+});
+
 // ---------- load catalogs ----------
 async function loadCatalog() {
   const offers = await jread(OFFERS_FILE, {});
@@ -287,7 +285,7 @@ app.get('/coupon/view', async (req, res) => {
 <h2>${offer.title || 'Coupon'}</h2>
 <p>${offer.restaurant || ''}</p>
 ${offer.hero_image ? `<img src="${offer.hero_image}" style="max-width:100%;border-radius:12px">` : ''}
-<p>Status: <b>${pass.status.toUpperCase()}</b>${pass.status === 'redeemed' ? ' ✅' : ''}</p>
+<p>Status: <b>${String(pass.status || '').toUpperCase()}</b>${pass.status === 'redeemed' ? ' ✅' : ''}</p>
 <p>Token (short): <code>${pass.token_hash}</code></p>
 <a class="contrast" href="/redeem.html?token=${encodeURIComponent(token)}">Show Cashier</a>
 </body></html>`);
@@ -328,7 +326,8 @@ app.post('/api/redeem', async (req, res) => {
 });
 
 // ======================================================================
-//  PUBLIC OFFERS API (includes logo + addresses + hero_nozoom + includes)
+//  PUBLIC OFFERS API (includes logo + addresses + includes)
+//  UPDATED: auto-hide expired offers using expires_on (preferred)
 // ======================================================================
 app.get('/api/offers', async (req, res) => {
   try {
@@ -336,26 +335,101 @@ app.get('/api/offers', async (req, res) => {
 
     const offers = Object.entries(map)
       .filter(([id, o]) => o && o.active !== false && !isExpiredOffer(o))
-      .map(([id, o]) => ({
-        id,
-        title: o.title,
-        restaurant: o.restaurant,
-        description: o.description,
-        category: o.category,
-        expires_days: o.expires_days,
-        hero_image: o.hero_image,
-        logo: o.logo,
-        brand_color: o.brand_color,
-        accent_color: o.accent_color,
-        addresses: o.addresses || [],
-        fine_print: o.fine_print,
-        includes: (o.includes || o.Includes || o.bundle || '').trim()
-      }));
+      .map(([id, o]) => {
+        const expDays = o.expires_on
+          ? daysUntil(parseDateISO(o.expires_on) || new Date())
+          : o.expires_days;
+
+        return {
+          id,
+          title: o.title,
+          restaurant: o.restaurant,
+          description: o.description,
+          category: o.category,
+          expires_days: expDays,
+          expires_on: o.expires_on || null,
+          hero_image: o.hero_image,
+          hero_nozoom: o.hero_nozoom === true,
+          logo: o.logo,
+          brand_color: o.brand_color,
+          accent_color: o.accent_color,
+          addresses: o.addresses || [],
+          fine_print: o.fine_print,
+          includes: (o.includes || o.Includes || o.bundle || '').trim(),
+          age_gate: o.age_gate || 'all-ages'
+        };
+      });
 
     res.json({ offers });
   } catch (err) {
     console.error('Error in /api/offers:', err);
     res.status(500).json({ offers: [], error: 'Failed to load offers' });
+  }
+});
+
+// ======================================================================
+//  ADMIN: Create offers (writes to offers.json) — protected by API_KEY
+//  POST /api/admin/offers/create   (header x-api-key: API_KEY)
+// ======================================================================
+function requireKeyJson(req, res, next) {
+  const k = req.header('x-api-key') || req.query.key || '';
+  if (!API_KEY) return res.status(500).json({ error: 'Server missing API_KEY' });
+  if (k !== API_KEY) return res.status(401).json({ error: 'Invalid API key' });
+  next();
+}
+
+app.post('/api/admin/offers/create', requireKeyJson, async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    const restaurant = String(body.restaurant || '').trim();
+    const title = String(body.title || '').trim();
+    const description = String(body.description || '').trim();
+    const category = String(body.category || '').trim();
+    const expires_on = String(body.expires_on || '').trim(); // YYYY-MM-DD preferred
+
+    if (!restaurant || !title || !description || !category || !expires_on) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const exp = parseDateISO(expires_on);
+    if (!exp) return res.status(400).json({ error: 'Invalid expires_on date' });
+
+    const age_gate = String(body.age_gate || 'all-ages'); // all-ages | 18-plus-only | 21-plus-only
+    const allowedAge = new Set(['all-ages', '18-plus-only', '21-plus-only']);
+    const ageGateSafe = allowedAge.has(age_gate) ? age_gate : 'all-ages';
+
+    const offers = await jread(OFFERS_FILE, {});
+
+    const idBase = `${toSlug(restaurant)}-${toSlug(title)}`.slice(0, 48);
+    const id = `${idBase}-${sha12(Date.now() + Math.random() + idBase).slice(0, 6)}`;
+
+    offers[id] = {
+      active: true,
+      title,
+      restaurant,
+      includes: String(body.includes || '').trim(),
+      client_slug: String(body.client_slug || toSlug(restaurant)).trim(),
+      category,
+      description,
+      expires_on, // ✅ source of truth for auto-hide
+      hero_image: String(body.hero_image || '').trim(),
+      hero_nozoom: body.hero_nozoom === true,
+      logo: String(body.logo || '').trim(),
+      brand_color: String(body.brand_color || '').trim(),
+      accent_color: String(body.accent_color || '').trim(),
+      fine_print: String(body.fine_print || '').trim(),
+      age_gate: ageGateSafe,
+      addresses: Array.isArray(body.addresses) ? body.addresses : [],
+      created_at: nowISO(),
+      updated_at: nowISO()
+    };
+
+    await jwrite(OFFERS_FILE, offers);
+    res.json({ ok: true, id });
+  } catch (e) {
+    console.error('create offer error', e);
+    res.status(500).json({ error: 'create-failed' });
   }
 });
 
@@ -442,10 +516,6 @@ function requireKey(req, res, next) {
   next();
 }
 
-// ADMIN: Geocode offers.json addresses (protected)
-// GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
-// ADMIN: Geocode offers.json addresses (protected)
-// GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
 // ADMIN: Geocode offers.json addresses (protected)
 // GET /admin/geocode?key=API_KEY[&dry=1][&id=offerId]
 app.get('/admin/geocode', requireKey, async (req, res) => {
@@ -584,7 +654,7 @@ app.get('/admin/sync-stores', requireKey, async (req, res) => {
     for (const [offerId, o] of Object.entries(offers)) {
       const brand = o.restaurant || o.brand || '';
       const arr = Array.isArray(o.addresses) ? o.addresses.map(normalizeAddrEntry) : [];
-      arr.forEach((a, i) => {
+      arr.forEach((a) => {
         if (!a.label) return;
         const key = indexKey(brand, a.label);
         if (existingByKey.has(key)) {
