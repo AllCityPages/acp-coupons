@@ -35,8 +35,8 @@ const DATA_DIR = path.join(ROOT, 'data');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DB_FILE = path.join(DATA_DIR, 'db.json');          // { passes:[], redemptions:[] }
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');  // { events:[] }
-const OFFERS_FILE = path.join(ROOT, 'offers.json');      // offer catalog (root)
-const STORES_FILE = path.join(ROOT, 'stores.json');      // optional store list
+const OFFERS_FILE = path.join(ROOT, 'config', 'offers.json');      // offer catalog (root)
+const STORES_FILE = path.join(ROOT, 'config', 'stores.json');      // optional store list
 
 // ensure dirs/files
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
