@@ -10,7 +10,7 @@ const env = {
   PORT: Number(process.env.PORT || 3000),
 
   // Admin security
-  ADMIN_API_KEY: process.env.ADMIN_API_KEY || "",
+  ADMIN_API_KEY: process.env.ADMIN_API_KEY || process.env.API_KEY || "",
 
   // Rate limiting
   ADMIN_RL_WINDOW_MS: Number(process.env.ADMIN_RL_WINDOW_MS || 60_000),
