@@ -4,10 +4,10 @@
   "private": true,
   "description": "ACP Coupons — Gallery + Wallet + Geo + Client Dashboards + PDF",
   "main": "src/server.js",
-  "scripts": {
-    "start": "node src/server.js",
-    "start:dev": "NODE_ENV=development node src/server.js",
-    "reset:demo": "node scripts/reset-demo-data.js"
+ "scripts": {
+    "start": "node src/index.js",
+    "dev": "NODE_ENV=development nodemon src/index.js",
+    "reset:demo": "node scripts/reset-demo.js"
   },
   "dependencies": {
     "compression": "^1.7.4",
