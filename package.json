@@ -1,18 +1,21 @@
 {
   "name": "acp-coupons",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "description": "ACP Coupons — Gallery + Wallet + Geo + Client Dashboards + PDF",
-  "main": "index.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node index.js",
-    "start:dev": "NODE_ENV=development node index.js"
+    "start": "node src/server.js",
+    "start:dev": "NODE_ENV=development node src/server.js",
+    "reset:demo": "node scripts/reset-demo-data.js"
   },
   "dependencies": {
+    "compression": "^1.7.4",
     "express": "^4.19.2",
-    "qrcode": "^1.5.3",
-    "get-intrinsic": "^1.2.4",
-    "puppeteer": "^22.13.1"
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^7.2.0",
+    "puppeteer": "^22.13.1",
+    "qrcode": "^1.5.3"
   },
   "engines": {
     "node": "20.x"
