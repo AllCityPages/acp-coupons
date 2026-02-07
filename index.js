@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 const puppeteer = require('puppeteer');
 const https = require('https'); // use https instead of fetch for geocode
+const { Pool } = require('pg'); // ✅ NEW: Postgres health check
 
 const app = express();
 app.use(express.json());
@@ -28,6 +29,15 @@ const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || '';
 const RAW_BASE = (process.env.COUPON_BASE_URL || process.env.BASE_URL || '').replace(/\/$/, '');
 const BASE_URL = RAW_BASE || ''; // falls back to relative links
+
+// ✅ NEW: Postgres pool (used by /health/db)
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      // Render Postgres requires SSL; local Postgres usually does not.
+      ssl: process.env.DATABASE_URL.includes('render.com') ? { rejectUnauthorized: false } : undefined,
+    })
+  : null;
 
 // ---------- PATHS ----------
 const ROOT = __dirname;
@@ -184,6 +194,19 @@ app.get('/service-worker.js', (req, res) => {
 
 // health
 app.get('/health', (_req, res) => res.json({ ok: true, time: nowISO() }));
+
+// ✅ NEW: DB health route
+app.get('/health/db', async (_req, res) => {
+  try {
+    if (!pool) {
+      return res.status(500).json({ ok: false, db: 'not-configured', error: 'DATABASE_URL is missing' });
+    }
+    await pool.query('SELECT 1');
+    return res.json({ ok: true, db: 'connected', time: nowISO() });
+  } catch (err) {
+    return res.status(500).json({ ok: false, db: 'error', error: err.message || String(err) });
+  }
+});
 
 // explicit MIME-correct catalog/PWA routes
 app.get('/offers.json', (_req, res) => {
@@ -1002,3 +1025,4 @@ app.get('/api/offer-stats', async (_req, res) => {
 app.listen(PORT, () => {
   console.log(`ACP Coupons listening on :${PORT}`);
 });
+
