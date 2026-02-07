@@ -4,8 +4,9 @@
   "private": true,
   "description": "ACP Coupons — Gallery + Wallet + Geo + Client Dashboards + PDF",
   "main": "src/server.js",
- "scripts": {
+  "scripts": {
     "start": "node src/index.js",
+    "migrate": "node scripts/migrate.js",
     "dev": "NODE_ENV=development nodemon src/index.js",
     "reset:demo": "node scripts/reset-demo.js"
   },
@@ -14,10 +15,14 @@
     "express": "^4.19.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^7.2.0",
+    "pg": "^8.18.0",
     "puppeteer": "^22.13.1",
     "qrcode": "^1.5.3"
   },
   "engines": {
     "node": "20.x"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
   }
 }
